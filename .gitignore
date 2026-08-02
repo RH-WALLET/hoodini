@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# secrets — never commit
+.env
+.env.*
+!.env.example
+*.key
+keystore.json
+
+# extension build output
+apps/extension/dist/
+*.crx
+*.pem
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# recon output (regenerable; census lives in DATA_SOURCES.md)
+scripts/out/

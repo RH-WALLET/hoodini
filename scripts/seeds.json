@@ -1,0 +1,567 @@
+{
+  "note": "Seed candidates for scripts/recon.ts. Harvested 2026-08-02 from sibling repos; every address here is UNVERIFIED input, not a claim. recon.ts re-derives provenance on-chain.",
+  "knownFactoryCandidates": [
+    {
+      "name": "Pons",
+      "address": "0xa5aab3f0c6eeadf30ef1d3eb997108e976351feb",
+      "source": "printer/LAUNCHPAD-SURVEY.md §3, printer/.env.example"
+    },
+    {
+      "name": "NOXA Fun",
+      "address": "0xD9eC2db5f3D1b236843925949fe5bd8a3836FCcB",
+      "source": "printer/RECON.md (launching disabled 2026-07-11)"
+    },
+    {
+      "name": "klik.finance",
+      "address": "0x16cF6788B762EE8969744586eD16fc5705140dd7",
+      "source": "printer/LAUNCHPAD-SURVEY.md §5"
+    },
+    {
+      "name": "flap.sh Portal (proxy)",
+      "address": "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",
+      "source": "printer/RECON-flap.md"
+    }
+  ],
+  "knownInfra": [
+    {
+      "name": "WETH",
+      "address": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+      "source": "printer/RECON.md answer E"
+    },
+    {
+      "name": "Uniswap V3 factory (Pons/NOXA destination)",
+      "address": "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
+      "source": "printer/RECON.md answer A"
+    },
+    {
+      "name": "flap.sh trading router",
+      "address": "0xb01ca24bd01be40ee950a8746cf7546134442049",
+      "source": "printer/RECON-flap.md"
+    },
+    {
+      "name": "klik trading router",
+      "address": "0xF193EDe778a92dc37CB450A1eF1565Ed1e8b7964",
+      "source": "printer/LAUNCHPAD-SURVEY.md §5"
+    }
+  ],
+  "tokens": [
+    {
+      "address": "0xc6a672b9faeee31837223bff8c89bcc51ad0c82b",
+      "symbol": "nice",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T00:48:31+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x97549563665dcee25edc5eddf4caafd28f3d9258",
+      "symbol": "WILMA",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T00:53:24+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x49f077de6425912958182a057d8902921df958f5",
+      "symbol": "BEENZ",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T01:50:01+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xefa880b5fbcfa976eceb3783a92274414403675e",
+      "symbol": "bubbl",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T02:55:58+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xefcaf8faf89212e03f9e9b1f3bf347405539fd83",
+      "symbol": "DEGENU",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T03:54:20+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x6c718f22fb6cc73d493d12d28b2c6cc2abef8600",
+      "symbol": "MONEYDRILL",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T04:18:11+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x4060aaa83e909f6e567bb11b4e963039c1172880",
+      "symbol": "Zucchini",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T05:07:49+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x4cbb439339c2153e830c6dd5bfbef40235d31b92",
+      "symbol": "RHC",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T05:39:14+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xbd10edfc41ac4fa82104a0063ba1bc6b84de0d52",
+      "symbol": "FIC",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T06:15:02+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xb286e5b1f8158e770f2460ac7df4b1efc55ca2e1",
+      "symbol": null,
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T07:34:10+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xa75e7072ea54e16d44d857a452d5fea5e7f7c391",
+      "symbol": "mooncoin",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T07:39:57+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x326ac7593c43d05b886d45c7c51a2e69321af99a",
+      "symbol": "RobinHood",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T08:48:03+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xa7b9c57952de372e79c20734831d625c7c319984",
+      "symbol": "QED",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T09:33:08+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x192e4187c0be790c4cebd3a5189d025332af4b2f",
+      "symbol": "AI",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T13:27:15+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xbcc3956bfe50c18e78ae86f54bf92ef8c40c1158",
+      "symbol": "CRWD",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T13:33:06+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x6a8c29654bbe0ab715eefeb4b1188dfc7fb42cdd",
+      "symbol": "ALBY",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T15:11:58+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xd1823d2aa898531198db8a2de5a851c429265ad6",
+      "symbol": "ROBIN",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T15:59:02+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x040b2c408ee2fd9ed343e23ec1a1879dd78906eb",
+      "symbol": "COCK",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T16:24:45+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xcdd50d73b45085d71cb05e2ca238d12c3bd7bebd",
+      "symbol": "BUTTERCOIN",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T18:21:50+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x3be72688d8163ccff541f171e7cd1be38a324f99",
+      "symbol": "SHARELY",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T18:27:50+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x74a7b0780f043fa340f79c46b329d1d604e28d5f",
+      "symbol": "JUSTIN",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T19:45:56+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xdc1df4a7ecdca0cb40d123660b69e00ac446947d",
+      "symbol": "NILF",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T20:12:26+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x59e026843639c75c95334ad87e8b5df5d03629a0",
+      "symbol": "GOLD",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T21:13:29+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xd09290e28871d8496e7e27efd2506cd3696cd0e3",
+      "symbol": "WOOF",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T22:18:37+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xd1a6467ab102f7cee2051f1bee54b1ef8eae9705",
+      "symbol": "USDP",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-20T22:19:05+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x8e335502f0be4e2516b88b1bcabfc201ff0755de",
+      "symbol": "Rigby",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T01:11:55+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xffff4d68638524383c7ccb46bbff8ad43d7e8eff",
+      "symbol": "steak",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T01:47:03+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x27f35ef52407715e6db700b3b057e8308f85d7ca",
+      "symbol": "PUH",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T04:40:30+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xe92fb17da171ceac19b509e722d04b696fd0c75a",
+      "symbol": "JMKE",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T04:48:10+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x7702868ced87548c3d26d5f1544c832f291441d4",
+      "symbol": "JUGGERNAUT",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T05:44:35+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xa7bdc245b356e18673eefaeb11a6665d3f699e7d",
+      "symbol": "Melon",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T07:06:59+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xab359c9201111df029b8903308b609238f79c0b4",
+      "symbol": "REGARDS",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T07:56:59+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x729bcb002e38f415502596617cd52321acb4e681",
+      "symbol": "Stock",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T09:24:20+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x9ce0a566c0b9b1819e4fc3d3145c6b2e63de2f0c",
+      "symbol": "ETF",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T09:36:10+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xfd768ef010571604c6bea046b9b76c4fdb1ca94f",
+      "symbol": "CASHBULL",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T12:37:17+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x6c4b09d11bc21071d4d36e679176ef617b3471fd",
+      "symbol": "RobinCard",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T12:42:27+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x857a23ec15609f5ecd2ec99d5a8f49b6295ccb9a",
+      "symbol": "Letitcook",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T13:56:04+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x6974a3790fb6bd51aa94930e417f00d81a47dfd0",
+      "symbol": "LOXLEY",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T13:57:07+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x140e6abe66a516620aca30fea0d3b7323ec6ffd0",
+      "symbol": "SLAB",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T15:09:08+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xd1b4e0ec5baf6ae040343bce17e9bcd858894945",
+      "symbol": "FREDWARD",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T15:12:30+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x7e24a2c2514a36f409a34a0175408debf2ccd5b5",
+      "symbol": "PONTARA",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T16:22:56+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xbc991dd354c737442b202d16a453862971f36773",
+      "symbol": "Memecoin",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T16:24:51+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xda84fffae538226547dcc4e466d8bf322ca2f1db",
+      "symbol": "ETHEREUM",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T17:32:01+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x7149463e876d308901fb659e83227e23210d89ae",
+      "symbol": "FOMO",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T18:37:23+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x63ecca0d96363513a434ba5d43a994ec1287a3a7",
+      "symbol": "Retail",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T18:50:40+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x971b36f6705b8c54dc8f42a1d5ba5672646854e4",
+      "symbol": "Dutch",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T19:50:14+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x401095bac809e64ec5436d41eca66a308bd74cae",
+      "symbol": "LOOV",
+      "labelledLaunchpad": "Virtuals",
+      "seenAt": "2026-07-21T20:03:53+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x43593d789bf3ac7a51335b656c23a73899f33363",
+      "symbol": "ROBINPEPE",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T21:04:37+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x161ea1a3e09826ffae9ab95ce60315caed3bc7f0",
+      "symbol": "MYMWH",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T21:10:31+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xa6a9c6a873edb74517b4d9bacc0b5393fa2d5cc7",
+      "symbol": "NOTCH",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T22:29:06+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x1b6ac133da658b62e9e91e5f4047966904123348",
+      "symbol": "GLM",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-21T22:49:36+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xe07554cc964080d6072c9d31ccd2e5045bedf467",
+      "symbol": "LAUNCHPAD",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T00:17:27+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x7effffacd09ab28f6fbc77eef282b771065bba86",
+      "symbol": "percy",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T00:52:27+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x0cc7e70707e6165c0f3e71d49e4586da44d408bd",
+      "symbol": "DEGEN",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T01:20:33+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x5bf3ca087141cac098232789b8b17ec60c79f1a8",
+      "symbol": "CTRLALTMOON",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T01:53:37+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x3166044748ccb204e26995059691613a5eb65746",
+      "symbol": "APOLLO",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T06:33:35+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x1508fcd449c5f77e35080d08d9037f297e530bce",
+      "symbol": "UPL0AD",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T11:16:15+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xd32c80d5bdef848e6d65ab8cac02ce8413945016",
+      "symbol": "Lilac",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T12:20:47+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x85d389e141bdcbafe5062b74b882283275147857",
+      "symbol": "RKC",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T12:38:06+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x6e9b5b19ed73e33b9a8456fe905f789a8796d25b",
+      "symbol": "AMDOG",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T14:16:30+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x8b1a89aae4140f0f67d05e0430a7aa675eb22163",
+      "symbol": "PROOF",
+      "labelledLaunchpad": "Virtuals",
+      "seenAt": "2026-07-22T14:24:20+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xf3870a30e1f56c8ae3d0bf5dc1a58efbc57c9a9c",
+      "symbol": "FEFER",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T15:18:11+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x9827b91d4fd32ed0e2b747330e6c03f7ed22b20d",
+      "symbol": "WOULD",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T15:36:11+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x05f308f6fe8c68d8db6d15cc9513b9f2dd380a88",
+      "symbol": "ROBINGOY",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T16:28:35+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xa5ff1daa5f2ecfd8087afafc2cbf5e66dced241c",
+      "symbol": "XSTOCKS",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T17:07:01+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xb345ca8ec12a6f04987805e2c56538f67927fb30",
+      "symbol": "Redditinu",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T18:07:06+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xe6a3c9f24c81f2f41dda2fcc9738e3caca5fe1b7",
+      "symbol": "r",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T18:07:35+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xfb30c139d2fc723a62ba4a38cfb31011ffc22f6a",
+      "symbol": "BULLFROG",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T19:43:23+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xc7f7d1d07e47edf5b70e13331844246bae1c6bc6",
+      "symbol": "HPOLY",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T20:09:00+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xf25831e71a012f599ab507fe9598be21f65078bd",
+      "symbol": "rhDoge",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T21:31:49+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xb14857075a858c29d63702373112b3ea704c86d7",
+      "symbol": "FATCAT",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T21:33:03+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0xa11fad4caffe764d51a1ad5bb7acbe00d705fafb",
+      "symbol": "MURRE",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T23:04:59+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x02649964cf23566af390db1c4145a1b2a59334cf",
+      "symbol": "BASKT",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-22T23:30:22+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    },
+    {
+      "address": "0x82537ea3f8a96320950d3a6d70a038c7dafa2752",
+      "symbol": "MAT",
+      "labelledLaunchpad": "Pons",
+      "seenAt": "2026-07-23T00:27:03+00:00",
+      "source": "tg-ca-relay/backtest_targets.json"
+    }
+  ]
+}

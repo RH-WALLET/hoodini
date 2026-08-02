@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# esbuild is tsx's build backend; it needs its postinstall to fetch the platform binary.
+allowBuilds:
+  esbuild: true
