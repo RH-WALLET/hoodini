@@ -34,6 +34,7 @@ RH Chain as its parent. It is not a nock target.
 |---|---|---|
 | WETH (pair token) | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` | VERIFIED — `pairToken()` of a live Pons token |
 | Uniswap V3 factory | `0x1f7d7550B1b028f7571E69A784071F0205FD2EfA` | VERIFIED — `dexFactory()` of a live Pons token |
+| **SwapRouter02 (the V3 swap path)** | `0xCaf681a66D020601342297493863E78C959E5cb2` | VERIFIED — `factory()` → `0x1f7d7550…` **and** `WETH9()` → `0x0Bd7D308…`; carries the Pons operator's own `multicall` trades |
 | **QuoterV2 (bound to that factory)** | `0x238ECf693467381E6402AD7d7833880FfeA33D88` | VERIFIED — its `factory()` equals the pool's factory, and it returned a live quote |
 | QuoterV2 (second, same factory) | `0x0269F8b86bB3C1e927DaCEDb72f3463Ef6D26F61` | VERIFIED binding; unused |
 | Uniswap V4 PoolManager | `0x8366a39CC670B4001A1121B8F6A443A643e40951` | VERIFIED — the shared V4 counterparty for klik and Virtuals tokens |
@@ -139,7 +140,60 @@ Choosing between the two `UniversalRouter`s is P1a work (D-009).
 
 No wallet, key, or `.env` secret was read from any sibling repo.
 
-## 6. Open items for the pause gate
+## 7. Relative venue size (on-chain, 2026-08-02)
+
+All-time transaction counts against each launchpad's own contract. **Not
+apples-to-apples** — read the caveat before ranking on it.
+
+| Launchpad | Factory txs | Token transfers | What the number means |
+|---|---|---|---|
+| flap.sh | 274,100 | 2,925,450 | launches **+ every buy/sell** (trading lives on the Portal) |
+| Pons V1 | 237,829 | 951,965 | **launches only** — trading happens on Uniswap pools, not the factory |
+| NOXA | 93,431 | 240,736 | legacy; launching disabled since 2026-07-11 |
+| klik.finance | 8,877 | 17,222 | launches + V4 activity |
+| Virtuals (proxy) | 14 | 310 | agent deploys route elsewhere; proxy itself barely touched |
+
+Because Pons trades settle on Uniswap rather than the factory, Pons's *launch*
+count is far higher relative to flap than these totals suggest, and its true
+trading volume is invisible here entirely. Public reporting puts Pons at ~80% of
+RH Chain launchpad volume and >50% of all chain transactions (UNCONFIRMED —
+external source, not measured on-chain).
+
+### Pons V2 — the critical gap
+
+Pons V2 ships an **ETH bonding curve** + **Uniswap V4** + RWA pairs (USDG, NVDA,
+AAPL, HOOD). It is almost certainly the highest-value venue for nock and it is
+**a curve venue**, unlike V1.
+
+**Its contracts are UNCONFIRMED and could not be located on-chain:** recent
+`PonsLauncherToken` deploys all still trace to the V1 factory; the V1 owner has
+no recent contract creations; explorer name search returns only copycat
+memecoins; `pons.family` does not resolve from here. **Blocked on Rory** for the
+V2 factory address or docs URL — see DECISIONS.md D-011.
+
+## 8. Overlay targets (terminals and screeners)
+
+Where nock's buttons get injected. Status = whether RH Chain support is
+confirmed. None of these are DOM-verified yet — that needs the P3 snapshot.
+
+| Target | URL | RH Chain | Notes |
+|---|---|---|---|
+| **Axiom** | `axiom.trade` | VERIFIED (external) | First major terminal on RH Chain, integrated ~2026-07-11. Bloom overlays it. Most likely the terminal in Rory's screenshot. |
+| **GMGN** | `gmgn.ai` | VERIFIED (external) | ~10 chains incl. Robinhood. Charges 1%. Bloom overlays it. |
+| **DexScreener** | `dexscreener.com` | VERIFIED (external) | 670 links in Rory's own alert corpus. Screener, not a competitor. |
+| **GeckoTerminal** | `geckoterminal.com` | VERIFIED (external) | 670 links in the alert corpus. |
+| **Blockscout** | `robinhoodchain.blockscout.com` | VERIFIED | 670 links in the corpus; also our explorer API. |
+| **BasedBot** | `basedbot.tech` | LIKELY | Multi-chain EVM terminal. The alert corpus Rory scraped is *emitted by* BasedBot and labels Pons launches — strong evidence of RH coverage. |
+| **Nock Terminal** | `nockterminal.com` | VERIFIED (external) | **Name collision — see D-012.** RH-native screener + NockBot (1% fee) + launchpad. Competitor, not an overlay target. |
+| **Terminal (ex-Padre)** | `trade.padre.gg` | UNCONFIRMED | Multi-chain, acquired by the Pump.fun team. RH support not confirmed. Bloom overlays it. |
+| **Banana Gun** | `bananagun.io` | VERIFIED (external) | Telegram bot, RH Chain from day one. Telegram surface, not a web terminal. |
+| **Photon / BullX Neo / J7Tracker** | — | UNCONFIRMED | Bloom overlays these; RH Chain support unverified. |
+
+**Competitor positioning:** Bloom already supports Robinhood Chain and overlays
+Axiom, Terminal, GMGN, DexScreener, Photon and J7Tracker. So the overlay surface
+is not the wedge — 0%, non-custodial, and no backend are.
+
+## 9. Open items for the pause gate
 
 1. **Terminal target** — which terminal(s) to overlay first, plus a saved DOM
    snapshot. Nothing here yet.

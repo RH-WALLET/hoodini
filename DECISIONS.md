@@ -107,8 +107,8 @@ Rory ranks these at the pause gate; the approved order lands here as D-006-final
 
 ---
 
-### D-007 — Census finding: Pons is an instant-pool venue, not a bonding curve
-**Recorded fact, drives sequencing.**
+### D-007 — Census finding: Pons **V1** is an instant-pool venue, not a bonding curve
+**Recorded fact, drives sequencing. AMENDED 2026-08-02 — see D-011: Pons V2 changes this.**
 
 `PonsLaunchFactory` exposes no buy/sell functions at all. Its tokens carry
 `liquidityPool()`, `pairToken()`, `poolFee()` and are Uniswap V3 pools paired
@@ -136,15 +136,21 @@ one exists, for the same reason.
 
 ---
 
-### D-009 — Router selection for the Uniswap adapter — **PENDING, resolve in P1a**
-Two verified `UniversalRouter` deployments and several unnamed contracts carry
-real trades for the same pool. Multiple `SwapRouter02` and `QuoterV2`
-deployments exist on this chain, and name is not evidence — several bind to
-*different* V3 factories.
+### D-009 — Router for the Uniswap V3 path — **RESOLVED 2026-08-02**
+**Decided:** `SwapRouter02` **`0xCaf681a66D020601342297493863E78C959E5cb2`**.
 
-Rule adopted now: a router or quoter is only usable once its `factory()` has
-been confirmed equal to the pool's factory. The census resolved `QuoterV2`
-`0x238ECf69…` this way. The equivalent binding for the swap router is P1a work.
+Multiple `SwapRouter02`, `QuoterV2` and `UniversalRouter` contracts exist on this
+chain and name is not evidence — several bind to *different* V3 factories. Rule:
+a router or quoter is usable only once its `factory()` is confirmed equal to the
+pool's factory.
+
+This one passes on both counts — `factory()` → `0x1f7d7550…` (canonical V3
+factory) **and** `WETH9()` → `0x0Bd7D308…` (canonical WETH) — and it is what the
+Pons operator itself routes real `multicall` trades through. Paired with
+`QuoterV2` `0x238ECf69…`, which binds to the same factory.
+
+The two `UniversalRouter` deployments seen carrying trades expose no `factory()`,
+so they cannot be validated this way and are not used in v1.
 
 ---
 
@@ -157,3 +163,54 @@ Harvested notes are treated as untrusted input and re-derived on chain. This
 caught a real drift: flap.sh's Portal implementation is now
 `0x7Bc20c2C…`, not the `0xd9C9981D…` recorded three weeks ago. An adapter that
 had trusted the note would be encoding against a replaced implementation.
+
+---
+
+### D-011 — Pons V2 exists, has a real bonding curve, and is the #1 venue — **PARTIALLY BLOCKED**
+**Amends D-006 and D-007.** Raised by Rory 2026-08-02; corroborated by public
+reporting, **not yet verified on-chain**.
+
+Pons V2 shipped an **ETH-denominated bonding curve** and **Uniswap V4**
+integration, plus RWA trading pairs (USDG, NVDA, AAPL, HOOD) and creator payouts
+in ETH. Pons reportedly drives ~80% of RH Chain launchpad volume and more than
+half of all transactions on the chain.
+
+This overturns the sequencing in D-007. The census measured the **V1** factory
+`0xA5aAb3F0…`, which genuinely has no curve — every seed token traced to it is a
+Uniswap V3 pool from launch. But V1 is not where new volume is going. V2 is a
+curve venue, so the first curve adapter should be Pons V2, not flap.sh.
+
+**Blocked:** the V2 factory address could not be established on-chain.
+- Every recent `PonsLauncherToken` still traces to the V1 factory.
+- The V1 factory owner (`0xda4bCee7…`) has no contract creations in its recent
+  history.
+- Explorer name search returns only copycat memecoins called "Pons"/"PonsV2".
+- `pons.family` and `docs.pons.family` do not resolve from this environment.
+
+**Needed from Rory:** the V2 factory address, or the live site/docs URL. One
+`pnpm recon` run verifies it and fills in the curve interface, `claims()` read,
+and the V4 quote path.
+
+---
+
+### D-012 — The working name "nock" collides with a live RH Chain competitor — **RENAME RECOMMENDED**
+**Raised 2026-08-02, blocking the repo/profile naming decision.**
+
+**Nock Terminal** (`nockterminal.com`) is an existing, live Robinhood Chain
+token screener and trading-tool suite, with a Telegram trading bot (**NockBot**,
+which discloses a **1% platform fee**), a wallet tracker, and its own launchpad.
+
+Same chain, same category, near-identical name, and its headline number is the
+exact fee we are undercutting to zero. Keeping "nock" would mean:
+
+- competing head-on with a product users already call "Nock";
+- our 0% claim being read against a product charging 1% under the same name;
+- avoidable trademark and impersonation exposure at CWS submission (P5);
+- SEO and support confusion that gets worse the more traction either side gets.
+
+**Recommendation: rename before creating the new GitHub profile**, since the
+profile name is the expensive one to change later. The repo itself renames
+cheaply and nothing in the code depends on the name — package scopes are
+`@nock/*` and would be a one-commit find-and-replace.
+
+*Blocked on Rory:* the replacement name.
