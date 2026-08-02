@@ -67,6 +67,14 @@ independent risk.
 
 Confirmed by Rory 2026-08-03. Blocked on a DOM snapshot.
 
+Axiom is behind Cloudflare bot protection (403 `cf-mitigated: challenge`), so it
+cannot be fetched by automation and defeating that is off-limits. This does not
+affect the product: the content script runs inside an already-authenticated
+session, so it never fetches Axiom at all. Only recon is blocked.
+
+- [x] `scripts/capture-dom.js` — one-paste devtools capture, logic verified
+      against a synthetic list in a real browser DOM
+- [ ] Rory runs it on Axiom → `docs/dom/axiom.trade.json`
 - [ ] `SiteAdapter` for Axiom
 - [ ] Anchor discovery resilient to SPA re-render
 
