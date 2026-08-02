@@ -214,3 +214,57 @@ cheaply and nothing in the code depends on the name — package scopes are
 `@nock/*` and would be a one-commit find-and-replace.
 
 *Blocked on Rory:* the replacement name.
+
+---
+
+### D-011-update — Pons V2 not found on-chain; D-011's sequencing change is suspended
+**2026-08-02, after four independent searches.**
+
+D-011 proposed moving the first curve adapter to Pons V2. That is suspended:
+V2's contracts cannot be found on-chain. Explorer name search, a 59-contract
+factory-interface sweep, a 400-block traffic ranking, and a 1,711-pool Uniswap V4
+hook census all came back negative (detail in DATA_SOURCES.md §7).
+
+Two corrections to the earlier record fall out of it:
+
+**The Pons "instant pool vs curve" framing was too binary.** The factory's own
+`getLaunchConfig(0)` declares a **4.2 ETH graduation threshold**. Pons implements
+its curve as a single-sided concentrated Uniswap V3 position, not a separate
+curve contract. So D-007's conclusion holds where it matters — **buy/sell is a V3
+swap before *and* after graduation, so one adapter covers both** — but "no
+graduation exists" was wrong. `state()` should report curve vs graduated from
+`graduationStatus(token)`, even though the trade path does not branch on it.
+
+**D-009 is confirmed by the protocol, not just by observation.** Pons's
+`getDexConfig(0)` names `swapRouter = 0xCaf681a66D020601342297493863E78C959E5cb2`
+directly. That is the router the launchpad itself designates.
+
+---
+
+### D-013 — One adapter covers the whole Pons family (9 factories)
+**Decided.** `claims()` is a set-membership test:
+`token.launchFactory() ∈ {9 known Pons-interface factories}`.
+
+The interface has been cloned repeatedly by fee-undercutting forks. All nine
+declare an identical DEX config — same V3 factory, same `SwapRouter02`, same
+fee tier — so they are one adapter and one registry entry with a set of
+factories, not nine adapters.
+
+The bundled registry ships the set; `claims()` still works for a clone deployed
+after our last release, because the *token* names its own factory and the
+membership test is data, not code. A tenth clone is a data-only update.
+
+---
+
+### D-014 — Doppler is a census gap and probably belongs in v1 — **PENDING RORY**
+Uniswap V4 hook enumeration surfaced `DopplerHookInitializer`
+`0x4e3468951D49f2EEa976eD0D6e75fFCb44a9a544` with **324 pools initialized in
+~5.5 hours** — by far the largest V4 launch venue on RH Chain, and completely
+absent from the original seed corpus (which predates it or simply never saw it).
+
+Also live on V4: `PumpV4Hook`, `ClankerHookStaticFeeV2`, `UniversalKlikHook`
+(confirming klik), `LaunchHook`, `FriarTier`.
+
+This is exactly the failure mode the seed corpus was always going to have — it
+was scraped 2026-07-20…23 and cannot show venues that grew since. Recommend
+Doppler enters the v1 ranking above flap.sh, pending Rory's volume call.

@@ -12,7 +12,10 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "recon": "tsx scripts/recon.ts"
+    "recon": "tsx scripts/recon.ts",
+    "discover": "tsx scripts/discover.ts",
+    "factories": "tsx scripts/factories.ts",
+    "v4-hooks": "tsx scripts/v4-hooks.ts"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

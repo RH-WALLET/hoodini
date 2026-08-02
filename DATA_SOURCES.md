@@ -159,17 +159,91 @@ trading volume is invisible here entirely. Public reporting puts Pons at ~80% of
 RH Chain launchpad volume and >50% of all chain transactions (UNCONFIRMED —
 external source, not measured on-chain).
 
-### Pons V2 — the critical gap
+### Pons V2 — investigated exhaustively, NOT FOUND on-chain
 
-Pons V2 ships an **ETH bonding curve** + **Uniswap V4** + RWA pairs (USDG, NVDA,
-AAPL, HOOD). It is almost certainly the highest-value venue for nock and it is
-**a curve venue**, unlike V1.
+Public reporting (~2026-07-27) says Pons V2 ships an **ETH bonding curve**,
+**Uniswap V4**, and **RWA pairs**. Four independent on-chain searches were run to
+locate it. None found it. As of block **26,029,100** its contracts are not
+identifiable on-chain.
 
-**Its contracts are UNCONFIRMED and could not be located on-chain:** recent
-`PonsLauncherToken` deploys all still trace to the V1 factory; the V1 owner has
-no recent contract creations; explorer name search returns only copycat
-memecoins; `pons.family` does not resolve from here. **Blocked on Rory** for the
-V2 factory address or docs URL — see DECISIONS.md D-011.
+| Method | Result |
+|---|---|
+| Explorer name search (`Pons`, `PonsV2`, `PonsBonding`, `PonsCurve`) | Only copycat memecoins squatting the name |
+| Interface sweep — 59 factory-shaped contracts probed for the Pons ABI (`pnpm factories`) | 9 live factories, **all Uniswap V3, none with a curve or V4 config** |
+| Traffic ranking — 400 blocks, 4,915 txs (`pnpm discover`) | Top destinations are `SwapRouter02` and MEV bots; no Pons V2 |
+| Uniswap V4 hook census — 1,711 pool inits (`pnpm v4-hooks`) | Doppler, Pump, Clanker, klik, LaunchHook, FriarTier — **no Pons hook** |
+
+RWA pairs *do* exist on V4 (`HOOD/USDG`, `HANSOME/NVDA` observed), but the pools
+carry no hook, so they are not attributable to a Pons V2 launchpad.
+
+**Conclusion:** either V2 has not deployed yet despite the announcements, or it
+is deployed unverified under a name none of these four methods surfaces. This is
+a supported negative result, not an unexplored gap. Re-run `pnpm factories` and
+`pnpm v4-hooks` to re-check; supplying a V2 address or tx hash resolves it in one
+`pnpm recon` run.
+
+### The Pons family — 9 factories, one adapter
+
+The Pons/NOXA factory interface has been cloned repeatedly. Every clone declares
+the **same** DEX config, so one adapter covers all of them.
+
+| Factory | Launch fee | Txs | Status |
+|---|---|---|---|
+| `0xA5aAb3F0c6EeadF30Ef1D3Eb997108E976351feB` (**Pons V1**, the real one) | 0.0005 ETH | 238,340 | VERIFIED |
+| `0x78A3613eac99d072EFFd3e07feC462Da28b67F54` `LaunchFactory` | 0.00016 ETH | 207 | VERIFIED |
+| `0x7A8dB326E50A6e8CBc0616E0636B63737b5E84c8` `PonsLaunchFactory` | 0.0001 ETH | 14 | VERIFIED |
+| `0x75eCa6306fFA2d6A66Ad841072CF6E805f0D35A7` `PonsLaunchFactory` | 0.0001 ETH | 9 | VERIFIED |
+| `0x966ffA3957a6d3621D3EfC96E22160806f0EF141` `PonsLaunchFactory` | 0.0005 ETH | 9 | VERIFIED |
+| `0xce9BA2D14F320627F177ABE20885C6363f012634` `LaunchFactory` | 0.0005 ETH | 7 | VERIFIED |
+| `0xf830DA401D45494129b8ED844744F08296557a97` `LaunchFactory` | 0.0005 ETH | 6 | VERIFIED |
+| `0xB8e6519b16BFc4487Ed931DaCb6Fb739e1d7e008` `PonsLaunchFactory` | **0 ETH** | 6 | VERIFIED |
+| `0x9eCb03CED43dc1e10aC07d268E3dd5c00349b947` `LaunchFactory` | 0.0005 ETH | 3 | VERIFIED |
+
+The clones are fee-undercutting forks with negligible traction. V1 carries
+essentially all the volume. `claims()` becomes a set membership test:
+`token.launchFactory() ∈ {these 9}`.
+
+### Pons launch config, read from the factory itself
+
+`getLaunchConfig(0)` and `getDexConfig(0)` on Pons V1 — the protocol's own
+declared parameters, not inferred:
+
+| Field | Value |
+|---|---|
+| pairToken | WETH `0x0Bd7D308…` |
+| **graduationThreshold** | **4.2 ETH** |
+| initialTick | -204200 |
+| supply | 1,000,000,000 × 1e18 |
+| maxWalletBps / maxTxBps | 500 (5%) / 550 |
+| restrictionBlocks | 2 |
+| dex | `uniswap v3`, factory `0x1f7d7550…`, **swapRouter `0xCaf681a6…`**, positionManager `0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3`, poolFee 10000, tickSpacing 200 |
+
+**This is the strongest possible confirmation of D-009**: the factory itself
+names `SwapRouter02 0xCaf681a6…` as its router. It also corrects the census's
+first pass — Pons *does* have a graduation threshold (4.2 ETH). The curve is
+implemented as a single-sided concentrated V3 position rather than a separate
+curve contract, so **buy/sell is a V3 swap in both states** and one adapter
+covers pre- and post-graduation alike.
+
+## 7b. Uniswap V4 launch venues, by hook
+
+From 1,711 `Initialize` events on PoolManager `0x8366a39C…` over ~200k blocks
+(`pnpm v4-hooks`). On V4 the hook identifies the launchpad.
+
+| Pools | Hook | Venue |
+|---|---|---|
+| 324 | `0x4e3468951D49f2EEa976eD0D6e75fFCb44a9a544` | `DopplerHookInitializer` — **largest V4 launch venue on the chain; absent from the original census** |
+| 96 | `0x5Cf8e499C7c466C7E2cf127BDF129F57151E65Dc` | `PositionManager` |
+| 14 | `0x14bcC18fDB0e7a427122b9C2F1A40fF7D63EAACC` | `PumpV4Hook` |
+| 13 | `0x48B8F6AD3A1b4aA477314c9a23035b8F84dDe8cc` | `ClankerHookStaticFeeV2` |
+| 6 | `0x35b59db64335C22840d98Be894B8F3E1e2EfD080` | `FriarTier` |
+| 5 | `0x745d717620052a97a22dEEE2e5Eba59583f3e0CC` | `UniversalKlikHook` — confirms klik.finance runs on V4 |
+| 4 | `0x778b0c4EeA7D35D66513B587bA87FC9084b0EaCC` | `LaunchHook` |
+| 1,157 | `0x0000…0000` | no hook — plain V4 pools |
+
+All VERIFIED as live hooks; none of their trade interfaces are decoded yet.
+**Doppler is a genuine census gap** — 324 pools in 5.5 hours, and it did not
+appear in the seed corpus at all.
 
 ## 8. Overlay targets (terminals and screeners)
 
