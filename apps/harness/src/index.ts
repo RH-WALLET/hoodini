@@ -15,9 +15,11 @@ import { formatEther, isAddress, getAddress, parseEther, type Address } from 'vi
 import {
   createChainClient,
   UniswapV3Adapter,
+  DopplerAdapter,
   VenueRouter,
   SWAP_ROUTER_02,
   type TokenRef,
+  type TxRequest,
 } from '@hoodini/core';
 
 const RPC_URL = process.env['RPC_URL'];
@@ -48,7 +50,8 @@ async function main(): Promise<void> {
 
   const client = createChainClient(RPC_URL);
   const adapter = new UniswapV3Adapter(client);
-  const router = new VenueRouter([adapter], undefined, client);
+  const doppler = new DopplerAdapter(client);
+  const router = new VenueRouter([adapter, doppler], undefined, client);
 
   const token: TokenRef = { address: getAddress(rawToken), chainId: await client.getChainId() };
 
@@ -66,11 +69,21 @@ async function main(): Promise<void> {
   h(`quote buy — ${formatEther(ethIn)} ETH`);
   const buyQuote = await resolution.adapter.quoteBuy(token, ethIn);
   console.log(`  amountOut ${formatEther(buyQuote.amountOut)} tokens`);
-  console.log(`  venue fee ${buyQuote.feeBps} bps   (Hoodini adds 0)`);
+  console.log(
+    `  venue fee ${buyQuote.feeBps === null ? 'dynamic (set per swap by the hook)' : `${buyQuote.feeBps} bps`}   (Hoodini adds 0)`,
+  );
   console.log(`  source    ${buyQuote.source}`);
 
   h(`build buy — ${slippageBps} bps slippage`);
-  const buyTx = await resolution.adapter.buildBuy(token, ethIn, slippageBps);
+  const buyTx = await tryBuild(() => resolution.adapter.buildBuy(token, ethIn, slippageBps));
+  if (!buyTx) {
+    // A venue whose read path works but whose write path is unfinished is a
+    // valid, expected state — report it plainly rather than crashing.
+    h('safety');
+    console.log('  quote path verified; write path not implemented for this venue yet');
+    console.log('  transactions sent: 0');
+    return;
+  }
   console.log(`  to        ${buyTx.to}${buyTx.to === SWAP_ROUTER_02 ? '  (SwapRouter02 ✓)' : '  ⚠ NOT the verified router'}`);
   console.log(`  value     ${formatEther(buyTx.value)} ETH`);
   console.log(`  data      ${buyTx.data.slice(0, 74)}…  (${(buyTx.data.length - 2) / 2} bytes)`);
@@ -134,3 +147,16 @@ main().catch((e: unknown) => {
   console.error('\nharness failed:', e instanceof Error ? e.message : e);
   process.exit(1);
 });
+
+/** Returns null when the adapter's write path is deliberately unimplemented. */
+async function tryBuild(fn: () => Promise<TxRequest>): Promise<TxRequest | null> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof Error && e.name === 'NotImplementedError') {
+      console.log(`  ⏸ ${e.message}`);
+      return null;
+    }
+    throw e;
+  }
+}

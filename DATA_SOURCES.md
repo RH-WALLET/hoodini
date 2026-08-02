@@ -298,6 +298,65 @@ All VERIFIED as live hooks; none of their trade interfaces are decoded yet.
 **Doppler is a genuine census gap** — 324 pools in 5.5 hours, and it did not
 appear in the seed corpus at all.
 
+### Doppler — VERIFIED read path (2026-08-03)
+
+The largest Uniswap V4 launch venue on the chain, and structurally unlike every
+other venue in this census: **there is no launch factory and no curve contract.**
+The launchpad *is* a V4 hook, so the hook is simultaneously the attribution
+source, the state oracle, and the thing that prices each swap.
+
+| Item | Address | Status |
+|---|---|---|
+| `DopplerHookInitializer` | `0x4e3468951D49f2EEa976eD0D6e75fFCb44a9a544` | VERIFIED — verified source, 14,176 txs, 3.84M transfers |
+| Airlock | `0xeb7C034704eF8Dcd2D32324c1545f62fB4aD0862` | VERIFIED — `hook.airlock()` |
+| V4 PoolManager | `0x8366a39CC670B4001A1121B8F6A443A643e40951` | VERIFIED — `hook.poolManager()` |
+| **V4Quoter (pinned)** | `0x218AfB5850b862580A60eEA20AA4d5FA4400ae41` | VERIFIED — `poolManager()` binds; returned a live quote |
+
+**Attribution and state** come from one call: `getState(asset)` returns
+`(numeraire, reserves, beneficiary, extra, status, PoolKey)`. A non-Doppler
+token reads back a zero struct rather than reverting, so a zero numeraire is the
+discriminator.
+
+`enum PoolStatus { Uninitialized, Initialized, Locked, Graduated, Exited }` —
+read from the hook's **verified source**, not inferred from observed values.
+Initialized/Locked are the auction (`curve`); Graduated/Exited mean liquidity
+migrated out (`graduated`).
+
+> ⚠ **UNCONFIRMED:** every live Doppler asset observed reads `Locked`, and there
+> were **no `Graduate` events in 200k blocks**. The Graduated/Exited mappings are
+> reasoned from the enum, not witnessed on-chain.
+
+**Quote path VERIFIED:** 0.001 ETH → **18,099,829.240759115810680497 OKC**
+(`0x8B18800B…`), identical across all four bound quoters.
+
+**Dynamic fees.** Every Doppler pool carries `fee = 8388608` (`0x800000`), V4's
+`DYNAMIC_FEE_FLAG`. `PoolKey.fee` is a marker, not a rate — the hook sets the
+real fee per swap. `Quote.feeBps` is therefore `null` for these pools; the fee is
+already inside `amountOut`.
+
+**The numeraire is not always WETH.** One observed pool paired against
+`0xad25Ac6C…`. An adapter assuming WETH would silently quote the wrong direction,
+so the numeraire is always read from the hook.
+
+### Routers — a trap worth recording
+
+**Every contract merely *named* `UniversalRouter` on this chain binds to a
+different PoolManager.** All four name-search hits point at foreign V4
+deployments. The two routers that actually carry traffic — `0x53BF6B06…` and
+`0x8876789976…` — expose no `factory()` (which is why the V3 census could not
+validate them) but **do** expose `poolManager()`, and both bind correctly.
+
+| Candidate | Binds to our PoolManager? |
+|---|---|
+| 4× `V4Quoter` | ✅ all four |
+| 1 of 3 `StateView` (`0xF3334192…`) | ✅ |
+| 4× named `UniversalRouter` | ❌ none — all foreign |
+| `0x53BF6B06…`, `0x8876789976…` (real traffic) | ✅ both |
+
+**The V4 write path is NOT verified.** It needs UniversalRouter
+`execute(commands, inputs)` encoding plus Permit2 approvals, neither yet checked
+against deployed source. Deferred to P1b-2 (D-018).
+
 ## 8. Overlay targets (terminals and screeners)
 
 Where Hoodini's buttons get injected. Status = whether RH Chain support is

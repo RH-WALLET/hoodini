@@ -147,3 +147,97 @@ export const ADDRESS_THIS = '0x0000000000000000000000000000000000000002' as cons
  * router; adapters reject it before encoding.
  */
 export const CONTRACT_BALANCE_FLAG = 0n;
+
+// ── Doppler (Uniswap V4) ────────────────────────────────────────────────────
+
+/**
+ * Doppler's hook. On V4 the launchpad *is* the hook — there is no factory to
+ * ask and no curve contract to call, so the hook is both the attribution
+ * source and the state oracle.
+ *
+ * `getState(asset)` returns the asset's numeraire and its full PoolKey, which is
+ * everything needed to price a swap.
+ */
+export const DOPPLER_HOOK_ABI = [
+  {
+    type: 'function',
+    name: 'getState',
+    stateMutability: 'view',
+    inputs: [{ name: 'asset', type: 'address' }],
+    outputs: [
+      { name: 'numeraire', type: 'address' },
+      { name: 'reserves', type: 'uint256' },
+      { name: 'beneficiary', type: 'address' },
+      { name: 'extra', type: 'bytes' },
+      { name: 'status', type: 'uint8' },
+      {
+        name: 'poolKey',
+        type: 'tuple',
+        components: [
+          { name: 'currency0', type: 'address' },
+          { name: 'currency1', type: 'address' },
+          { name: 'fee', type: 'uint24' },
+          { name: 'tickSpacing', type: 'int24' },
+          { name: 'hooks', type: 'address' },
+        ],
+      },
+    ],
+  },
+  { type: 'function', name: 'airlock', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'poolManager', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+] as const;
+
+/**
+ * `enum PoolStatus { Uninitialized, Initialized, Locked, Graduated, Exited }`
+ * — read from the hook's verified source, not inferred from observed values.
+ */
+export const DOPPLER_POOL_STATUS = {
+  Uninitialized: 0,
+  Initialized: 1,
+  Locked: 2,
+  Graduated: 3,
+  Exited: 4,
+} as const;
+
+/** V4 quoting. eth_call only — it reverts internally to return its result. */
+export const V4_QUOTER_ABI = [
+  {
+    type: 'function',
+    name: 'quoteExactInputSingle',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        type: 'tuple',
+        name: 'params',
+        components: [
+          {
+            name: 'poolKey',
+            type: 'tuple',
+            components: [
+              { name: 'currency0', type: 'address' },
+              { name: 'currency1', type: 'address' },
+              { name: 'fee', type: 'uint24' },
+              { name: 'tickSpacing', type: 'int24' },
+              { name: 'hooks', type: 'address' },
+            ],
+          },
+          { name: 'zeroForOne', type: 'bool' },
+          { name: 'exactAmount', type: 'uint128' },
+          { name: 'hookData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      { name: 'amountOut', type: 'uint256' },
+      { name: 'gasEstimate', type: 'uint256' },
+    ],
+  },
+] as const;
+
+/**
+ * Uniswap V4's dynamic-fee flag (`LPFeeLibrary.DYNAMIC_FEE_FLAG`). Every Doppler
+ * pool observed carries it, so the pool's fee is set by the hook per swap and
+ * `PoolKey.fee` is a marker rather than a rate. A Quote's feeBps cannot be read
+ * off the key for such pools.
+ */
+export const V4_DYNAMIC_FEE_FLAG = 0x800000;

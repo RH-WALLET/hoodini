@@ -39,10 +39,15 @@ export interface Quote {
    */
   readonly priceImpactBps: number | null;
   /**
-   * Venue-side trading fee in basis points (the launchpad's or pool's own fee).
+   * Venue-side trading fee in basis points (the launchpad's or pool's own fee),
+   * or null when the venue has no fixed rate — Uniswap V4 pools with the
+   * dynamic-fee flag set their fee per swap, so no single number is correct.
+   * Null rather than a sentinel: a negative or zero placeholder would silently
+   * poison any arithmetic downstream.
+   *
    * Hoodini adds nothing to this — the 0% platform fee is a product invariant.
    */
-  readonly feeBps: number;
+  readonly feeBps: number | null;
   /** How the quote was obtained, for display and for debugging bad fills. */
   readonly source: 'view' | 'simulation';
 }

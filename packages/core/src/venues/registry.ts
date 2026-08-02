@@ -79,6 +79,28 @@ export const PONS_FACTORIES: readonly Address[] = [
 /** NOXA — launches disabled since 2026-07-11, but its tokens still trade on V3. */
 export const NOXA_FACTORY = getAddress('0xD9eC2db5f3D1b236843925949fe5bd8a3836FCcB');
 
+
+// ── Uniswap V4 / Doppler (DATA_SOURCES.md §7b) ──────────────────────────────
+
+export const V4_POOL_MANAGER = getAddress('0x8366a39CC670B4001A1121B8F6A443A643e40951');
+export const DOPPLER_HOOK = getAddress('0x4e3468951D49f2EEa976eD0D6e75fFCb44a9a544');
+export const DOPPLER_AIRLOCK = getAddress('0xeb7C034704eF8Dcd2D32324c1545f62fB4aD0862');
+
+/** Bound to V4_POOL_MANAGER via its own poolManager(). Four deployments answer
+ *  identically; this one is pinned so quotes are reproducible. */
+export const V4_QUOTER = getAddress('0x218AfB5850b862580A60eEA20AA4d5FA4400ae41');
+
+/**
+ * The two UniversalRouters that both carry real traffic AND bind to
+ * V4_POOL_MANAGER. Every contract merely *named* UniversalRouter on this chain
+ * binds to a different PoolManager, so these were selected by binding (D-009's
+ * rule), never by name. Reserved for the P1b-2 write path.
+ */
+export const V4_UNIVERSAL_ROUTERS: readonly Address[] = [
+  getAddress('0x53BF6B0684Ec7eF91e1387Da3D1a1769bC5A6F77'),
+  getAddress('0x8876789976dEcBfCbBbe364623C63652db8C0904'),
+];
+
 export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
   {
     id: 'uniswap-v3',
@@ -88,6 +110,16 @@ export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
     dexFactory: UNISWAP_V3_FACTORY,
     router: SWAP_ROUTER_02,
     quoter: QUOTER_V2,
+    status: 'VERIFIED',
+  },
+  {
+    id: 'doppler',
+    displayName: 'Doppler (Uniswap V4)',
+    kind: 'bonding-curve',
+    // No factory: on V4 the launchpad is the hook, so attribution comes from
+    // the hook's own getState() rather than from a creation trace.
+    dexFactory: V4_POOL_MANAGER,
+    quoter: V4_QUOTER,
     status: 'VERIFIED',
   },
 ];

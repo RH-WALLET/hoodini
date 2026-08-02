@@ -381,3 +381,56 @@ is trusted.
 registry) have tests, including one that scans built calldata for any address
 that is not the router, the token, WETH or a sentinel — so a fee recipient
 cannot be smuggled in as a parameter.
+
+---
+
+### D-018 — P1b is Doppler, split into read path and write path
+**Decided 2026-08-03.** Venue order approved by Rory: Uniswap V3 → Doppler → flap.sh.
+
+Doppler is the largest V4 launch venue on the chain — 173 of 660 recent pool
+initializations (26%) — and it did not appear in the original seed corpus at
+all, because that corpus was scraped before Doppler grew (D-014).
+
+**Doppler inverts the venue shape.** There is no launch factory and no curve
+contract: the launchpad *is* a Uniswap V4 hook. So attribution comes from the
+hook's `getState(asset)` rather than a creation trace, and `claims()` is one
+static call on the hook rather than a read on the token.
+
+**Split by integration layer** (CLAUDE.md spec discipline), because the two
+halves carry very different risk:
+
+- **P1b-1 (done):** read path. `claims`, `state`, `quoteBuy`, `quoteSell` —
+  verified live at 0.001 ETH → 18,099,829.24 OKC.
+- **P1b-2 (next):** write path. V4 swaps go through UniversalRouter's
+  `execute(commands, inputs)` with Permit2 approvals. Neither encoding has been
+  read out of the deployed source yet.
+
+**The unimplemented methods throw rather than return.** `approvalNeeded` in
+particular must not return `null`: `null` means "nothing to approve", which
+would tell the trade engine a sell was ready to broadcast when its Permit2
+approval had never been built. A loud refusal beats a silently wrong answer.
+The harness reports this as a normal state rather than crashing.
+
+**`Quote.feeBps` becomes `number | null`.** Doppler pools carry V4's dynamic-fee
+flag, so no single rate is correct. A `-1` sentinel was written first and then
+removed: a negative bps would silently poison any downstream fee arithmetic,
+whereas `null` forces a caller to handle the case.
+
+---
+
+### D-019 — Bind V4 contracts by `poolManager()`, never by name
+**Decided 2026-08-03.** Extends D-009's rule from V3 to V4.
+
+**Every contract merely named `UniversalRouter` on this chain binds to a
+different PoolManager.** All four name-search hits serve foreign V4 deployments.
+The two routers that actually carry traffic (`0x53BF6B06…`, `0x8876789976…`)
+expose no `factory()` — which is exactly why the V3 census could not validate
+them — but do expose `poolManager()`, and both bind correctly.
+
+So: a V4 contract is usable only once its `poolManager()` equals ours, exactly
+as a V3 contract needs its `factory()` checked. Name is not evidence, and the
+absence of one binding method does not mean a contract is unverifiable — check
+the binding the contract actually exposes.
+
+The four bound `V4Quoter` deployments all return identical quotes; one is pinned
+in the registry so quotes stay reproducible.

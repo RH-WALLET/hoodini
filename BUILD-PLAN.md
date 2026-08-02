@@ -35,13 +35,22 @@ launchpad's graduates at once.
 **Census note:** this single adapter covers the Pons corpus outright — Pons
 tokens are Uniswap V3 pools from block one, not curves. See DECISIONS.md D-007.
 
-## [ ] P1b — First curve adapter
+## [~] P1b — First curve adapter — **Doppler** (Uniswap V4)
 
-Launchpad chosen from the census by volume, pending Rory's ranking at the gate.
+Chosen by volume: 173 of 660 recent V4 pools (26%), the largest V4 launch venue.
+Split by integration layer per CLAUDE.md, since the read and write paths have
+independent risk.
 
-- [ ] Curve buy/sell + quote path
-- [ ] `state()` curve-vs-graduated detection and the handover to the DEX path
-- [ ] Harness coverage for both sides of graduation
+### [x] P1b-1 — read path
+- [x] `claims()` / `state()` via the hook's `getState` + `PoolStatus` enum
+- [x] `quoteBuy` / `quoteSell` via the bound V4Quoter
+- [x] Registry entry, harness support, 18 tests (mutation-checked)
+
+### [ ] P1b-2 — write path
+- [ ] UniversalRouter `execute(commands, inputs)` V4_SWAP encoding, read from
+      deployed source rather than assumed
+- [ ] Permit2 approval flow (V4 does not use plain ERC-20 allowances)
+- [ ] Confirm a Graduated/Exited asset on-chain — none observed yet
 
 ## [ ] P1c — Second curve adapter
 
