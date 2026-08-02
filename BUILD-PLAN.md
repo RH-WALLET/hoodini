@@ -28,8 +28,9 @@ launchpad's graduates at once.
 - [x] Uniswap V3 adapter: `QuoterV2` quotes, `SwapRouter02` builds
 - [x] `apps/harness` CLI: resolve, quote both ways, print + simulate calldata
 - [x] Slippage and deadline handling, exact-in only
-- [ ] Unit tests for the money math (`applySlippage`) — no test runner in the
-      repo yet; carried into P1b rather than bolted on here
+- [x] Test suite — vitest, 38 tests, offline against a stub client. Mutation-
+      checked: rounding, recipient, fee-ABI and zero-amount guards each turn
+      the suite red when broken.
 
 **Census note:** this single adapter covers the Pons corpus outright — Pons
 tokens are Uniswap V3 pools from block one, not curves. See DECISIONS.md D-007.

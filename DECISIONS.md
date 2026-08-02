@@ -347,3 +347,37 @@ correction.
 
 It also clarifies what Pons "graduation" is: a liquidity-depth threshold on a
 single-sided V3 position, not a migration between venues.
+
+---
+
+### D-017 — Tests are offline and mutation-checked
+**Decided 2026-08-03.** vitest, unit tests only, run against a stub client.
+
+**Offline by rule.** A suite that read live pool state would have gone red on
+its own when Kolana's reserve fell from 5.32 ETH to 0.0055 ETH overnight
+(D-016-amendment) — a failure caused by the market, not by our code. Chain
+reality is the harness's job; the suite exists to pin encoding and invariants,
+so it never touches the network.
+
+**Assertions decode, they do not snapshot.** Calldata tests decode the multicall
+and assert on the fields. A hex snapshot would pass while encoding something
+entirely different, which is the failure mode that matters here.
+
+**The suite is verified by breaking things.** Four deliberate mutations were
+applied and each turned it red:
+
+| Mutation | Caught by |
+|---|---|
+| `applySlippage` rounds up instead of down | 2 tests |
+| Buy pays a hardcoded address instead of `MSG_SENDER` | 1 test |
+| `unwrapWETH9WithFee` added back to the router ABI | 2 tests |
+| Zero-amount guard weakened to allow the `CONTRACT_BALANCE` flag | 1 test |
+
+A test that has never failed has not been shown to work. Any future test guarding
+a money path or an invariant should be mutation-checked the same way before it
+is trusted.
+
+**Invariants are executable.** Invariant 6 (0% fee) and invariant 3 (bundled
+registry) have tests, including one that scans built calldata for any address
+that is not the router, the token, WETH or a sentinel — so a fee recipient
+cannot be smuggled in as a parameter.
