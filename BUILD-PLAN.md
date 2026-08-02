@@ -50,9 +50,11 @@ Launchpad chosen from the census by volume, pending Rory's ranking at the gate.
 - [ ] Service-worker trade engine wired to `VenueRouter`
 - [ ] `LIVE_TRADING` gate at the send boundary; canary ≤ 0.005 ETH on approval
 
-## [ ] P3 — First terminal adapter
+## [ ] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
 
-- [ ] `SiteAdapter` for the terminal Rory names at the gate
+Confirmed by Rory 2026-08-03. Blocked on a DOM snapshot.
+
+- [ ] `SiteAdapter` for Axiom
 - [ ] Anchor discovery resilient to SPA re-render
 
 ## [ ] P4 — X / Telegram Web / DexScreener adapters + positions panel

@@ -225,6 +225,39 @@ implemented as a single-sided concentrated V3 position rather than a separate
 curve contract, so **buy/sell is a V3 swap in both states** and one adapter
 covers pre- and post-graduation alike.
 
+### Graduated Pons token — VERIFIED end to end (2026-08-03)
+
+Supplied by Rory to test for Pons V2. It is **V1** — but it is the first
+confirmed *graduated* token, which settles how `state()` and the post-graduation
+trade path work.
+
+| Field | Value |
+|---|---|
+| Token | `0xB84e494158976B4e14da155d1cdaE16EB6D1C477` — Kolana 🐨 |
+| Contract | `PonsLauncherToken`, `v0.8.30` (identical to V1) |
+| `launchFactory()` | `0xA5aAb3F0…` — **Pons V1** |
+| Pool | `0xac2e451a6b141a0b2b2d9fd746fff4724491db5e`, WETH pair, fee 10000 |
+| **`graduationStatus()`** | `[5.32 ETH raised, 4.2 ETH threshold, graduated=true]` |
+| Live quote | 0.001 ETH → **30,111.072 Kolana**, gas est 85,116 |
+
+**`graduationStatus(address)` returns a 3-tuple `(raised, threshold, graduated)`**
+— that is the `state()` implementation for the Pons adapter, and it costs one
+static call.
+
+`getLaunchedToken(address)` returns a full struct — `deployer`, `pairedToken`,
+`positionManager`, `positionId`, `dexId`, `poolFee`, `supply`,
+`restrictionsEndBlock`, `initialBuyAmount`, and an `exists` flag.
+
+**The decisive result:** a graduated token still quotes through the *same*
+`QuoterV2` and the *same* V3 pool as a pre-graduation one. Graduation moves the
+liquidity position; it does not move the venue. One Uniswap V3 adapter therefore
+covers Pons tokens in **both** states — now proven against a graduated token,
+not just assumed.
+
+Also of note: `initialBuyAmount` is 4.2 ETH, exactly the graduation threshold —
+the deployer graduated the token at launch in a single buy. Worth handling as a
+normal case, not an edge case.
+
 ## 7b. Uniswap V4 launch venues, by hook
 
 From 1,711 `Initialize` events on PoolManager `0x8366a39C…` over ~200k blocks
@@ -252,7 +285,7 @@ confirmed. None of these are DOM-verified yet — that needs the P3 snapshot.
 
 | Target | URL | RH Chain | Notes |
 |---|---|---|---|
-| **Axiom** | `axiom.trade` | VERIFIED (external) | First major terminal on RH Chain, integrated ~2026-07-11. Bloom overlays it. Most likely the terminal in Rory's screenshot. |
+| **Axiom** | `axiom.trade` | VERIFIED (external) | **CONFIRMED BY RORY as the P3 target.** First major terminal on RH Chain, integrated ~2026-07-11. Bloom overlays it. Still needs a DOM snapshot for adapter design. |
 | **GMGN** | `gmgn.ai` | VERIFIED (external) | ~10 chains incl. Robinhood. Charges 1%. Bloom overlays it. |
 | **DexScreener** | `dexscreener.com` | VERIFIED (external) | 670 links in Rory's own alert corpus. Screener, not a competitor. |
 | **GeckoTerminal** | `geckoterminal.com` | VERIFIED (external) | 670 links in the alert corpus. |

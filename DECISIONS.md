@@ -290,3 +290,28 @@ which carries none of that risk.
 that Hoodini Finance is not affiliated with Robinhood Markets, Inc. "Hoodini"
 is a play on Houdini, but it sits on Robinhood Chain and the disclaimer is
 cheap insurance.
+
+---
+
+### D-016 — `state()` for Pons reads `graduationStatus`; one adapter covers both states
+**Decided 2026-08-03, proven against a graduated token.**
+
+`graduationStatus(address)` returns `(raised, threshold, graduated)` in one
+static call. That is the `state()` implementation: `graduated ? 'graduated' :
+'curve'`.
+
+The important part is what it does *not* change. Kolana
+(`0xB84e4941…`, 5.32 ETH raised vs a 4.2 ETH threshold, graduated) quotes
+through the same `QuoterV2` and the same Uniswap V3 pool as a pre-graduation
+Pons token. **Graduation relocates the liquidity position; it does not relocate
+the venue.** So `state()` is display information and does not branch the trade
+path.
+
+This closes the loop on D-007 and D-011-update, which reached the same
+conclusion from the factory's config alone. It is now verified against a real
+graduated token rather than inferred.
+
+*Reversed by:* a Pons version where graduation migrates liquidity to a different
+DEX. Pons V1's `getDexConfig` has exactly one entry (`uniswap v3`), so this
+cannot happen without a new factory — which is precisely what a real Pons V2
+would be.
