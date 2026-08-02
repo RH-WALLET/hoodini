@@ -1,4 +1,4 @@
-# nock — ARCHITECTURE
+# Hoodini — ARCHITECTURE
 
 Three processes, one trust boundary. The page is hostile, the service worker is
 the only place a key exists, and nothing in between is a server.
@@ -147,7 +147,7 @@ this interface plus one registry entry — nothing above the interface changes.
         │
         ▼
  confirm sheet: amountOut, minOut after slippage, venue fee, gas
-        │                            (nock's own fee is 0 and has no code path)
+        │                            (Hoodini's own fee is 0 and has no code path)
         ▼
  keystore unlocked? ── no ──▶ prompt unlock
         │ yes

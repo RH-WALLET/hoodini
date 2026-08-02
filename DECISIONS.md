@@ -1,4 +1,4 @@
-# nock — DECISIONS
+# Hoodini — DECISIONS
 
 Append-only log. Each entry: what was decided, why, and what would reverse it.
 Decisions marked **PENDING RORY** are proposals only and must not be built on.
@@ -10,7 +10,7 @@ Decisions marked **PENDING RORY** are proposals only and must not be built on.
 
 The extension and a Node harness must share the exact trade-path code — if the
 harness tested a reimplementation, its green result would prove nothing about
-what the extension ships. A workspace makes `@nock/core` one artifact consumed
+what the extension ships. A workspace makes `@hoodini/core` one artifact consumed
 by both. Matches the layout already used in `~/Projects/trenches`.
 
 Strict mode plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`:
@@ -18,7 +18,7 @@ this codebase manipulates `bigint` wei amounts and addresses, where a silently
 `undefined` field is a wrong-amount bug, not a crash.
 
 *Reversed by:* the extension bundler proving unable to consume workspace TS
-sources directly (would move `@nock/core` to a built `dist`).
+sources directly (would move `@hoodini/core` to a built `dist`).
 
 ---
 
@@ -193,27 +193,22 @@ and the V4 quote path.
 
 ---
 
-### D-012 — The working name "nock" collides with a live RH Chain competitor — **RENAME RECOMMENDED**
-**Raised 2026-08-02, blocking the repo/profile naming decision.**
+### D-012 — The old working name "nock" collided with a live competitor — **RESOLVED by D-015**
+**Raised 2026-08-02. Superseded 2026-08-03 by the rename to Hoodini Finance.**
 
-**Nock Terminal** (`nockterminal.com`) is an existing, live Robinhood Chain
-token screener and trading-tool suite, with a Telegram trading bot (**NockBot**,
-which discloses a **1% platform fee**), a wallet tracker, and its own launchpad.
+The original working name for this project was **nock**. **Nock Terminal**
+(`nockterminal.com`) is an existing, live Robinhood Chain token screener and
+trading-tool suite, with a Telegram trading bot (**NockBot**, which discloses a
+**1% platform fee**), a wallet tracker, and its own launchpad.
 
-Same chain, same category, near-identical name, and its headline number is the
-exact fee we are undercutting to zero. Keeping "nock" would mean:
+Same chain, same category, near-identical name, and its headline number was the
+exact fee we undercut to zero. Keeping it would have meant competing against a
+product users already called "Nock", having our 0% claim read against a 1%
+product under the same name, avoidable trademark exposure at CWS submission
+(P5), and worsening SEO/support confusion.
 
-- competing head-on with a product users already call "Nock";
-- our 0% claim being read against a product charging 1% under the same name;
-- avoidable trademark and impersonation exposure at CWS submission (P5);
-- SEO and support confusion that gets worse the more traction either side gets.
-
-**Recommendation: rename before creating the new GitHub profile**, since the
-profile name is the expensive one to change later. The repo itself renames
-cheaply and nothing in the code depends on the name — package scopes are
-`@nock/*` and would be a one-commit find-and-replace.
-
-*Blocked on Rory:* the replacement name.
+Kept as a record of why the name changed, and as the reason every candidate name
+now gets a collision check before adoption.
 
 ---
 
@@ -268,3 +263,30 @@ Also live on V4: `PumpV4Hook`, `ClankerHookStaticFeeV2`, `UniversalKlikHook`
 This is exactly the failure mode the seed corpus was always going to have — it
 was scraped 2026-07-20…23 and cannot show venues that grew since. Recommend
 Doppler enters the v1 ranking above flap.sh, pending Rory's volume call.
+
+---
+
+### D-015 — Product name is **Hoodini Finance**; GitHub profile is `RH-WALLET`
+**Decided by Rory 2026-08-03.** Supersedes D-012.
+
+- **Product / packages / repo:** `Hoodini` (`hoodini`, `@hoodini/*`)
+- **GitHub profile:** `RH-WALLET` (user account, created 2026-08-02)
+
+Collision-checked before adoption, per the lesson in D-012: no RH Chain product,
+terminal, wallet or extension named Hoodini was found. The only near match is
+"Hood Inu", an unrelated memecoin — different category, no confusion risk.
+
+**Why the product is not called RH-WALLET.** "RH" reads as Robinhood. A
+non-affiliated extension that custodies private keys and is named `RH-WALLET`
+implies Robinhood Markets, Inc. stands behind those keys. That is an
+implied-affiliation problem rather than a competitor-confusion one, and it lands
+in the highest-scrutiny Chrome Web Store category (a key-holding wallet using
+another brand's identity). Note that Nock Terminal ships an explicit "not
+affiliated with Robinhood Markets, Inc." disclaimer — evidence of how the market
+reads RH-prefixed naming. Rory scoped `RH-WALLET` to the GitHub handle only,
+which carries none of that risk.
+
+**Carry-forward for P5:** the landing page and the CWS listing must both state
+that Hoodini Finance is not affiliated with Robinhood Markets, Inc. "Hoodini"
+is a play on Houdini, but it sits on Robinhood Chain and the disclaimer is
+cheap insurance.

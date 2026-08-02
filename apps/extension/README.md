@@ -1,6 +1,6 @@
-# @nock/extension
+# @hoodini/extension
 
-The nock Chrome extension: **MV3**, **Vite + CRXJS**, **React**.
+The Hoodini Chrome extension: **MV3**, **Vite + CRXJS**, **React**.
 
 **Status: placeholder (P0).** No source yet — built in **P2** (extension shell +
 keystore wallet), then extended in P3/P4 with site adapters.

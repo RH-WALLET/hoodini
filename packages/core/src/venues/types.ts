@@ -40,7 +40,7 @@ export interface Quote {
   readonly priceImpactBps: number | null;
   /**
    * Venue-side trading fee in basis points (the launchpad's or pool's own fee).
-   * nock adds nothing to this — the 0% platform fee is a product invariant.
+   * Hoodini adds nothing to this — the 0% platform fee is a product invariant.
    */
   readonly feeBps: number;
   /** How the quote was obtained, for display and for debugging bad fills. */

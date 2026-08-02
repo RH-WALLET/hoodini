@@ -1,4 +1,4 @@
-# nock — CLAUDE.md
+# Hoodini — CLAUDE.md
 ## What this is
 0% non-custodial Chrome extension overlaying quick buy/sell for Robinhood Chain tokens on terminals, X, Telegram Web. Venue-agnostic: all major RH launchpads + Uniswap behind one VenueAdapter interface. No backend. Open source target. The project token is launched and managed manually outside this repo; no code here touches token issuance.
 ## Two-Claude protocol

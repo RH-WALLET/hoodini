@@ -29,7 +29,7 @@ importers:
 
   apps/harness:
     dependencies:
-      '@nock/core':
+      '@hoodini/core':
         specifier: workspace:*
         version: link:../../packages/core
       viem:
@@ -45,7 +45,7 @@ importers:
 
   packages/adapters:
     dependencies:
-      '@nock/core':
+      '@hoodini/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

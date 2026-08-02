@@ -1,4 +1,4 @@
-# nock — BUILD-PLAN
+# Hoodini — BUILD-PLAN
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 

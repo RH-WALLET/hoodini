@@ -1,6 +1,6 @@
-# nock — DATA_SOURCES
+# Hoodini — DATA_SOURCES
 
-The census. Every address nock might ever call, with its evidence and status.
+The census. Every address Hoodini might ever call, with its evidence and status.
 
 - **VERIFIED** — confirmed on-chain by `scripts/recon.ts` on **2026-08-02** at
   block **26,005,121**.
@@ -26,7 +26,7 @@ Reproduce with `pnpm recon`. Raw output: `scripts/out/census.json` (gitignored).
 
 **Do not confuse with Fork in Hood.** `~/Projects/fork-in-hood` is Rory's *own*
 Orbit chain (`chainId 36754663`, `https://rpc.forkinhood.com`) which settles to
-RH Chain as its parent. It is not a nock target.
+RH Chain as its parent. It is not a Hoodini target.
 
 ## 2. Core infrastructure
 
@@ -247,7 +247,7 @@ appear in the seed corpus at all.
 
 ## 8. Overlay targets (terminals and screeners)
 
-Where nock's buttons get injected. Status = whether RH Chain support is
+Where Hoodini's buttons get injected. Status = whether RH Chain support is
 confirmed. None of these are DOM-verified yet — that needs the P3 snapshot.
 
 | Target | URL | RH Chain | Notes |

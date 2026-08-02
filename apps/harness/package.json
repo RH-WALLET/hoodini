@@ -1,14 +1,14 @@
 {
-  "name": "@nock/harness",
+  "name": "@hoodini/harness",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "typecheck": "echo \"@nock/harness: no sources yet, built in P1a\""
+    "typecheck": "echo \"@hoodini/harness: no sources yet, built in P1a\""
   },
   "dependencies": {
-    "@nock/core": "workspace:*",
+    "@hoodini/core": "workspace:*",
     "viem": "^2.33.0"
   },
   "devDependencies": {

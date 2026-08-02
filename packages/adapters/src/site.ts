@@ -9,7 +9,7 @@
  * P0: interface only.
  */
 
-import type { TokenRef } from '@nock/core';
+import type { TokenRef } from '@hoodini/core';
 
 export interface SiteAdapter {
   /** Stable identifier, e.g. 'x' | 'telegram-web' | 'dexscreener'. */

@@ -1,4 +1,4 @@
-# nock
+# Hoodini
 
 A 0% non-custodial trading overlay for **Robinhood Chain**. A Chrome MV3
 extension that puts quick buy/sell buttons directly on the pages you already
@@ -10,9 +10,9 @@ watch — trading terminals, X, Telegram Web.
 ## Why it exists
 
 The incumbent (Bloom) charges ~1%, executes on its own servers, and requires an
-account. nock inverts all three:
+account. Hoodini inverts all three:
 
-| | Bloom | nock |
+| | Bloom | Hoodini |
 |---|---|---|
 | Platform fee | ~1% | **0%** |
 | Keys | server-side | **never leave your device** |

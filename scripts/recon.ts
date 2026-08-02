@@ -434,7 +434,7 @@ async function launchpadDetail(
   // A launchpad with no buy/sell on the factory is an *instant-pool* model: the
   // token is tradeable on a DEX from block one and there is no curve to trade
   // against. That is the single most important thing this census establishes,
-  // because it decides whether nock needs a curve adapter at all.
+  // because it decides whether Hoodini needs a curve adapter at all.
   if (cls.buySell.length === 0) {
     rec.tradeModel = 'instant-pool (no curve — trading happens on the destination DEX from launch)';
     console.log(`  ⇒ trade model      ${rec.tradeModel}`);
@@ -774,7 +774,7 @@ function summary(): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  console.log('nock · Robinhood Chain launchpad census — READ-ONLY (no signer, no send path)');
+  console.log('Hoodini · Robinhood Chain launchpad census — READ-ONLY (no signer, no send path)');
 
   await chainSanity();
 

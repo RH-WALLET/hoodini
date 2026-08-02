@@ -1,5 +1,5 @@
 /**
- * @nock/core — chain client, keystore, and trade engine.
+ * @hoodini/core — chain client, keystore, and trade engine.
  *
  * P0 ships the venue abstraction only. The keystore (P2) and trade engine
  * (P1a) are not written yet; there is deliberately no send path in this

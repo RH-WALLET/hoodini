@@ -1,9 +1,9 @@
 {
-  "name": "@nock/extension",
+  "name": "@hoodini/extension",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "echo \"@nock/extension: placeholder, built in P2\""
+    "typecheck": "echo \"@hoodini/extension: placeholder, built in P2\""
   }
 }

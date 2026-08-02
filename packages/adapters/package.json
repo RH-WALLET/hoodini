@@ -1,5 +1,5 @@
 {
-  "name": "@nock/adapters",
+  "name": "@hoodini/adapters",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@nock/core": "workspace:*"
+    "@hoodini/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

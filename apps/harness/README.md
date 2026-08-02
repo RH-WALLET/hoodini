@@ -1,4 +1,4 @@
-# @nock/harness
+# @hoodini/harness
 
 Node CLI for exercising `VenueAdapter` implementations without the extension —
 quote a token, dump the resolved venue, print the calldata a buy *would* send.
@@ -11,5 +11,5 @@ simulate calldata via `eth_call`; it has no signer and no broadcast path, and it
 will not grow one — live sends are the extension's job, gated on `LIVE_TRADING`.
 
 ```bash
-pnpm --filter @nock/harness start
+pnpm --filter @hoodini/harness start
 ```
