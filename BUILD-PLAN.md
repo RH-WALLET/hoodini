@@ -17,16 +17,19 @@ pass, and the thing it claims to do can be demonstrated read-only.
 - [x] Documentation set (this file, CLAUDE.md, DECISIONS.md, ARCHITECTURE.md, DATA_SOURCES.md)
 - [ ] **PAUSE GATE** — Rory confirms terminal target, launchpad priority, repo name, venue order
 
-## [ ] P1a — VenueAdapter finalization + VenueRouter + Uniswap adapter + harness
+## [x] P1a — VenueAdapter finalization + VenueRouter + Uniswap adapter + harness
 
 Graduated tokens become tradeable first, because that path works for every
 launchpad's graduates at once.
 
-- [ ] Finalise `VenueAdapter` against the first real implementation
-- [ ] `VenueRouter.resolve()` — registry attribution, then `claims()` fallback
-- [ ] Uniswap V3 adapter: quote via `QuoterV2`, build via the chosen router
-- [ ] `apps/harness` CLI: resolve a CA, print venue + quote + unsigned calldata
-- [ ] Slippage and deadline handling, exact-in only
+- [x] `VenueAdapter` finalised — signature unchanged from P0; the router's
+      MSG_SENDER sentinel removed the need for an `owner` param on `build*`
+- [x] `VenueRouter.resolve()` — override → registry attribution → `claims()`
+- [x] Uniswap V3 adapter: `QuoterV2` quotes, `SwapRouter02` builds
+- [x] `apps/harness` CLI: resolve, quote both ways, print + simulate calldata
+- [x] Slippage and deadline handling, exact-in only
+- [ ] Unit tests for the money math (`applySlippage`) — no test runner in the
+      repo yet; carried into P1b rather than bolted on here
 
 **Census note:** this single adapter covers the Pons corpus outright — Pons
 tokens are Uniswap V3 pools from block one, not curves. See DECISIONS.md D-007.

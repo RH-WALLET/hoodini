@@ -237,8 +237,8 @@ trade path work.
 | Contract | `PonsLauncherToken`, `v0.8.30` (identical to V1) |
 | `launchFactory()` | `0xA5aAb3F0…` — **Pons V1** |
 | Pool | `0xac2e451a6b141a0b2b2d9fd746fff4724491db5e`, WETH pair, fee 10000 |
-| **`graduationStatus()`** | `[5.32 ETH raised, 4.2 ETH threshold, graduated=true]` |
-| Live quote | 0.001 ETH → **30,111.072 Kolana**, gas est 85,116 |
+| **`graduationStatus()`** | `[raised, threshold=4.2 ETH, graduated]` — **live, reversible**, see below |
+| Live quote | 2026-08-03 07:xx → 30,111.072 Kolana · same day later → 723,850.206 Kolana |
 
 **`graduationStatus(address)` returns a 3-tuple `(raised, threshold, graduated)`**
 — that is the `state()` implementation for the Pons adapter, and it costs one
@@ -257,6 +257,26 @@ not just assumed.
 Also of note: `initialBuyAmount` is 4.2 ETH, exactly the graduation threshold —
 the deployer graduated the token at launch in a single buy. Worth handling as a
 normal case, not an edge case.
+
+**CORRECTION (later the same day): `graduated` is reversible.** Re-reading the
+same token hours later returned `raised = 0.0055 ETH, graduated = false`, down
+from `5.32 ETH / true`. `raised` is the pool's **live WETH reserve**, not a
+cumulative total — corroborated directly against the pool, which held
+`0.005508 ETH` (the ~1.6e-6 gap is accrued LP fees) and **995,956,029 of the
+1,000,000,000 supply**. Holders sold nearly everything back.
+
+So `graduationStatus.graduated` is a running comparison of reserve against
+threshold, **not a latched migration event**. Consequences:
+
+- `state()` must never be cached and must never gate anything irreversible.
+- A token can read `graduated` on one call and `curve` on the next with no
+  contract state having "un-migrated".
+- This does not affect trade correctness, because the trade path does not branch
+  on state (D-016) — the same pool, router and quoter serve both readings. The
+  architecture absorbing this cleanly is the point.
+
+It also makes the venue's real behaviour legible: Pons "graduation" is a
+liquidity-depth threshold on a single-sided V3 position, not a migration.
 
 ## 7b. Uniswap V4 launch venues, by hook
 

@@ -315,3 +315,35 @@ graduated token rather than inferred.
 DEX. Pons V1's `getDexConfig` has exactly one entry (`uniswap v3`), so this
 cannot happen without a new factory — which is precisely what a real Pons V2
 would be.
+
+---
+
+### D-016-amendment — `graduated` is reversible; `state()` is display-only
+**2026-08-03, found while verifying the P1a adapter against the live chain.**
+
+D-016 recorded `graduationStatus` as `(raised, threshold, graduated)` and made it
+the `state()` implementation. That stands, but one property was wrong by
+omission: **`graduated` is not a latched event.**
+
+`raised` is the pool's live WETH reserve. Kolana read
+`(5.32 ETH, 4.2 ETH, true)` when first checked and `(0.0055 ETH, 4.2 ETH,
+false)` hours later — corroborated against the pool, which by then held
+0.005508 ETH and 995,956,029 of the 1,000,000,000 supply. Holders sold back;
+the flag followed the reserve down.
+
+Rules that follow:
+
+1. **Never cache `state()`.** It is a live read, valid only at the block it was
+   taken.
+2. **Never let `state()` gate anything irreversible** — no approval decision, no
+   send decision, nothing a user cannot undo.
+3. Present it as an indicator, never as a guarantee about a token's stage.
+
+**This is why the trade path deliberately does not branch on `state()`.** The
+same pool, router and quoter serve both readings, so a flag that oscillates
+cannot produce a wrong trade — it can only produce a stale label. Had the design
+branched on state, this would have been a live bug instead of a docs
+correction.
+
+It also clarifies what Pons "graduation" is: a liquidity-depth threshold on a
+single-sided V3 position, not a migration between venues.

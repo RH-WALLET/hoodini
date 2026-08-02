@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "typecheck": "echo \"@hoodini/harness: no sources yet, built in P1a\""
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hoodini/core": "workspace:*",

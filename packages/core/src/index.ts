@@ -1,12 +1,24 @@
 /**
- * @hoodini/core — chain client, keystore, and trade engine.
+ * @hoodini/core — chain client, venue routing, and (later) keystore + trade engine.
  *
- * P0 ships the venue abstraction only. The keystore (P2) and trade engine
- * (P1a) are not written yet; there is deliberately no send path in this
- * package.
+ * P1a ships venue resolution and the Uniswap V3 trade path. Every export here
+ * either reads chain state or returns UNSIGNED calldata; there is deliberately
+ * no signer and no send path in this package.
  */
 
 export type { TokenRef, VenueState, Quote, TxRequest, VenueAdapter } from './venues/types.js';
 export type { VenueKind, VenueRegistryEntry } from './venues/registry.js';
-export { VENUE_REGISTRY, TOKEN_VENUE_OVERRIDES } from './venues/registry.js';
+export {
+  VENUE_REGISTRY,
+  TOKEN_VENUE_OVERRIDES,
+  PONS_FACTORIES,
+  NOXA_FACTORY,
+  WETH,
+  UNISWAP_V3_FACTORY,
+  SWAP_ROUTER_02,
+  QUOTER_V2,
+  V3_FEE_TIERS,
+} from './venues/registry.js';
 export { VenueRouter, type VenueResolution } from './venues/router.js';
+export { UniswapV3Adapter, applySlippage, type UniswapV3AdapterOptions } from './venues/uniswapV3.js';
+export { createChainClient, robinhoodChain, ROBINHOOD_CHAIN_ID, DEFAULT_RPC_URL } from './chain.js';
