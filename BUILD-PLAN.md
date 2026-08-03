@@ -82,8 +82,12 @@ independent risk.
       `V4HookAdapter` plus four config entries. Pool existence proved via
       `StateView.getSlot0` with a negative control. All four verified live
 - [x] 21 tests, mutation-checked (4 mutations, all caught)
-- [ ] Two remaining hooks are **not** derivable (mixed parameters, unverified
-      source) and are documented as excluded rather than skipped silently
+- [x] **rwa-pairs** — token/token pools with bundled counterparties; the
+      adapter now probes multiple pool shapes and refuses ETH-funded buys on
+      pools with no ETH side (D-046)
+- [x] `0x593da569…` re-examined: its key IS derivable (my earlier reason was
+      wrong), but its quotes revert through the hook. Excluded on evidence,
+      documented (D-047)
 
 ## [x] P2 — Extension shell + keystore wallet
 

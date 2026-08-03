@@ -504,13 +504,45 @@ different hook hashes to a poolId that reads back zero. Each venue's buy
 calldata executes against live state — Clanker 0.0001 ETH → 1,000,893.20;
 CashCat → 62,886.33; Pump → 72,284.41; EthCreatorFee → 73,021.95.
 
-### V4 hooks deliberately NOT adopted
+### `rwa-pairs` — token/token pools, bundled (2026-08-03)
+
+`0x3bFF0Db34DdB6D2e82050945b754d3580ff85Ac8`, fee 10000, tickSpacing 60, 6 pools.
+
+Every pool pairs two ordinary tokens with **no ETH side**, so the counterparty
+cannot be derived from a token address and is bundled instead — both directions
+of all six pairs, since either side may be the one a user is looking at (D-046).
+
+Live: resolves via `StateView`, quotes correctly, and the quote reports its
+counterparty as `quoteAsset` so it can never be summed into an ETH total. An
+ETH-funded buy is refused, because there is no ETH side to fund it with.
+
+### `0x593da569…` — pools exist, but cannot be quoted
+
+> **Correction.** This hook was previously excluded on the grounds that its pool
+> key was "not derivable". That was wrong. It opens exactly **two** shapes per
+> token — `fee=100/spacing=1` and `fee=300/spacing=10`, both native-paired — and
+> both keys were derived and confirmed live via `StateView`, with real
+> liquidity (9.9e19 and 7.9e17) and a set `sqrtPriceX96`.
+
+The actual blocker is quoting. `V4Quoter.quoteExactInputSingle` reverts on
+**both** shapes with `UnexpectedRevertBytes` (`0x6190b2b0`) — the wrapper error
+meaning the hook itself reverted underneath. The hook almost certainly requires
+`hookData` or an allowlisted caller, and its **source is unverified**, so what
+it expects cannot be read.
+
+It is therefore **not** registered. Registering it would make `claims()` succeed
+for ~71 tokens whose quotes then always fail — a broken button is worse than an
+honest "unsupported venue".
+
+142 pools of otherwise-real volume are unreachable until either the source is
+verified or the required `hookData` is established.
+
+### V4 hooks still not adopted
 
 | Hook | Why not |
 |---|---|
-| `0x593da569c2a5a6999f59fcc5b06477d8bb4dc080` (142 pools) | Unverified source, and **two** parameter sets (`fee=100/spacing=1` and `fee=300/spacing=10`). A single config cannot describe it, so the key is not derivable. |
-| `0x3bff0db34ddb6d2e82050945b754d3580ff85ac8` (6 pools) | Unverified, and each pool uses a different numeraire — no fixed shape. |
-| `PositionManager` `0x5cf8e499…` | Not a launchpad; it appears as a hook on LP plumbing. |
+| `0x593da569…` (142 pools) | Key **is** derivable; quotes revert via the hook. See above. |
+| `PositionManager` `0x5cf8e499…` | Not a launchpad; appears as a hook on LP plumbing. |
 
 ## 8. Overlay targets (terminals and screeners)
 

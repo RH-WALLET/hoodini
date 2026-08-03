@@ -978,3 +978,50 @@ quietly:
 
 Adding either would mean pool discovery by log scan, which `claims()` forbids as
 it must stay a single cheap call.
+
+---
+
+### D-046 — `claims()` must be bounded, not literally one call
+**Decided 2026-08-03. Corrects an over-constraint in D-005 and D-045.**
+
+D-005 specified `claims()` as "a single cheap on-chain read — never an unbounded
+log scan". The intent was *bounded*; "single" was the wrong word for it, and it
+caused two venues to be excluded that were perfectly tractable.
+
+`V4HookAdapter` now probes a fixed list of pool shapes and stops at the first
+initialised one. Two shapes means at most two static calls. That is still
+bounded, still no scan, and it resolves a venue the earlier rule ruled out for
+no good reason.
+
+**Token/token venues need bundled pair data.** `rwa-pairs` opens pools between
+two ordinary tokens with no ETH side, so the counterparty is not derivable from
+a token address. It is bundled — both directions of every pair, since either
+side may be the token the user is looking at — and updated by cutting a release,
+exactly as the venue registry is. A token missing from the map is **not
+claimed**, rather than silently keyed against `address(0)`.
+
+Such a pool is denominated in its counterparty, so its quotes carry a non-null
+`quoteAsset` and an ETH-funded buy is refused (D-044).
+
+---
+
+### D-047 — `0x593da569…`: excluded for the right reason this time
+**Corrected 2026-08-03.**
+
+D-045 excluded this hook because its pool key was "not derivable". **That was
+wrong.** It opens exactly two shapes per token, both native-paired, and both
+keys were derived and confirmed live against `StateView` — real liquidity, real
+prices.
+
+The genuine blocker is that `V4Quoter` reverts on both shapes with
+`UnexpectedRevertBytes`, the wrapper error meaning the hook reverted underneath.
+It presumably wants `hookData` or an allowlisted caller, and its source is
+unverified, so what it wants cannot be read.
+
+It stays unregistered — but now on evidence rather than on a guess I had not
+checked. Registering it would make `claims()` succeed for ~71 tokens whose
+quotes always fail, and a button that never works is worse than an honest
+"unsupported venue".
+
+Worth stating plainly: an exclusion is a claim about the world, and deserves the
+same evidence as an inclusion. This one did not have it.

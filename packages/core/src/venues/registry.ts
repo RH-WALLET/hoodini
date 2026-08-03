@@ -147,33 +147,55 @@ export const V4_HOOK_VENUES = [
     id: 'clanker',
     displayName: 'Clanker',
     hook: getAddress('0x48B8F6AD3A1b4aA477314c9a23035b8F84dDe8cc'),
-    fee: 8_388_608, // dynamic-fee flag
-    tickSpacing: 200,
+    variants: [{ fee: 8_388_608, tickSpacing: 200 }], // dynamic-fee flag
     numeraire: getAddress('0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'), // WETH
   },
   {
     id: 'cashcat',
     displayName: 'CashCat',
     hook: getAddress('0xEfe669814e5Eec33406Bd50ffa8331618D076aEc'),
-    fee: 0,
-    tickSpacing: 200,
+    variants: [{ fee: 0, tickSpacing: 200 }],
     numeraire: getAddress('0x0000000000000000000000000000000000000000'), // native
   },
   {
     id: 'pump-v4',
     displayName: 'Pump (V4)',
     hook: getAddress('0x14bcC18fDB0e7a427122b9C2F1A40fF7D63EAACC'),
-    fee: 0,
-    tickSpacing: 200,
+    variants: [{ fee: 0, tickSpacing: 200 }],
     numeraire: getAddress('0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'), // WETH
   },
   {
     id: 'eth-creator-fee',
     displayName: 'EthCreatorFee',
     hook: getAddress('0xd7d69905657Ff6551d086ca0eb1d606a948f20cc'),
-    fee: 0,
-    tickSpacing: 200,
+    variants: [{ fee: 0, tickSpacing: 200 }],
     numeraire: getAddress('0x0000000000000000000000000000000000000000'), // native
+  },
+  {
+    /**
+     * Token/token pools with no ETH side, so the counterparty cannot be derived
+     * from the token and is bundled instead (D-046). Six pools were observed;
+     * a new one needs a release, which is the bundled-registry model working as
+     * intended rather than a limitation.
+     */
+    id: 'rwa-pairs',
+    displayName: 'RWA pairs',
+    hook: getAddress('0x3bFF0Db34DdB6D2e82050945b754d3580ff85Ac8'),
+    variants: [{ fee: 10_000, tickSpacing: 60 }],
+    pairs: {
+      '0x1859202d4bebdd9d933055e2b6e43de7f1ada9bf': getAddress('0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168'),
+      '0x5fc5360d0400a0fd4f2af552add042d716f1d168': getAddress('0x1859202d4beBDd9D933055e2B6e43De7f1adA9bf'),
+      '0x117cc2133c37b721f49de2a7a74833232b3b4c0c': getAddress('0x7ab5Caf7EE74b0f774fDaEC56e28C0b2632443dC'),
+      '0x7ab5caf7ee74b0f774fdaec56e28c0b2632443dc': getAddress('0x117CC2133c37b721F49dE2a7a74833232b3b4C0C'),
+      '0x12a531d505e1e457d5775702bec430e2879624b2': getAddress('0x322F0929c4625ed5BaD873c95208d54E1c003b2d'),
+      '0x322f0929c4625ed5bad873c95208d54e1c003b2d': getAddress('0x12a531d505e1e457d5775702bEC430e2879624B2'),
+      '0x5324dba22a87c747043dd81081001e5b1810a6c8': getAddress('0xE93237c50D904957cF27E7B1133b510C669C2E74'),
+      '0xe93237c50d904957cf27e7b1133b510c669c2e74': getAddress('0x5324dbA22A87C747043dd81081001e5B1810a6c8'),
+      '0x12f190a9f9d7d37a250758b26824b97ce941bf54': getAddress('0x6B4dbb976aDc3E2982784911C008DC785AfAa5D3'),
+      '0x6b4dbb976adc3e2982784911c008dc785afaa5d3': getAddress('0x12f190a9F9d7D37a250758b26824B97CE941bF54'),
+      '0x219fffc7709a7890744501ccfb3200a8c6203038': getAddress('0xC0d6457c16CC70d6790dD43521c899C87CE02F35'),
+      '0xc0d6457c16cc70d6790dd43521c899c87ce02f35': getAddress('0x219fFfc7709A7890744501CCFb3200A8C6203038'),
+    },
   },
 ] as const;
 

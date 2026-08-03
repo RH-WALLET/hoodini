@@ -23,7 +23,7 @@
 
 import { encodeFunctionData, getAddress, isAddressEqual, keccak256, encodeAbiParameters, parseAbiParameters, zeroAddress, type Address, type Hex, type PublicClient } from 'viem';
 import { ERC20_ABI, PERMIT2_ABI, STATE_VIEW_ABI, V4_DYNAMIC_FEE_FLAG, V4_QUOTER_ABI } from '../abis.js';
-import { PERMIT2, STATE_VIEW, UNIVERSAL_ROUTER, V4_QUOTER } from './registry.js';
+import { PERMIT2, STATE_VIEW, UNIVERSAL_ROUTER, V4_QUOTER, WETH } from './registry.js';
 import type { PoolKey } from './doppler.js';
 import type { Quote, TokenRef, TxRequest, VenueAdapter, VenueState } from './types.js';
 import { applySlippage } from './uniswapV3.js';
@@ -32,26 +32,49 @@ import { encodeV4Buy, encodeV4Sell } from './v4.js';
 const DEADLINE_SECONDS = 300n;
 const PERMIT2_EXPIRY_SECONDS = 1_800n;
 
+/** One (fee, tickSpacing) shape a venue opens pools with. */
+export interface V4PoolVariant {
+  readonly fee: number;
+  readonly tickSpacing: number;
+}
+
 export interface V4HookVenue {
   readonly id: string;
   readonly displayName: string;
   readonly hook: Address;
-  readonly fee: number;
-  readonly tickSpacing: number;
-  /** `address(0)` for native ETH, otherwise the ERC-20 the pool pairs against. */
-  readonly numeraire: Address;
+  /**
+   * Pool shapes this venue uses, probed in order. Most venues have exactly one;
+   * a venue that opens two shapes per token needs both, and `claims()` stays
+   * bounded because the list is fixed and short.
+   */
+  readonly variants: readonly V4PoolVariant[];
+  /** `address(0)` for native ETH, otherwise the ERC-20 every pool pairs against. */
+  readonly numeraire?: Address;
+  /**
+   * Per-token counterparty, for venues whose pools pair two ordinary tokens
+   * with no ETH side. The counterparty cannot be derived from the token, so it
+   * is bundled data — updated by cutting a release, exactly as the venue
+   * registry is (D-005, D-046).
+   */
+  readonly pairs?: Readonly<Record<string, Address>>;
+}
+
+/** The asset a given token trades against on this venue, or null if unknown. */
+export function numeraireFor(token: Address, venue: V4HookVenue): Address | null {
+  if (venue.numeraire) return venue.numeraire;
+  return venue.pairs?.[token.toLowerCase()] ?? null;
 }
 
 /** V4 requires currency0 < currency1. */
-export function hookPoolKey(token: Address, venue: V4HookVenue): PoolKey {
-  const a = venue.numeraire.toLowerCase();
+export function hookPoolKey(token: Address, venue: V4HookVenue, variant: V4PoolVariant, numeraire: Address): PoolKey {
+  const a = numeraire.toLowerCase();
   const b = token.toLowerCase();
-  const [c0, c1] = a < b ? [venue.numeraire, token] : [token, venue.numeraire];
+  const [c0, c1] = a < b ? [numeraire, token] : [token, numeraire];
   return {
     currency0: getAddress(c0),
     currency1: getAddress(c1),
-    fee: venue.fee,
-    tickSpacing: venue.tickSpacing,
+    fee: variant.fee,
+    tickSpacing: variant.tickSpacing,
     hooks: venue.hook,
   };
 }
@@ -72,6 +95,8 @@ export class V4HookAdapter implements VenueAdapter {
   readonly #stateView: Address;
   readonly #quoter: Address;
   readonly #now: () => number;
+  /** Resolved pool per token. A pool's shape does not change once initialised. */
+  readonly #keys = new Map<string, { key: PoolKey; numeraire: Address } | null>();
 
   constructor(
     client: PublicClient,
@@ -91,23 +116,45 @@ export class V4HookAdapter implements VenueAdapter {
   }
 
   /**
-   * One call. A pool that was never initialised reads back `sqrtPriceX96 == 0`,
-   * so this distinguishes "this venue launched the token" from "this key is a
-   * plausible-looking guess".
+   * Probe each declared pool shape until one is initialised.
+   *
+   * A pool that was never initialised reads back `sqrtPriceX96 == 0`, which is
+   * what distinguishes "this venue launched the token" from "this key is a
+   * plausible-looking guess". Bounded by the variant list — never a log scan.
    */
-  async claims(token: TokenRef): Promise<boolean> {
-    try {
-      const key = hookPoolKey(token.address, this.#venue);
-      const slot0 = (await this.#client.readContract({
-        address: this.#stateView,
-        abi: STATE_VIEW_ABI,
-        functionName: 'getSlot0',
-        args: [poolIdOfKey(key)],
-      })) as unknown as readonly [bigint, ...unknown[]];
-      return slot0[0] !== 0n;
-    } catch {
-      return false;
+  async #resolve(token: TokenRef): Promise<{ key: PoolKey; numeraire: Address } | null> {
+    const cached = this.#keys.get(token.address.toLowerCase());
+    if (cached !== undefined) return cached;
+
+    const numeraire = numeraireFor(token.address, this.#venue);
+    let found: { key: PoolKey; numeraire: Address } | null = null;
+
+    if (numeraire) {
+      for (const variant of this.#venue.variants) {
+        const key = hookPoolKey(token.address, this.#venue, variant, numeraire);
+        try {
+          const slot0 = (await this.#client.readContract({
+            address: this.#stateView,
+            abi: STATE_VIEW_ABI,
+            functionName: 'getSlot0',
+            args: [poolIdOfKey(key)],
+          })) as unknown as readonly [bigint, ...unknown[]];
+          if (slot0[0] !== 0n) {
+            found = { key, numeraire };
+            break;
+          }
+        } catch {
+          // try the next shape
+        }
+      }
     }
+
+    this.#keys.set(token.address.toLowerCase(), found);
+    return found;
+  }
+
+  async claims(token: TokenRef): Promise<boolean> {
+    return (await this.#resolve(token)) !== null;
   }
 
   /** These venues launch straight into a live pool; there is no curve phase. */
@@ -125,8 +172,8 @@ export class V4HookAdapter implements VenueAdapter {
 
   async #quote(token: TokenRef, amountIn: bigint, buying: boolean): Promise<Quote> {
     assertPositive(amountIn);
-    const key = await this.#requireKey(token);
-    const numeraireIsCurrency0 = isAddressEqual(key.currency0, this.#venue.numeraire);
+    const { key, numeraire } = await this.#requireKey(token);
+    const numeraireIsCurrency0 = isAddressEqual(key.currency0, numeraire);
     const zeroForOne = buying === numeraireIsCurrency0;
 
     const { result } = await this.#client.simulateContract({
@@ -142,13 +189,14 @@ export class V4HookAdapter implements VenueAdapter {
       amountIn,
       amountOut: (result as unknown as readonly [bigint, bigint])[0],
       priceImpactBps: null,
-      // These pools are ETH- or WETH-denominated either way, so the quote is
-      // in ETH terms and the caller can total it.
-      quoteAsset: null,
+      // Null only when the pool really is ETH- or WETH-denominated. A
+      // token/token pool is denominated in its counterparty, and saying so
+      // stops a caller adding it to an ETH total (D-044).
+      quoteAsset: isEthLike(numeraire) ? null : numeraire,
       // A dynamic-fee pool has no fixed rate, and a fee of 0 in the key means
       // the hook charges instead — neither is a number worth reporting as if
       // it were the cost.
-      feeBps: this.#venue.fee === V4_DYNAMIC_FEE_FLAG || this.#venue.fee === 0 ? null : this.#venue.fee / 100,
+      feeBps: key.fee === V4_DYNAMIC_FEE_FLAG || key.fee === 0 ? null : key.fee / 100,
       source: 'simulation',
     };
   }
@@ -156,13 +204,18 @@ export class V4HookAdapter implements VenueAdapter {
   async buildBuy(token: TokenRef, ethIn: bigint, slippageBps: number): Promise<TxRequest> {
     assertPositive(ethIn);
     assertSlippage(slippageBps);
-    const key = await this.#requireKey(token);
+    const { key, numeraire } = await this.#requireKey(token);
+    if (!isEthLike(numeraire)) {
+      // The caller believes it is spending ETH. Spending the counterparty
+      // token instead would be silent and expensive (D-044).
+      throw new Error(`${this.id}: ${token.address} is paired against ${numeraire}, not ETH`);
+    }
     const { amountOut } = await this.quoteBuy(token, ethIn);
     const minOut = applySlippage(amountOut, slippageBps);
 
     const call = encodeV4Buy({
       poolKey: key,
-      numeraire: this.#venue.numeraire,
+      numeraire,
       token: token.address,
       amountIn: ethIn,
       minOut,
@@ -174,13 +227,13 @@ export class V4HookAdapter implements VenueAdapter {
   async buildSell(token: TokenRef, amountIn: bigint, slippageBps: number): Promise<TxRequest> {
     assertPositive(amountIn);
     assertSlippage(slippageBps);
-    const key = await this.#requireKey(token);
+    const { key, numeraire } = await this.#requireKey(token);
     const { amountOut } = await this.quoteSell(token, amountIn);
     const minOut = applySlippage(amountOut, slippageBps);
 
     const call = encodeV4Sell({
       poolKey: key,
-      numeraire: this.#venue.numeraire,
+      numeraire,
       token: token.address,
       amountIn,
       minOut,
@@ -229,16 +282,20 @@ export class V4HookAdapter implements VenueAdapter {
     };
   }
 
-  async #requireKey(token: TokenRef): Promise<PoolKey> {
-    if (!(await this.claims(token))) {
-      throw new Error(`${this.id}: no initialised pool for ${token.address} on this hook`);
-    }
-    return hookPoolKey(token.address, this.#venue);
+  async #requireKey(token: TokenRef): Promise<{ key: PoolKey; numeraire: Address }> {
+    const resolved = await this.#resolve(token);
+    if (!resolved) throw new Error(`${this.id}: no initialised pool for ${token.address} on this hook`);
+    return resolved;
   }
 
   #deadline(): bigint {
     return BigInt(Math.floor(this.#now() / 1000)) + DEADLINE_SECONDS;
   }
+}
+
+/** Native ETH or WETH — the two things a buy can be funded with directly. */
+function isEthLike(a: Address): boolean {
+  return isAddressEqual(a, zeroAddress) || isAddressEqual(a, WETH);
 }
 
 function assertPositive(amount: bigint): void {
