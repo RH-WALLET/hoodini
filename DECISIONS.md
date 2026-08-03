@@ -789,3 +789,70 @@ pins the exact host list.
 The match list is the most legible security claim a user can check, and
 widening it is the cheapest possible mistake to make while wiring up a new
 site. Making it a test failure means it cannot happen quietly.
+
+---
+
+### D-037 — MIT licence, with the tradeoff stated
+**Decided 2026-08-03. Reversible in one commit — flag if you disagree.**
+
+MIT: conventional for a browser extension, lowest friction for contributors and
+for Chrome Web Store review.
+
+**The tradeoff is real and worth naming.** Under MIT a competitor can fork
+Hoodini, add a 1% fee, close the source, and ship it. AGPL-3.0 would force them
+to publish their changes, which arguably protects the product's whole wedge —
+0%, open, auditable.
+
+MIT was chosen because permissive licensing is the norm here and copyleft
+deters casual contributors, but this is a strategic call rather than a technical
+one. Changing it later is cheap while there are few contributors and expensive
+once there are many, so it is worth deciding deliberately now.
+
+---
+
+### D-038 — Hardening is asserted against the built bundle, not the source
+**Decided 2026-08-03.**
+
+Source-level checks miss what a bundler adds. The P5 tests read `dist/` and
+assert the shipped JavaScript contains no `eval`, no `new Function`, no
+analytics endpoints, and — for the *page-facing content script specifically* —
+no `innerHTML`.
+
+That last distinction matters: React uses `innerHTML` internally, so the popup
+bundle legitimately contains it. The content script runs inside a hostile page
+and must not. Asserting "no innerHTML anywhere" would have been wrong; asserting
+it only where it matters is what makes the check meaningful.
+
+The tests skip when `dist/` is absent, so `pnpm test` does not require a build,
+but any existing build is checked.
+
+---
+
+### D-039 — The landing page's token address is a constant, never fetched
+**Decided 2026-08-03.**
+
+The page displays an address people copy and send funds to. If it fetched that
+address, a compromised endpoint or a hijacked domain could swap it — the single
+most damaging thing a landing page for a token can do.
+
+So the CA is a hard-coded constant, the page loads no third-party script or
+resource, and the copy button stays hidden unless the value matches
+`^0x[0-9a-fA-F]{40}$`. A half-set or truncated placeholder never renders,
+because someone would paste it into a wallet.
+
+All of the above is asserted by test, along with the required disclosures: the
+Robinhood non-affiliation notice (D-015), a plain risk statement, and an
+instruction to verify the address independently.
+
+---
+
+### D-040 — Publishing is Rory's, not this project's
+**Decided 2026-08-03.**
+
+`docs/CWS-SUBMISSION.md` prepares everything a submission needs — permission
+justifications, listing copy, reviewer note, data-disclosure answers — and stops
+there. Submitting to the Chrome Web Store, and publishing the landing page, are
+outward-facing acts that put Rory's name on a product that custodies user keys.
+
+Those are his to make, not something to do on his behalf because the material
+happened to be ready.

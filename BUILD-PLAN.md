@@ -137,4 +137,18 @@ session, so it never fetches Axiom at all. Only recon is blocked.
 - [x] 16 site-adapter tests + 9 positions tests, mutation-checked
 - [ ] **Selectors unverified against the live sites** (no DOM snapshots)
 
-## [ ] P5 — Hardening, open-source release, landing page with token CA display, CWS submission
+## [~] P5 — Hardening, open-source release, landing page, CWS submission
+
+- [x] Hardening pass on the **shipped bundle**: no eval, no `new Function`, no
+      analytics, no innerHTML in the page-facing script, manifest verified
+      post-build — all asserted by test so they cannot regress
+- [x] `pnpm audit --prod`: no known vulnerabilities
+- [x] MIT LICENSE, SECURITY.md (threat model incl. what is *not* defended),
+      PRIVACY.md, CONTRIBUTING.md
+- [x] Landing page with token CA display — hard-coded constant, never fetched,
+      refuses to render a malformed address; invariants tested
+- [x] `docs/CWS-SUBMISSION.md` — permission justifications, listing copy,
+      reviewer note, data-disclosure answers
+- [ ] **Rory:** icons (128/48/16), a 1280×800 screenshot, hosted privacy URL
+- [ ] **Rory:** submit to the Chrome Web Store (publishing is his call)
+- [ ] **Rory:** token CA into `docs/landing/index.html` once launched

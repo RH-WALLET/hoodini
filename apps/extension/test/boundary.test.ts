@@ -7,6 +7,9 @@
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { KeystoreSession, TEST_KDF } from '@hoodini/core';
 import { createRouter } from '../src/background/router.js';
 import { VaultStore, VAULT_KEY, type StorageArea } from '../src/background/storage.js';
@@ -292,5 +295,56 @@ describe('manifest — invariant 3 is checkable from the shipped file', () => {
   it('never requests a permission that would let it read browsing activity', () => {
     const forbidden = ['tabs', 'webRequest', 'cookies', 'history', 'downloads', 'debugger', 'management'];
     for (const p of forbidden) expect(manifest.permissions ?? []).not.toContain(p);
+  });
+});
+
+// ── P5 hardening: properties of the SHIPPED bundle ──────────────────────────
+
+describe('hardening — the built artifact, not just the source', () => {
+  const dist = resolve(fileURLToPath(import.meta.url), '../../dist');
+  const built = existsSync(dist);
+
+  // Skips rather than fails when dist is absent: `pnpm test` must not require a
+  // build, but when a build exists it gets checked.
+  const whenBuilt = built ? it : it.skip;
+
+  whenBuilt('ships no eval or dynamic code construction', () => {
+    for (const f of readdirSync(resolve(dist, 'assets')).filter((f) => f.endsWith('.js'))) {
+      const js = readFileSync(resolve(dist, 'assets', f), 'utf8');
+      expect(js, f).not.toMatch(/\beval\s*\(/);
+      expect(js, f).not.toMatch(/new Function\s*\(/);
+    }
+  });
+
+  whenBuilt('ships no analytics or crash reporting', () => {
+    // PRIVACY.md promises none; this is what makes that checkable.
+    for (const f of readdirSync(resolve(dist, 'assets')).filter((f) => f.endsWith('.js'))) {
+      const js = readFileSync(resolve(dist, 'assets', f), 'utf8');
+      expect(js, f).not.toMatch(/google-analytics|googletagmanager|sentry\.io|mixpanel|amplitude|posthog/i);
+    }
+  });
+
+  whenBuilt('the page-facing content script contains no innerHTML sink', () => {
+    // The popup bundle contains React, which uses innerHTML internally. The
+    // content script runs in a hostile page and must not.
+    const manifest = JSON.parse(readFileSync(resolve(dist, 'manifest.json'), 'utf8')) as {
+      content_scripts: { js: string[] }[];
+    };
+    for (const js of manifest.content_scripts.flatMap((c) => c.js)) {
+      expect(readFileSync(resolve(dist, js), 'utf8')).not.toMatch(/innerHTML/);
+    }
+  });
+
+  whenBuilt('the built manifest matches the source manifest', () => {
+    const shipped = JSON.parse(readFileSync(resolve(dist, 'manifest.json'), 'utf8')) as {
+      permissions: string[];
+      host_permissions: string[];
+      content_security_policy: { extension_pages: string };
+    };
+    // The build step could in principle rewrite these; assert on what actually
+    // ships, since that is what a user installs.
+    expect(shipped.permissions).toEqual(['storage']);
+    expect(shipped.host_permissions).toEqual(['https://rpc.mainnet.chain.robinhood.com/*']);
+    expect(shipped.content_security_policy.extension_pages).not.toContain('unsafe-eval');
   });
 });
