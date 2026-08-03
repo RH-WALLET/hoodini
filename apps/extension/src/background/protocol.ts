@@ -38,7 +38,14 @@ export type Request =
       readonly type: 'trade.quote';
       readonly side: 'buy' | 'sell';
       readonly token: Address;
-      readonly amount: string;
+      /**
+       * Omit on a sell to quote the whole balance.
+       *
+       * Sell availability is size-dependent — a curve can pay out a small
+       * amount and revert on a large one — so a probe must quote the amount
+       * that would actually be sold, not a nominal one (D-049).
+       */
+      readonly amount?: string;
       readonly slippageBps: number;
     }
   | { readonly type: 'positions.list' }

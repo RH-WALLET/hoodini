@@ -34,6 +34,8 @@ export interface SiteAdapterConfig {
   readonly chainId: number;
   readonly onIntent: (intent: OverlayIntent) => void;
   readonly amounts?: readonly string[];
+  /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
+  readonly probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
 }
 
 export class ConfigurableSiteAdapter implements SiteAdapter {
@@ -85,11 +87,17 @@ export class ConfigurableSiteAdapter implements SiteAdapter {
     mountOverlay(anchor, tokenRef, {
       onIntent: this.#c.onIntent,
       ...(this.#c.amounts ? { amounts: this.#c.amounts } : {}),
+      ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
     });
   }
 }
 
-type Common = { chainId: number; onIntent: (i: OverlayIntent) => void; amounts?: readonly string[] };
+type Common = {
+  chainId: number;
+  onIntent: (i: OverlayIntent) => void;
+  amounts?: readonly string[];
+  probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
+};
 
 /**
  * X (Twitter). `data-testid="tweet"` is X's own test hook and is the most

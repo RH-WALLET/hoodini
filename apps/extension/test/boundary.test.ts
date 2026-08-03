@@ -348,3 +348,90 @@ describe('hardening — the built artifact, not just the source', () => {
     expect(shipped.content_security_policy.extension_pages).not.toContain('unsafe-eval');
   });
 });
+
+// ── trade.quote (D-049) ─────────────────────────────────────────────────────
+
+describe('trade.quote — the sell-availability probe', () => {
+  const TOKEN = '0xB84e494158976B4e14da155d1cdaE16EB6D1C477';
+
+  /** A router wired with a stub venue whose sell behaviour is configurable. */
+  function withTrade(opts: { sellThrows?: string; balance?: bigint } = {}) {
+    const area = memoryArea();
+    const session = new KeystoreSession();
+    const quote = (amountIn: bigint) => ({
+      venueId: 'uniswap-v3', state: 'graduated', amountIn, amountOut: 42n,
+      priceImpactBps: null, quoteAsset: null, feeBps: 100, source: 'simulation',
+    });
+    const adapter = {
+      id: 'uniswap-v3',
+      async quoteBuy(_t: unknown, a: bigint) { return quote(a); },
+      async quoteSell(_t: unknown, a: bigint) {
+        if (opts.sellThrows) throw new Error(opts.sellThrows);
+        return quote(a);
+      },
+    };
+    const handle = createRouter({
+      store: new VaultStore(area), session, kdf: TEST_KDF,
+      trade: {
+        venues: { resolve: async () => ({ adapter, via: 'registry' }) } as never,
+        engine: {} as never,
+        chainId: 4663,
+        client: { async readContract() { return opts.balance ?? 0n; } } as never,
+        watchlist: { async list() { return []; }, async add() {} },
+      },
+    });
+    return { handle, session, area };
+  }
+
+  it('quotes a buy without unlocking — a page must be able to show a price', async () => {
+    const r = withTrade();
+    const res = await r.handle({ type: 'trade.quote', side: 'buy', token: TOKEN, amount: '1000', slippageBps: 100 }, 'page');
+    expect(res).toMatchObject({ ok: true, data: { venueId: 'uniswap-v3', amountOut: '42' } });
+  });
+
+  it('returns no calldata to a page', async () => {
+    const r = withTrade();
+    const res = await r.handle({ type: 'trade.quote', side: 'buy', token: TOKEN, amount: '1000', slippageBps: 100 }, 'page');
+    expect(JSON.stringify(res)).not.toMatch(/"data":"0x|calldata/);
+  });
+
+  it('reports a reverting sell as an error, which is what gates the button', async () => {
+    // If this silently succeeded, the overlay would render a Sell control that
+    // always fails (D-049).
+    const r = withTrade({ sellThrows: 'execution reverted: arithmetic underflow', balance: 5n });
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    const res = await r.handle({ type: 'trade.quote', side: 'sell', token: TOKEN, slippageBps: 100 }, 'page');
+    expect(res.ok).toBe(false);
+  });
+
+  it('quotes the WHOLE balance when amount is omitted', async () => {
+    // Sell availability is size-dependent, so the probe must price what would
+    // actually be sold rather than a nominal amount.
+    const r = withTrade({ balance: 7_777n });
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    const res = await r.handle({ type: 'trade.quote', side: 'sell', token: TOKEN, slippageBps: 100 }, 'page');
+    expect(res).toMatchObject({ ok: true, data: { amountIn: '7777' } });
+  });
+
+  it('says LOCKED when a whole-balance sell probe needs the account', async () => {
+    const r = withTrade({ balance: 10n });
+    const res = await r.handle({ type: 'trade.quote', side: 'sell', token: TOKEN, slippageBps: 100 }, 'page');
+    expect(res).toMatchObject({ ok: false, error: { code: 'LOCKED' } });
+  });
+
+  it('says NO_BALANCE rather than quoting zero', async () => {
+    const r = withTrade({ balance: 0n });
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    const res = await r.handle({ type: 'trade.quote', side: 'sell', token: TOKEN, slippageBps: 100 }, 'page');
+    expect(res).toMatchObject({ ok: false, error: { code: 'NO_BALANCE' } });
+  });
+
+  it('still refuses trade.execute from a page', async () => {
+    const r = withTrade();
+    const res = await r.handle({ type: 'trade.execute', side: 'buy', token: TOKEN, amount: '1', slippageBps: 100 }, 'page');
+    expect(res).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+  });
+});

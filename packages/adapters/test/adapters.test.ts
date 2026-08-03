@@ -15,6 +15,7 @@ import { AdapterRuntime, matchesSite } from '../src/runtime.js';
 import { GenericAddressAdapter } from '../src/adapters/generic.js';
 import { AxiomAdapter, AxiomAdapterNotReady } from '../src/adapters/axiom.js';
 import type { OverlayIntent } from '../src/overlay.js';
+import type { TokenRef } from '@hoodini/core';
 
 const A = getAddress('0xb84e494158976b4e14da155d1cdae16eb6d1c477');
 const B = getAddress('0x8b18800b8d7991aeaf8a7d8f10d34f06ea811ba3');
@@ -297,5 +298,92 @@ describe('AxiomAdapter', () => {
 
   it('still claims the right site, so wiring it up is a one-line change later', () => {
     expect(matchesSite(new AxiomAdapter(), 'https://axiom.trade/discover')).toBe(true);
+  });
+});
+
+// ── sell gating (D-049) ─────────────────────────────────────────────────────
+
+describe('sell gating', () => {
+  const noop = () => {};
+  const sellButton = (host: HTMLElement) => host.shadowRoot!.querySelector('button.sell') as HTMLButtonElement;
+  const mount = (probeSell?: (t: TokenRef) => Promise<{ reason: string } | null>) => {
+    const doc = listPage();
+    const row = doc.querySelector('.row')!;
+    const seen: OverlayIntent[] = [];
+    const host = mountOverlay(row, { address: A, chainId: CHAIN }, {
+      onIntent: (i) => seen.push(i),
+      ...(probeSell ? { probeSell } : {}),
+    });
+    return { host, seen, btn: sellButton(host) };
+  };
+
+  it('emits immediately when no probe is supplied', async () => {
+    const { seen, btn } = mount();
+    btn.click();
+    expect(seen).toHaveLength(1);
+  });
+
+  it('emits the intent when the probe says the sell can proceed', async () => {
+    const { seen, btn } = mount(async () => null);
+    btn.click();
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    expect(btn.disabled).toBe(false);
+  });
+
+  it('does NOT emit when the venue cannot sell, and says why', async () => {
+    // The whole point: three venues have pools whose sell quote reverts, so a
+    // button that always fires is a button that sometimes cannot work.
+    const { seen, btn } = mount(async () => ({ reason: 'arithmetic underflow' }));
+    btn.click();
+    await vi.waitFor(() => expect(btn.textContent).toBe("can't sell"));
+    expect(seen).toEqual([]);
+    expect(btn.disabled).toBe(true);
+    expect(btn.title).toBe('arithmetic underflow');
+  });
+
+  it('stays disabled after refusing, so a second click cannot fire it', async () => {
+    const { seen, btn } = mount(async () => ({ reason: 'no liquidity' }));
+    btn.click();
+    await vi.waitFor(() => expect(btn.disabled).toBe(true));
+    btn.click();
+    btn.click();
+    expect(seen).toEqual([]);
+  });
+
+  it('re-enables when the probe itself fails, rather than blaming the venue', async () => {
+    // A probe that errors is not evidence the sell would fail — an RPC hiccup
+    // must not permanently disable a working button.
+    const { seen, btn } = mount(async () => {
+      throw new Error('rpc timeout');
+    });
+    btn.click();
+    await vi.waitFor(() => expect(btn.disabled).toBe(false));
+    expect(seen).toEqual([]);
+    expect(btn.textContent).toBe('Sell');
+  });
+
+  it('ignores clicks while a probe is in flight', async () => {
+    let calls = 0;
+    const { btn } = mount(async () => {
+      calls++;
+      await new Promise((r) => setTimeout(r, 10));
+      return null;
+    });
+    // dispatchEvent, not .click(): a disabled button swallows .click() outright,
+    // so that would test the disabled flag rather than the in-flight guard —
+    // and the guard would survive being deleted.
+    const fire = () => btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    fire();
+    fire();
+    fire();
+    await vi.waitFor(() => expect(btn.disabled).toBe(false));
+    // Otherwise an impatient user fires three quotes and three trades.
+    expect(calls).toBe(1);
+  });
+
+  it('buying is never gated by the sell probe', async () => {
+    const { seen, host } = mount(async () => ({ reason: 'nope' }));
+    (host.shadowRoot!.querySelector('button') as HTMLButtonElement).click();
+    expect(seen).toEqual([{ side: 'buy', token: { address: A, chainId: CHAIN } }]);
   });
 });

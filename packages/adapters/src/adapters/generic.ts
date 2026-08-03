@@ -19,6 +19,8 @@ import { mountOverlay, type OverlayIntent } from '../overlay.js';
 export interface GenericAdapterOptions {
   readonly chainId: number;
   readonly onIntent: (intent: OverlayIntent) => void;
+  /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
+  readonly probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
   /** Defaults to every https page; narrowed by the manifest in practice. */
   readonly pattern?: URLPattern;
   readonly amounts?: readonly string[];
@@ -60,6 +62,7 @@ export class GenericAddressAdapter implements SiteAdapter {
     mountOverlay(anchor, tokenRef, {
       onIntent: this.#o.onIntent,
       ...(this.#o.amounts ? { amounts: this.#o.amounts } : {}),
+      ...(this.#o.probeSell ? { probeSell: this.#o.probeSell } : {}),
     });
   }
 }

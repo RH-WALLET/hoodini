@@ -22,12 +22,28 @@ export interface OverlayIntent {
   readonly token: TokenRef;
 }
 
+/** Why a sell cannot proceed, in words a user can act on. */
+export type SellUnavailable = { readonly reason: string };
+
 export interface OverlayOptions {
   /** Preset buy amounts in ETH, shown as quick buttons. */
   readonly amounts?: readonly string[];
   readonly onIntent: (intent: OverlayIntent) => void;
   /** Rendered next to the controls when a quote is available. */
   readonly label?: string;
+  /**
+   * Confirm a sell is actually possible before emitting the intent.
+   *
+   * Three venues have pools whose sell quote reverts while buys work fine
+   * (D-021, D-033, D-043), so a Sell button that always renders is a button
+   * that sometimes cannot work. Resolve `null` when the sell can proceed, or a
+   * reason when it cannot.
+   *
+   * Probed on click rather than on mount: a list of fifty rows would otherwise
+   * fire fifty quotes nobody asked for. And availability is size-dependent, so
+   * the probe must price the amount that would really be sold.
+   */
+  readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
 }
 
 const STYLE = `
@@ -40,6 +56,8 @@ const STYLE = `
   button:hover { background: #175030; }
   button:focus-visible { outline: 2px solid #7bf1a8; outline-offset: 1px; }
   button.sell { border-color: #6b2b2b; background: #371010; color: #ff9a9a; }
+  button.unavailable { border-color: #3a3f4a; background: #1a1c21; color: #6f7787; cursor: not-allowed; }
+  button:disabled { cursor: default; opacity: 0.75; }
   .label { color: #8b93a5; font-size: 10px; }
 `;
 
@@ -93,7 +111,39 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
   sell.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    options.onIntent({ side: 'sell', token });
+
+    // No probe supplied: emit as before. Callers that can check are expected
+    // to, and the content script does.
+    if (!options.probeSell) {
+      options.onIntent({ side: 'sell', token });
+      return;
+    }
+    if (sell.disabled) return;
+
+    sell.disabled = true;
+    const previous = sell.textContent;
+    sell.textContent = '…';
+    void options
+      .probeSell(token)
+      .then((unavailable) => {
+        if (!unavailable) {
+          sell.disabled = false;
+          sell.textContent = previous;
+          options.onIntent({ side: 'sell', token });
+          return;
+        }
+        // Stays disabled and says why. Re-enabling would invite a second click
+        // that fails identically.
+        sell.textContent = "can't sell";
+        sell.title = unavailable.reason;
+        sell.classList.add('unavailable');
+      })
+      .catch(() => {
+        // A probe that itself fails is not proof a sell would fail, so the
+        // button goes back to normal rather than accusing the venue.
+        sell.disabled = false;
+        sell.textContent = previous;
+      });
   });
   bar.appendChild(sell);
 

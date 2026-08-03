@@ -1062,3 +1062,36 @@ wrong, and both only surfaced because the exclusion was challenged. A negative
 result deserves the same evidence as a positive one — and "I checked and it
 still does not work" is worth far more than "it cannot be done", which is what I
 said twice.
+
+---
+
+### D-049 — The Sell control is gated on a real quote, sized to the real amount
+**Decided 2026-08-03.** Closes the gap between D-043 and the code.
+
+D-021, D-033 and D-043 established that three venues have pools whose sell quote
+reverts while buys work fine, and concluded a sell control must be gated on a
+successful `quoteSell`. The positions panel followed that; the page overlay did
+not — it rendered Sell unconditionally, so a click could only ever fail.
+
+**Probed on click, not on mount.** A list of fifty rows would otherwise fire
+fifty quotes nobody asked for. Clicking Sell disables the button, probes, then
+either emits the intent or shows "can't sell" with the reason on hover.
+
+**Sized to the whole balance.** Availability is *size-dependent* — flap's revert
+appeared only above a threshold — so a nominal probe amount would report a sell
+that then failed on the real amount. Omitting `amount` on a sell quote makes the
+worker read the balance and price exactly what would be sold.
+
+**Quoting no longer requires an unlocked wallet.** Only approvals need an
+account, and a quote does not build them. The old code refused to quote a sell
+while locked, which would have made the probe impossible before unlocking. A
+whole-balance probe still needs the account, and says `LOCKED` plainly.
+
+**A failed probe re-enables the button.** An RPC hiccup is not evidence the sell
+would fail, and permanently disabling a working control on a network blip would
+be worse than the bug this fixes.
+
+Two mutations survived the first pass and both were test gaps rather than code
+gaps: clicking a `disabled` button is a no-op in jsdom, so the in-flight guard
+looked untested until the test dispatched the event directly; and the extension
+suite had no coverage of `trade.quote` at all. Both fixed.

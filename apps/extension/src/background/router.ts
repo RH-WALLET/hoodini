@@ -16,6 +16,11 @@ import {
   DEFAULT_AUTO_LOCK_MS,
 } from '@hoodini/core';
 import { loadPositions, planBuy, planSell, summarise, UnsupportedVenueError, type KdfParams, type VenueRouter } from '@hoodini/core';
+
+/** Just the one read needed to size a sell-the-whole-balance probe. */
+const ERC20_BALANCE_ABI = [
+  { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'a', type: 'address' }], outputs: [{ type: 'uint256' }] },
+] as const;
 import { getAddress, type Address } from 'viem';
 import type { VaultStore } from './storage.js';
 import type { TradeEngine } from './engine.js';
@@ -172,48 +177,74 @@ export function createRouter(deps: RouterDeps) {
             // Addresses arrive from page DOM, which is untrusted input.
             return fail('BAD_REQUEST', 'token is not a valid address');
           }
+          const owner = session.address;
           let amount: bigint;
-          try {
-            amount = BigInt(request.amount);
-          } catch {
-            return fail('BAD_REQUEST', 'amount is not an integer');
+          if (request.amount === undefined) {
+            // Sell-the-whole-balance probe. Needs the account, so it is the one
+            // quote that requires an unlocked wallet.
+            if (request.side !== 'sell') return fail('BAD_REQUEST', 'amount is required for a buy');
+            if (!owner) return fail('LOCKED', 'unlock to check whether this can be sold');
+            try {
+              amount = await trade.client.readContract({
+                address: token,
+                abi: ERC20_BALANCE_ABI,
+                functionName: 'balanceOf',
+                args: [owner],
+              });
+            } catch {
+              return fail('BAD_REQUEST', 'could not read the token balance');
+            }
+            if (amount <= 0n) return fail('NO_BALANCE', 'you hold none of this token');
+          } else {
+            try {
+              amount = BigInt(request.amount);
+            } catch {
+              return fail('BAD_REQUEST', 'amount is not an integer');
+            }
+            if (amount <= 0n) return fail('BAD_REQUEST', 'amount must be greater than zero');
           }
-          if (amount <= 0n) return fail('BAD_REQUEST', 'amount must be greater than zero');
           if (!Number.isInteger(request.slippageBps) || request.slippageBps < 0 || request.slippageBps >= 10_000) {
             return fail('BAD_REQUEST', 'slippageBps out of range');
           }
 
           const ref = { address: token, chainId: trade.chainId };
           try {
-            // A sell needs an owner to check allowances against, which only
-            // exists while unlocked.
-            const owner = session.address;
-            if (request.side === 'sell' && !owner) return fail('LOCKED', 'unlock to quote a sell');
-
-            const plan =
-              request.side === 'buy'
-                ? await planBuy(trade.venues, ref, amount, request.slippageBps)
-                : await planSell(trade.venues, ref, amount, request.slippageBps, owner as Address);
-
             // Seen it, so it can appear in positions later.
             await trade.watchlist.add(token).catch(() => {});
 
             if (request.type === 'trade.quote') {
-              // Deliberately no calldata: a quote is for display, and handing
-              // a page ready-to-sign bytes serves no purpose it should have.
+              // Quoting needs no account — only approvals do, and a quote does
+              // not build them. A reverting quote is precisely the signal that
+              // a sell is unavailable, so this path must surface the failure
+              // rather than hide it behind a lock check (D-049).
+              //
+              // Deliberately no calldata: a quote is for display, and handing a
+              // page ready-to-sign bytes serves no purpose it should have.
+              const resolution = await trade.venues.resolve(ref);
+              if (!resolution) return fail('UNSUPPORTED_VENUE', 'no venue trades this token');
+              const quote =
+                request.side === 'buy'
+                  ? await resolution.adapter.quoteBuy(ref, amount)
+                  : await resolution.adapter.quoteSell(ref, amount);
               return {
                 ok: true,
                 data: {
-                  venueId: plan.venueId,
-                  state: plan.state,
-                  amountIn: plan.quote.amountIn.toString(),
-                  amountOut: plan.quote.amountOut.toString(),
-                  minOut: plan.minOut.toString(),
-                  feeBps: plan.quote.feeBps,
-                  steps: plan.steps.length,
+                  venueId: quote.venueId,
+                  state: quote.state,
+                  amountIn: quote.amountIn.toString(),
+                  amountOut: quote.amountOut.toString(),
+                  quoteAsset: quote.quoteAsset,
+                  feeBps: quote.feeBps,
                 },
               };
             }
+
+            // Executing does need the account, for allowances.
+            if (!owner) return fail('LOCKED', 'unlock to trade');
+            const plan =
+              request.side === 'buy'
+                ? await planBuy(trade.venues, ref, amount, request.slippageBps)
+                : await planSell(trade.venues, ref, amount, request.slippageBps, owner);
 
             const outcome = await trade.engine.execute(plan);
             return { ok: true, data: outcome };

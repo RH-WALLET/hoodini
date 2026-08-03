@@ -54,7 +54,7 @@ independent risk.
 - [x] Both paths executed against live state via `eth_call` + state overrides
 - [x] 30 Doppler tests, mutation-checked (5 mutations, all caught)
 - [ ] Confirm a Graduated/Exited asset on-chain — none observed yet
-- [ ] Surface "sell unavailable" in the UI for pools whose sell side reverts
+- [x] Sell control gated on a real quote of the whole balance (D-049)
 
 ## [x] P1c — Second curve adapter — **flap.sh**
 
