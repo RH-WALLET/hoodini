@@ -1,14 +1,14 @@
 /**
- * Doppler adapter — V4 read path, and the deliberate refusals on the write path.
+ * Doppler adapter — V4 read and write paths.
  *
- * The refusal tests matter as much as the quote tests: an adapter that silently
- * returned `null` from `approvalNeeded` would tell the trade engine a sell was
- * ready to broadcast when the Permit2 approval had never been built.
+ * Write-path assertions decode the UniversalRouter calldata and check the
+ * command bytes, action bytes and each action's parameters. Comparing hex would
+ * pass while encoding something entirely different.
  */
 
 import { describe, expect, it } from 'vitest';
 import { getAddress, zeroAddress, type Address } from 'viem';
-import { DopplerAdapter, NotImplementedError } from '../src/venues/doppler.js';
+import { DopplerAdapter } from '../src/venues/doppler.js';
 import { DOPPLER_HOOK, V4_QUOTER, WETH } from '../src/venues/registry.js';
 import { DOPPLER_POOL_STATUS, V4_DYNAMIC_FEE_FLAG } from '../src/abis.js';
 import { createStubClient } from './stubClient.js';
@@ -143,18 +143,191 @@ describe('quotes', () => {
   });
 });
 
-describe('write path is refused, not faked (P1b-2)', () => {
-  it('throws rather than emitting unverified V4 calldata', async () => {
-    const { adapter } = adapterWith(stateTuple(DOPPLER_POOL_STATUS.Locked));
-    await expect(adapter.buildBuy()).rejects.toBeInstanceOf(NotImplementedError);
-    await expect(adapter.buildSell()).rejects.toBeInstanceOf(NotImplementedError);
+// ── write path (P1b-2) ──────────────────────────────────────────────────────
+
+import { decodeAbiParameters, parseAbiParameters, decodeFunctionData } from 'viem';
+import { UNIVERSAL_ROUTER_ABI, UR_COMMANDS, V4_ACTIONS, PERMIT2_ABI } from '../src/abis.js';
+import { UNIVERSAL_ROUTER, PERMIT2 } from '../src/venues/registry.js';
+
+const NOW = () => 1_700_000_000_000;
+
+function writeAdapter(state: unknown, amountOut = 1000n * 10n ** 18n, extraReads: Record<string, unknown> = {}) {
+  const { client } = createStubClient({
+    reads: { [`${DOPPLER_HOOK.toLowerCase()}.getState`]: state, ...extraReads },
+    simulates: { [`${V4_QUOTER.toLowerCase()}.quoteExactInputSingle`]: [amountOut, 1n] },
+  });
+  return new DopplerAdapter(client, { now: NOW });
+}
+
+/** execute(commands, inputs, deadline) -> the pieces we care about. */
+function decodeExecute(data: `0x${string}`) {
+  const d = decodeFunctionData({ abi: UNIVERSAL_ROUTER_ABI, data });
+  const [commands, inputs, deadline] = d.args as readonly [`0x${string}`, readonly `0x${string}`[], bigint];
+  const cmdBytes = (commands.slice(2).match(/.{2}/g) ?? []).map((h) => parseInt(h, 16));
+  return { cmdBytes, inputs, deadline };
+}
+
+/** V4_SWAP input -> (actions[], params[]) */
+function decodeV4(input: `0x${string}`) {
+  const [actions, params] = decodeAbiParameters(parseAbiParameters('bytes, bytes[]'), input) as [`0x${string}`, readonly `0x${string}`[]];
+  return { actions: (actions.slice(2).match(/.{2}/g) ?? []).map((h) => parseInt(h, 16)), params };
+}
+
+describe('buildBuy (V4)', () => {
+  it('targets the pinned UniversalRouter and sends ETH as value', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildBuy(token, 10n ** 15n, 100);
+    expect(tx.to).toBe(UNIVERSAL_ROUTER);
+    expect(tx.value).toBe(10n ** 15n);
   });
 
-  it('approvalNeeded throws instead of returning null', async () => {
-    // null means "nothing to approve". V4 sells need a Permit2 approval, so a
-    // null here would tell the engine a sell was ready to broadcast when it
-    // was not — a silently wrong answer is worse than a loud refusal.
-    const { adapter } = adapterWith(stateTuple(DOPPLER_POOL_STATUS.Locked));
-    await expect(adapter.approvalNeeded()).rejects.toBeInstanceOf(NotImplementedError);
+  it('wraps ETH to the router, then swaps — WRAP_ETH before V4_SWAP', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildBuy(token, 10n ** 15n, 100);
+    const { cmdBytes, inputs } = decodeExecute(tx.data);
+    expect(cmdBytes).toEqual([UR_COMMANDS.WRAP_ETH, UR_COMMANDS.V4_SWAP]);
+
+    const [recipient, amount] = decodeAbiParameters(parseAbiParameters('address, uint256'), inputs[0]!);
+    // ADDRESS_THIS: the router must hold the WETH in order to settle with it.
+    expect(recipient.toLowerCase()).toBe('0x0000000000000000000000000000000000000002');
+    expect(amount).toBe(10n ** 15n);
+  });
+
+  it('settles from the ROUTER, not the user — this is what keeps buys Permit2-free', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildBuy(token, 10n ** 15n, 100);
+    const { actions, params } = decodeV4(decodeExecute(tx.data).inputs[1]!);
+    expect(actions).toEqual([V4_ACTIONS.SWAP_EXACT_IN_SINGLE, V4_ACTIONS.SETTLE, V4_ACTIONS.TAKE_ALL]);
+
+    const [currency, amt, payerIsUser] = decodeAbiParameters(parseAbiParameters('address, uint256, bool'), params[1]!);
+    expect(currency).toBe(WETH);
+    expect(amt).toBe(10n ** 15n);
+    expect(payerIsUser).toBe(false);
+  });
+
+  it('enforces slippage via TAKE_ALL minimum', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildBuy(token, 10n ** 15n, 100);
+    const { params } = decodeV4(decodeExecute(tx.data).inputs[1]!);
+    const [, minOut] = decodeAbiParameters(parseAbiParameters('address, uint256'), params[2]!);
+    expect(minOut).toBe((1000n * 10n ** 18n * 9900n) / 10_000n);
+  });
+
+  it('refuses a non-WETH numeraire rather than building an impossible trade', async () => {
+    const usdg = getAddress('0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168');
+    const a = writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked, { numeraire: usdg, currency0: usdg }));
+    await expect(a.buildBuy(token, 10n ** 15n, 100)).rejects.toThrow(/only supports WETH-paired/);
   });
 });
+
+describe('buildSell (V4)', () => {
+  it('swaps then unwraps, sending no ETH', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildSell(token, 500n, 100);
+    expect(tx.value).toBe(0n);
+    const { cmdBytes } = decodeExecute(tx.data);
+    expect(cmdBytes).toEqual([UR_COMMANDS.V4_SWAP, UR_COMMANDS.UNWRAP_WETH]);
+  });
+
+  it('settles the token from the USER — the Permit2 pull', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildSell(token, 500n, 100);
+    const { actions, params } = decodeV4(decodeExecute(tx.data).inputs[0]!);
+    expect(actions).toEqual([V4_ACTIONS.SWAP_EXACT_IN_SINGLE, V4_ACTIONS.SETTLE_ALL, V4_ACTIONS.TAKE]);
+    const [currency, maxAmount] = decodeAbiParameters(parseAbiParameters('address, uint256'), params[1]!);
+    expect(currency).toBe(TOKEN);
+    expect(maxAmount).toBe(500n);
+  });
+
+  it('keeps WETH in the router so it can be unwrapped to native ETH', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildSell(token, 500n, 100);
+    const { params } = decodeV4(decodeExecute(tx.data).inputs[0]!);
+    const [currency, recipient, amount] = decodeAbiParameters(parseAbiParameters('address, address, uint256'), params[2]!);
+    expect(currency).toBe(WETH);
+    expect(recipient.toLowerCase()).toBe('0x0000000000000000000000000000000000000002'); // ADDRESS_THIS
+    expect(amount).toBe(0n); // OPEN_DELTA — "whatever the swap produced"
+  });
+
+  it('enforces slippage on the unwrap, where the user actually receives ETH', async () => {
+    const tx = await writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked)).buildSell(token, 500n, 100);
+    const { inputs } = decodeExecute(tx.data);
+    const [recipient, minOut] = decodeAbiParameters(parseAbiParameters('address, uint256'), inputs[1]!);
+    expect(recipient.toLowerCase()).toBe('0x0000000000000000000000000000000000000001'); // MSG_SENDER
+    expect(minOut).toBe((1000n * 10n ** 18n * 9900n) / 10_000n);
+
+    // The swap itself must NOT also enforce a minimum, or a partial fill could
+    // trip the wrong check and revert with a misleading error.
+    const { params } = decodeV4(inputs[0]!);
+    const [swap] = decodeAbiParameters(
+      [
+        {
+          type: 'tuple',
+          components: [
+            {
+              name: 'poolKey', type: 'tuple',
+              components: [
+                { name: 'currency0', type: 'address' }, { name: 'currency1', type: 'address' },
+                { name: 'fee', type: 'uint24' }, { name: 'tickSpacing', type: 'int24' }, { name: 'hooks', type: 'address' },
+              ],
+            },
+            { name: 'zeroForOne', type: 'bool' },
+            { name: 'amountIn', type: 'uint128' },
+            { name: 'amountOutMinimum', type: 'uint128' },
+            { name: 'hookData', type: 'bytes' },
+          ],
+        },
+      ],
+      params[0]!,
+    ) as unknown as [{ amountOutMinimum: bigint; amountIn: bigint }];
+    expect(swap.amountOutMinimum).toBe(0n);
+    expect(swap.amountIn).toBe(500n);
+  });
+});
+
+describe('approvalNeeded (V4 = two steps via Permit2)', () => {
+  const owner = getAddress('0x0000000000000000000000000000000000000003');
+
+  it('step 1: approves the token to Permit2, not to the router', async () => {
+    const a = writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked), 1000n, {
+      [`${TOKEN.toLowerCase()}.allowance`]: 0n,
+    });
+    const tx = await a.approvalNeeded(token, owner, 500n);
+    expect(tx!.to).toBe(TOKEN);
+    const [spender] = decodeFunctionData({ abi: ERC20_ABI_MIN, data: tx!.data }).args as readonly [Address, bigint];
+    expect(spender).toBe(PERMIT2);
+  });
+
+  it('step 2: grants the router an allowance inside Permit2', async () => {
+    const a = writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked), 1000n, {
+      [`${TOKEN.toLowerCase()}.allowance`]: 10n ** 30n,
+      [`${PERMIT2.toLowerCase()}.allowance`]: [0n, 0, 0],
+    });
+    const tx = await a.approvalNeeded(token, owner, 500n);
+    expect(tx!.to).toBe(PERMIT2);
+    const d = decodeFunctionData({ abi: PERMIT2_ABI, data: tx!.data });
+    const [tok, spender, amount] = d.args as readonly [Address, Address, bigint, number];
+    expect(tok).toBe(TOKEN);
+    expect(spender).toBe(UNIVERSAL_ROUTER);
+    expect(amount).toBe(500n);
+  });
+
+  it('returns null only when BOTH grants are in place and unexpired', async () => {
+    const future = Math.floor(NOW() / 1000) + 3600;
+    const a = writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked), 1000n, {
+      [`${TOKEN.toLowerCase()}.allowance`]: 10n ** 30n,
+      [`${PERMIT2.toLowerCase()}.allowance`]: [10n ** 30n, future, 0],
+    });
+    expect(await a.approvalNeeded(token, owner, 500n)).toBeNull();
+  });
+
+  it('re-approves when the Permit2 allowance is large but EXPIRED', async () => {
+    // An expired allowance is worth nothing however big it is — treating
+    // amount alone as sufficient would produce a sell that always reverts.
+    const past = Math.floor(NOW() / 1000) - 1;
+    const a = writeAdapter(stateTuple(DOPPLER_POOL_STATUS.Locked), 1000n, {
+      [`${TOKEN.toLowerCase()}.allowance`]: 10n ** 30n,
+      [`${PERMIT2.toLowerCase()}.allowance`]: [10n ** 30n, past, 0],
+    });
+    const tx = await a.approvalNeeded(token, owner, 500n);
+    expect(tx).not.toBeNull();
+    expect(tx!.to).toBe(PERMIT2);
+  });
+});
+
+const ERC20_ABI_MIN = [
+  { type: 'function', name: 'approve', stateMutability: 'nonpayable', inputs: [{ name: 's', type: 'address' }, { name: 'v', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+] as const;

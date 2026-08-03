@@ -241,3 +241,81 @@ export const V4_QUOTER_ABI = [
  * off the key for such pools.
  */
 export const V4_DYNAMIC_FEE_FLAG = 0x800000;
+
+// ── Uniswap V4 write path (UniversalRouter + Permit2) ───────────────────────
+
+/**
+ * UniversalRouter. Every constant below was read out of the deployed verified
+ * source at 0x53BF6B06…, not assumed from upstream Uniswap.
+ *
+ * Note the chain has a second UniversalRouter (0x8876…) that is a FORK: its
+ * COMMAND_TYPE_MASK is 0x7f rather than 0x3f and it adds `executeSigned`. The
+ * canonical one is pinned so command encoding stays predictable.
+ */
+export const UNIVERSAL_ROUTER_ABI = [
+  {
+    type: 'function',
+    name: 'execute',
+    stateMutability: 'payable',
+    inputs: [
+      { name: 'commands', type: 'bytes' },
+      { name: 'inputs', type: 'bytes[]' },
+      { name: 'deadline', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+] as const;
+
+/** `library Commands` — verified source. */
+export const UR_COMMANDS = {
+  WRAP_ETH: 0x0b,
+  UNWRAP_WETH: 0x0c,
+  V4_SWAP: 0x10,
+} as const;
+
+/** `library Actions` — verified source. */
+export const V4_ACTIONS = {
+  SWAP_EXACT_IN_SINGLE: 0x06,
+  SETTLE: 0x0b,
+  SETTLE_ALL: 0x0c,
+  TAKE: 0x0e,
+  TAKE_ALL: 0x0f,
+} as const;
+
+/**
+ * `library ActionConstants` — verified source.
+ * OPEN_DELTA (0) means "use whatever the pool manager currently owes", which is
+ * how a swap's output is handed to the next action without knowing the amount.
+ */
+export const V4_OPEN_DELTA = 0n;
+
+/** Canonical Permit2, confirmed as constructor arg [0] of the pinned router. */
+export const PERMIT2_ABI = [
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'user', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [
+      { name: 'amount', type: 'uint160' },
+      { name: 'expiration', type: 'uint48' },
+      { name: 'nonce', type: 'uint48' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint160' },
+      { name: 'expiration', type: 'uint48' },
+    ],
+    outputs: [],
+  },
+] as const;

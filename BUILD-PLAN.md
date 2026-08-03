@@ -46,11 +46,15 @@ independent risk.
 - [x] `quoteBuy` / `quoteSell` via the bound V4Quoter
 - [x] Registry entry, harness support, 18 tests (mutation-checked)
 
-### [ ] P1b-2 — write path
-- [ ] UniversalRouter `execute(commands, inputs)` V4_SWAP encoding, read from
-      deployed source rather than assumed
-- [ ] Permit2 approval flow (V4 does not use plain ERC-20 allowances)
+### [x] P1b-2 — write path
+- [x] UniversalRouter `execute(commands, inputs)` V4_SWAP encoding, read from
+      the deployed source (a forked router exists, so upstream constants are
+      not safe here)
+- [x] Permit2 two-step approval flow, with expiry handling
+- [x] Both paths executed against live state via `eth_call` + state overrides
+- [x] 30 Doppler tests, mutation-checked (5 mutations, all caught)
 - [ ] Confirm a Graduated/Exited asset on-chain — none observed yet
+- [ ] Surface "sell unavailable" in the UI for pools whose sell side reverts
 
 ## [ ] P1c — Second curve adapter
 

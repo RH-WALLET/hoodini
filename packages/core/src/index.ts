@@ -21,10 +21,12 @@ export {
   V4_POOL_MANAGER,
   V4_QUOTER,
   V4_UNIVERSAL_ROUTERS,
+  UNIVERSAL_ROUTER,
+  PERMIT2,
   DOPPLER_HOOK,
   DOPPLER_AIRLOCK,
 } from './venues/registry.js';
 export { VenueRouter, type VenueResolution } from './venues/router.js';
 export { UniswapV3Adapter, applySlippage, type UniswapV3AdapterOptions } from './venues/uniswapV3.js';
-export { DopplerAdapter, NotImplementedError, type PoolKey } from './venues/doppler.js';
+export { DopplerAdapter, type PoolKey } from './venues/doppler.js';
 export { createChainClient, robinhoodChain, ROBINHOOD_CHAIN_ID, DEFAULT_RPC_URL } from './chain.js';

@@ -18,6 +18,7 @@ import {
   DopplerAdapter,
   VenueRouter,
   SWAP_ROUTER_02,
+  UNIVERSAL_ROUTER,
   type TokenRef,
   type TxRequest,
 } from '@hoodini/core';
@@ -84,7 +85,8 @@ async function main(): Promise<void> {
     console.log('  transactions sent: 0');
     return;
   }
-  console.log(`  to        ${buyTx.to}${buyTx.to === SWAP_ROUTER_02 ? '  (SwapRouter02 ✓)' : '  ⚠ NOT the verified router'}`);
+  const known: Record<string, string> = { [SWAP_ROUTER_02]: 'SwapRouter02', [UNIVERSAL_ROUTER]: 'UniversalRouter' };
+  console.log(`  to        ${buyTx.to}${known[buyTx.to] ? `  (${known[buyTx.to]} ✓)` : '  ⚠ NOT a pinned router'}`);
   console.log(`  value     ${formatEther(buyTx.value)} ETH`);
   console.log(`  data      ${buyTx.data.slice(0, 74)}…  (${(buyTx.data.length - 2) / 2} bytes)`);
   console.log(`  ${buyTx.description}`);
@@ -109,12 +111,17 @@ async function main(): Promise<void> {
   console.log(`  data      ${sellTx.data.slice(0, 74)}…  (${(sellTx.data.length - 2) / 2} bytes)`);
   console.log(`  ${sellTx.description}`);
 
+  h('simulate sell calldata (eth_call)');
+  await simulate(client, sellTx, '0x0000000000000000000000000000000000000003');
+
   h('approval check');
   const owner = '0x0000000000000000000000000000000000000003' as Address;
   const approval = await resolution.adapter.approvalNeeded(token, owner, sellAmount);
+  // Print the approval's ACTUAL target — venues differ: V3 approves the router
+  // directly, V4 goes through Permit2 in two steps.
   console.log(
     approval
-      ? `  needed → approve exactly ${sellAmount} to ${SWAP_ROUTER_02}`
+      ? `  needed → ${approval.description}\n           to ${approval.to}`
       : '  none needed (allowance already sufficient)',
   );
 
@@ -130,16 +137,28 @@ async function simulate(
   from: Address,
 ): Promise<void> {
   try {
-    await client.call({ account: from, to: tx.to, data: tx.data, value: tx.value });
-    console.log('  ✓ calldata executes (would succeed given funds)');
+    // Fund the simulated sender via state override. Without this every buy
+    // "fails on funds", which proves nothing about the encoding — the whole
+    // point of simulating is to distinguish a bad encode from an empty wallet.
+    await client.call({
+      account: from,
+      to: tx.to,
+      data: tx.data,
+      value: tx.value,
+      stateOverride: [{ address: from, balance: tx.value + 10n ** 18n }],
+    });
+    console.log('  ✓ calldata EXECUTES against live state (funded simulation)');
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const first = msg.split('\n').find((l) => /reason|revert|Error:/i.test(l))?.trim() ?? msg.split('\n')[0];
     // A zero-balance caller failing on funds proves the shape is right; a
     // decode/selector failure would mean the encoding itself is wrong.
-    const fundsRelated = /insufficient|balance|exceeds|STF|funds/i.test(msg);
-    console.log(`  ${fundsRelated ? '✓' : '⚠'} ${first}`);
-    if (fundsRelated) console.log('    (expected — the simulated sender holds no ETH; encoding is valid)');
+    // With the sender funded, a funds/allowance revert now means the *token*
+    // side is missing (a sell needs balance + Permit2), not that the encode is
+    // wrong. Anything else is a genuine encoding failure.
+    const fundsRelated = /insufficient|balance|exceeds|STF|allowance|TRANSFER_FROM_FAILED/i.test(msg);
+    console.log(`  ${fundsRelated ? '~' : '⚠'} ${first}`);
+    if (fundsRelated) console.log('    (sender funded with ETH but holds no tokens/approval — shape ok, not a full proof)');
   }
 }
 

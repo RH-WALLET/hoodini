@@ -338,6 +338,64 @@ already inside `amountOut`.
 `0xad25Ac6C…`. An adapter assuming WETH would silently quote the wrong direction,
 so the numeraire is always read from the hook.
 
+### Doppler write path — VERIFIED by simulation (2026-08-03)
+
+| Contract | Address | Status |
+|---|---|---|
+| **UniversalRouter (pinned)** | `0x53BF6B0684Ec7eF91e1387Da3D1a1769bC5A6F77` | VERIFIED — constructor args wire it to **our** Permit2, WETH, V3 factory and V4 PoolManager |
+| **Permit2** | `0x000000000022D473030F116dDEE9F6B43aC78BA3` | VERIFIED — constructor arg [0] of the router |
+
+> ⚠ **The other bound router (`0x8876789976…`) is a FORK**: `COMMAND_TYPE_MASK`
+> is `0x7f` instead of `0x3f` and it adds `executeSigned`. Upstream Uniswap
+> constants are therefore **not** automatically correct on this chain — every
+> command, action and struct below was read out of the pinned router's verified
+> source (D-020).
+
+**Buy** — `WRAP_ETH(ADDRESS_THIS, ethIn)` → `V4_SWAP[SWAP_EXACT_IN_SINGLE,
+SETTLE(WETH, ethIn, payerIsUser=false), TAKE_ALL(asset, minOut)]`.
+`payerIsUser=false` is what makes a buy Permit2-free.
+
+**Sell** — `V4_SWAP[SWAP_EXACT_IN_SINGLE, SETTLE_ALL(asset, amountIn),
+TAKE(WETH, ADDRESS_THIS, OPEN_DELTA)]` → `UNWRAP_WETH(MSG_SENDER, minOut)`.
+Slippage is enforced on the unwrap, where the user's ETH actually lands.
+
+**Proof.** Both were executed against live state via `eth_call`:
+
+| Simulation | Result |
+|---|---|
+| Buy, sender funded by state override | ✅ **executes** |
+| Sell, token balance only | ❌ reverts |
+| Sell, balance **+ Permit2 allowance** overridden | ✅ **executes** |
+
+The middle row matters: it proves the Permit2 grant is genuinely required, so
+`approvalNeeded`'s two-step flow is not speculative. Balance overrides needed the
+Solady slot recipe (`keccak256(owner ++ 8 zero bytes ++ uint32(0x87a211a2))`) —
+Doppler tokens are EIP-1167 clones of `DopplerERC20V1`, which is Solady-based, so
+linear storage slots do not work.
+
+### ⚠ Doppler sells can be unavailable — product-critical
+
+Sells revert on **3 of 4** sampled `Locked` pools, at *every* size including 1
+token, while buys succeed at every size. The quoter surfaces it as
+`UnexpectedRevertBytes(bytes)` (`0x6190b2b0`) — a wrapper meaning something
+reverted underneath it.
+
+| Token | status | buy | sell |
+|---|---|---|---|
+| `0x8B18800B…` | Locked | ✅ | ❌ |
+| `0x48452389…` | Locked | ✅ | ❌ |
+| `0x224e5A04…` | Locked | ✅ | ✅ |
+| `0xD08D4382…` | Locked | ✅ | ❌ |
+
+It is **not** a protocol-wide "no sells during the auction" rule — one Locked
+pool sells fine — so the cause is per-pool and **UNCONFIRMED** (most likely
+one-sided liquidity while the auction is still distributing). This is not a bug
+in the adapter: the same encoding sells successfully on the pool that permits it.
+
+**The UI must quote before offering a sell** and show "cannot sell right now"
+when the quote reverts. Rendering a sell button that always fails would be worse
+than not rendering one.
+
 ### Routers — a trap worth recording
 
 **Every contract merely *named* `UniversalRouter` on this chain binds to a

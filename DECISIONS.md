@@ -434,3 +434,41 @@ the binding the contract actually exposes.
 
 The four bound `V4Quoter` deployments all return identical quotes; one is pinned
 in the registry so quotes stay reproducible.
+
+---
+
+### D-020 — V4 encoding is read from the deployed router, never from upstream Uniswap
+**Decided 2026-08-03.**
+
+This chain hosts **two** UniversalRouters that both bind to our PoolManager, and
+they are not the same contract: `0x8876789976…` has `COMMAND_TYPE_MASK = 0x7f`
+and an extra `executeSigned`, while `0x53BF6B06…` matches canonical Uniswap at
+`0x3f`. Upstream constants are therefore not automatically valid here.
+
+`0x53BF6B06…` is pinned, on evidence rather than preference: its constructor
+args wire it to **our** Permit2, **our** WETH, **our** V3 factory and **our** V4
+PoolManager. Every command byte, action byte, sentinel and struct in the write
+path was extracted from its verified source.
+
+Same rule as D-009 and D-019, one level deeper: on a chain full of forks, the
+deployed bytecode is the specification.
+
+---
+
+### D-021 — Doppler sell availability is per-pool; quote before offering a sell
+**Recorded 2026-08-03. Cause UNCONFIRMED.**
+
+Sells revert on 3 of 4 sampled `Locked` Doppler pools — at every size, including
+one token — while buys succeed at every size. One Locked pool sells normally, so
+this is **not** a protocol-wide "auction is buy-only" rule.
+
+The adapter is not at fault: the identical encoding sells successfully against
+the pool that permits it, verified by simulation.
+
+**Consequence for the UI:** a sell control must never be rendered from `state()`
+or from holding a balance. It must be gated on a successful `quoteSell`, and
+show "cannot sell right now" when the quote reverts. Shipping a sell button that
+always fails would be worse than shipping none.
+
+Most likely explanation is one-sided liquidity while the auction distributes,
+but that is a hypothesis. Revisit when a Graduated Doppler asset can be observed.

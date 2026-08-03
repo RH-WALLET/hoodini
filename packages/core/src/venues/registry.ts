@@ -101,6 +101,19 @@ export const V4_UNIVERSAL_ROUTERS: readonly Address[] = [
   getAddress('0x8876789976dEcBfCbBbe364623C63652db8C0904'),
 ];
 
+/**
+ * The canonical UniversalRouter — pinned. Its constructor args wire it to OUR
+ * infrastructure: Permit2, WETH `0x0Bd7D308…`, the V3 factory
+ * `0x1f7d7550…` and the V4 PoolManager `0x8366a39C…`.
+ *
+ * The other bound router (`0x8876789976…`) is a fork with a different command
+ * mask and an extra `executeSigned`, so it is deliberately not used.
+ */
+export const UNIVERSAL_ROUTER = getAddress('0x53BF6B0684Ec7eF91e1387Da3D1a1769bC5A6F77');
+
+/** Canonical Permit2 — constructor arg [0] of UNIVERSAL_ROUTER. */
+export const PERMIT2 = getAddress('0x000000000022D473030F116dDEE9F6B43aC78BA3');
+
 export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
   {
     id: 'uniswap-v3',
@@ -119,6 +132,7 @@ export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
     // No factory: on V4 the launchpad is the hook, so attribution comes from
     // the hook's own getState() rather than from a creation trace.
     dexFactory: V4_POOL_MANAGER,
+    router: UNIVERSAL_ROUTER,
     quoter: V4_QUOTER,
     status: 'VERIFIED',
   },
