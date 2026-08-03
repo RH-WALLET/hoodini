@@ -638,3 +638,55 @@ Sends are serialised behind a FIFO queue and the pending nonce is read
 immediately before each signature, so two concurrent trades cannot claim the
 same nonce. A rejected trade must not poison the queue, which is tested
 explicitly.
+
+---
+
+### D-029 — Overlays render in a shadow root
+**Decided 2026-08-03.**
+
+Trading terminals ship aggressive global CSS. Without isolation their
+stylesheet would reshape our controls while ours leaked into their layout, and
+neither side can be asked to cooperate. A shadow root makes both impossible.
+
+It also makes the overlay auditable from the page's side: everything Hoodini
+adds is a single `[data-hoodini]` host element, and `unmountAll` restores the
+page byte-for-byte (asserted by test).
+
+Controls call `stopPropagation`, because a terminal usually has its own click
+handler on the row — without it, buying would also fire the site's action.
+Both buy and sell paths are tested, after a mutation showed only sell was
+covered.
+
+---
+
+### D-030 — Row anchoring is inferred from shape, not class names
+**Decided 2026-08-03.**
+
+An address usually sits on a `<span>` or `<a>` too small to host a button; the
+useful anchor is the row it belongs to. `nearestRow` walks up to the first
+ancestor with several same-shaped siblings and enough text to be a row.
+
+Class names would be the obvious alternative and are the wrong choice: terminal
+CSS is minified and changes without warning, so a selector-based adapter breaks
+silently on a deploy. Shape survives that.
+
+Virtualised lists recycle a row node for a *different* token, so `mount` rebinds
+an existing host rather than trusting that a decorated node still shows the same
+token — otherwise a click would buy something the user is no longer looking at.
+
+---
+
+### D-031 — The Axiom adapter throws rather than returning empty
+**Decided 2026-08-03.**
+
+Axiom's markup has never been observed (Cloudflare bot protection, and
+defeating that is out of scope), so its selectors cannot be written honestly.
+The stub throws `AxiomAdapterNotReady`.
+
+A stub returning `[]` would be worse than no adapter at all: it would look
+finished, silently match nothing, and no test here could distinguish "Axiom
+changed its DOM" from "we never implemented it". Throwing makes the gap
+impossible to miss.
+
+Axiom is not unsupported meanwhile — `GenericAddressAdapter` decorates it
+wherever it renders raw addresses. It is just not first-class.

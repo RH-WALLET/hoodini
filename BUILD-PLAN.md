@@ -102,8 +102,17 @@ session, so it never fetches Axiom at all. Only recon is blocked.
 
 - [x] `scripts/capture-dom.js` — one-paste devtools capture, logic verified
       against a synthetic list in a real browser DOM
-- [ ] Rory runs it on Axiom → `docs/dom/axiom.trade.json`
-- [ ] `SiteAdapter` for Axiom
+- [x] **Site-agnostic layer, complete and tested:** address detection
+      (checksum-enforcing), row-finding by shape, shadow-DOM overlay,
+      MutationObserver runtime with debouncing and per-row error isolation
+- [x] `GenericAddressAdapter` — works on any page rendering raw addresses
+      (Blockscout, DexScreener), and is the runtime's reference implementation
+- [x] Content script wired: detects, mounts, and quotes via the worker
+- [x] 25 adapter tests, mutation-checked (7 mutations; two survivors found,
+      one of which exposed dead code)
+- [ ] **BLOCKED —** Rory runs `scripts/capture-dom.js` on Axiom →
+      `docs/dom/axiom.trade.json`
+- [ ] `AxiomAdapter` selectors (thin layer; stub throws loudly meanwhile)
 - [ ] Anchor discovery resilient to SPA re-render
 
 ## [ ] P4 — X / Telegram Web / DexScreener adapters + positions panel
