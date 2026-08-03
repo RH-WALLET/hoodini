@@ -82,15 +82,42 @@ adapter must assert the implementation at load (D-010).
   crossed, gas estimate 94,271. Pool `0x23154F6D765225Eb81Cd5550c0175D5a5E9a59B8`,
   WETH pair, fee tier 10000 (1%), in-range liquidity 3.68e22.
 
-**flap.sh** — interface VERIFIED, quote path UNCONFIRMED
-- `buy(address,address,uint256) payable` · `sell(address,uint256,uint256)` ·
-  `buyOnCreation(address,address,uint256) payable` · `buyQuotaOf(address,address)` ·
-  `swapExactInput(tuple) payable` · `swapExactInputV3(tuple) payable`
-- Graduation surface: `TokenMigratorSet`, `TaxOnBondingCurvePaid` events.
-- Sample token found: `0x645b23…7777` — the `7777` suffix corroborates the
-  mined-vanity tax-clone scheme in `printer/RECON-flap.md`.
-- **Open:** no view quoter located; `buyQuotaOf` needs decoding, and the
-  curve-vs-graduated signal needs pinning. P1b work.
+**flap.sh** — VERIFIED end to end (2026-08-03)
+
+> ⚠ **CORRECTION.** An earlier pass listed `buy(address,address,uint256)` and
+> `sell(address,uint256,uint256)` as flap's trade surface, on the strength of
+> the ABI. Reading the deployed source shows **both bodies are
+> `revert FeatureDisabled()`** — they are dead entry points. An adapter written
+> from the ABI alone would have compiled, reviewed cleanly, and failed for every
+> user. The live path is `swapExactInput`.
+
+| Item | Value |
+|---|---|
+| Portal (proxy) | `0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09` |
+| Implementation | `Portal` `0x7Bc20c2C5A25649b0A765B7E4d7d11E3e1A9fA06` (already drifted once) |
+| Trade | `swapExactInput({inputToken, outputToken, inputAmount, minOutputAmount, permitData})` payable |
+| Quote | `quoteExactInput({inputToken, outputToken, inputAmount})` — nonpayable, eth_call only |
+| State / membership | `getTokenV9Safe(token)` — **reverts** for a non-flap token |
+| Native asset | `address(0)` on either side; no recipient param, output goes to `msg.sender` |
+| Approval | plain ERC-20 to the Portal (`permitData` empty) — no Permit2 here |
+
+`getTokenV9Safe` returns `status`, `reserve`, `price`, `quoteTokenAddress`,
+`pool`, `progress`, `buyTaxRate`, `sellTaxRate`, `bondingCurveFeeRate`.
+
+**Live sample** `0x59b3ae7570Ca4ce4ad110DC1D0D3a12Fc5d17777` (a `7777` tax
+clone): status 1, native-ETH quoted, `pool = 0x0` (on curve), buy tax 1000 bps,
+sell tax 1000 bps, curve fee 125 bps. Buy calldata **executes against live
+state**; a full round trip at 0.0000001 ETH returned 79.2%, consistent with
+11.25% each way plus impact.
+
+**State is keyed on `pool`, not `status`** — a pool address only exists after
+migration, which is directly observable, whereas the `status` enum is
+undocumented in the verified source and no graduated flap token was found.
+
+**Sell quotes can revert** with an arithmetic underflow when the amount exceeds
+what the curve's reserve can pay out (selling 513k tokens into a 5.34e-7 ETH
+reserve). Same UI consequence as D-021: gate the sell control on a successful
+quote, never on holding a balance.
 
 **Virtuals** — factory VERIFIED, trade path UNCONFIRMED
 - `AgentFactoryV7`, with `executeBondingCurveApplicationSalt(...)` and

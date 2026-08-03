@@ -114,6 +114,13 @@ export const UNIVERSAL_ROUTER = getAddress('0x53BF6B0684Ec7eF91e1387Da3D1a1769bC
 /** Canonical Permit2 — constructor arg [0] of UNIVERSAL_ROUTER. */
 export const PERMIT2 = getAddress('0x000000000022D473030F116dDEE9F6B43aC78BA3');
 
+/**
+ * flap.sh Portal (a TransparentUpgradeableProxy). Its implementation has
+ * already changed once during this project, so the adapter reads state and
+ * quotes from the proxy and never caches an implementation address.
+ */
+export const FLAP_PORTAL = getAddress('0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09');
+
 export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
   {
     id: 'uniswap-v3',
@@ -123,6 +130,15 @@ export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
     dexFactory: UNISWAP_V3_FACTORY,
     router: SWAP_ROUTER_02,
     quoter: QUOTER_V2,
+    status: 'VERIFIED',
+  },
+  {
+    id: 'flap',
+    displayName: 'flap.sh',
+    kind: 'bonding-curve',
+    // No factory attribution: the Portal itself answers whether it launched a
+    // token, so claims() is one call and needs no bundled token list.
+    router: FLAP_PORTAL,
     status: 'VERIFIED',
   },
   {

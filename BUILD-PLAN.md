@@ -56,7 +56,15 @@ independent risk.
 - [ ] Confirm a Graduated/Exited asset on-chain — none observed yet
 - [ ] Surface "sell unavailable" in the UI for pools whose sell side reverts
 
-## [ ] P1c — Second curve adapter
+## [x] P1c — Second curve adapter — **flap.sh**
+
+- [x] Recon: the ABI's `buy`/`sell` are dead (`revert FeatureDisabled()`); the
+      live path is `swapExactInput`
+- [x] `claims` via `getTokenV9Safe` reverting for non-flap tokens
+- [x] `state` keyed on `pool`, not the undocumented `status` enum
+- [x] Quote + build both directions; buy calldata executes against live state
+- [x] Plain ERC-20 approval (no Permit2 on this venue)
+- [x] 21 tests, mutation-checked (5 mutations, all caught)
 
 ## [ ] P1d+ — Additional launchpads, one thin adapter spec each (Sonnet-eligible)
 

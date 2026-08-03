@@ -16,9 +16,11 @@ import {
   createChainClient,
   UniswapV3Adapter,
   DopplerAdapter,
+  FlapAdapter,
   VenueRouter,
   SWAP_ROUTER_02,
   UNIVERSAL_ROUTER,
+  FLAP_PORTAL,
   type TokenRef,
   type TxRequest,
 } from '@hoodini/core';
@@ -52,7 +54,8 @@ async function main(): Promise<void> {
   const client = createChainClient(RPC_URL);
   const adapter = new UniswapV3Adapter(client);
   const doppler = new DopplerAdapter(client);
-  const router = new VenueRouter([adapter, doppler], undefined, client);
+  const flap = new FlapAdapter(client);
+  const router = new VenueRouter([adapter, doppler, flap], undefined, client);
 
   const token: TokenRef = { address: getAddress(rawToken), chainId: await client.getChainId() };
 
@@ -85,7 +88,11 @@ async function main(): Promise<void> {
     console.log('  transactions sent: 0');
     return;
   }
-  const known: Record<string, string> = { [SWAP_ROUTER_02]: 'SwapRouter02', [UNIVERSAL_ROUTER]: 'UniversalRouter' };
+  const known: Record<string, string> = {
+    [SWAP_ROUTER_02]: 'SwapRouter02',
+    [UNIVERSAL_ROUTER]: 'UniversalRouter',
+    [FLAP_PORTAL]: 'flap Portal',
+  };
   console.log(`  to        ${buyTx.to}${known[buyTx.to] ? `  (${known[buyTx.to]} ✓)` : '  ⚠ NOT a pinned router'}`);
   console.log(`  value     ${formatEther(buyTx.value)} ETH`);
   console.log(`  data      ${buyTx.data.slice(0, 74)}…  (${(buyTx.data.length - 2) / 2} bytes)`);
@@ -99,7 +106,20 @@ async function main(): Promise<void> {
   // Sell path, sized from what the buy would produce.
   const sellAmount = buyQuote.amountOut;
   h(`quote sell — ${formatEther(sellAmount)} tokens (round trip)`);
-  const sellQuote = await resolution.adapter.quoteSell(token, sellAmount);
+  // A sell quote reverting is a legitimate venue state, not a harness failure:
+  // a thin bonding curve cannot pay out more than its reserve, and some pools
+  // refuse sells outright (D-021). Report it rather than crashing.
+  const sellQuote = await resolution.adapter.quoteSell(token, sellAmount).catch((e: unknown) => {
+    console.log(`  ⚠ sell quote unavailable: ${e instanceof Error ? (e.message.split('\n')[0] ?? '') : String(e)}`);
+    console.log('     a UI must gate its sell control on a successful quote, never on holding a balance');
+    return null;
+  });
+  if (!sellQuote) {
+    h('safety');
+    console.log('  buy path verified; sell unavailable for this token at this size');
+    console.log('  transactions sent: 0');
+    return;
+  }
   console.log(`  amountOut ${formatEther(sellQuote.amountOut)} ETH`);
   const roundTripBps = Number((sellQuote.amountOut * 10_000n) / ethIn);
   console.log(`  round trip ${(roundTripBps / 100).toFixed(2)}% of input back (two 1% fees + impact ≈ expected)`);

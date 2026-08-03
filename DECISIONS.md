@@ -690,3 +690,46 @@ impossible to miss.
 
 Axiom is not unsupported meanwhile — `GenericAddressAdapter` decorates it
 wherever it renders raw addresses. It is just not first-class.
+
+---
+
+### D-032 — flap's live trade path is `swapExactInput`; `buy`/`sell` are dead
+**Decided 2026-08-03. Corrects the P1b-1 census.**
+
+The Portal's ABI exposes `buy(address,address,uint256)` and
+`sell(address,uint256,uint256)`, and an earlier census recorded them as flap's
+trade surface. Both bodies in the deployed verified source are
+`revert FeatureDisabled()`.
+
+An adapter written from the ABI would have compiled, passed review, and failed
+for every user — the exact failure mode D-020 exists to prevent, now confirmed
+on a second venue. **An ABI describes what a contract will accept, not what it
+will do.**
+
+The live path is `swapExactInput`, with `address(0)` for the native asset in
+either direction and no recipient parameter, so output goes to `msg.sender` and
+built calldata binds to whoever signs it. Neither dead function is declared in
+our ABI, making a call to one a type error rather than a runtime revert.
+
+Approvals are plain ERC-20 to the Portal — `permitData` is left empty — so flap
+does *not* use Permit2. Assuming venues share an approval model would have been
+wrong in both directions.
+
+---
+
+### D-033 — flap `state()` reads `pool`, not `status`
+**Decided 2026-08-03.**
+
+`getTokenV9Safe` returns both a `status` enum and a `pool` address. State is
+derived from `pool`: an address only exists once liquidity has migrated off the
+curve, which is directly observable.
+
+`status` is undocumented in the verified source and no graduated flap token was
+found during recon, so any mapping of its values would be a guess presented as a
+fact. Same discipline as the Doppler enum (which *was* documented, and so was
+used).
+
+**Sell quotes can revert** when the amount exceeds what the curve's reserve can
+pay — an arithmetic underflow, not a rejection. Combined with D-021, that is now
+two venues where a sell control must be gated on a successful `quoteSell` rather
+than on the user holding a balance. Treat that as the general rule.

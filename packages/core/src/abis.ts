@@ -319,3 +319,91 @@ export const PERMIT2_ABI = [
     outputs: [],
   },
 ] as const;
+
+// ── flap.sh Portal ──────────────────────────────────────────────────────────
+
+/**
+ * flap.sh Portal — the live trade surface only.
+ *
+ * `buy(address,address,uint256)` and `sell(address,uint256,uint256)` are
+ * deliberately NOT declared here. They still appear in the deployed ABI, but
+ * both bodies are `revert FeatureDisabled()` in the verified source. Omitting
+ * them makes calling a dead entry point a type error rather than a runtime
+ * revert discovered by a user (D-032).
+ *
+ * `address(0)` means the native asset on either side of a swap. There is no
+ * recipient parameter — output goes to `msg.sender` — so built calldata is
+ * bound to whoever signs it.
+ */
+export const FLAP_PORTAL_ABI = [
+  {
+    type: 'function',
+    name: 'swapExactInput',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        type: 'tuple',
+        name: 'params',
+        components: [
+          { name: 'inputToken', type: 'address' },
+          { name: 'outputToken', type: 'address' },
+          { name: 'inputAmount', type: 'uint256' },
+          { name: 'minOutputAmount', type: 'uint256' },
+          { name: 'permitData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [{ name: 'outputAmount', type: 'uint256' }],
+  },
+  {
+    // Non-payable but only ever reached via eth_call.
+    type: 'function',
+    name: 'quoteExactInput',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        type: 'tuple',
+        name: 'params',
+        components: [
+          { name: 'inputToken', type: 'address' },
+          { name: 'outputToken', type: 'address' },
+          { name: 'inputAmount', type: 'uint256' },
+        ],
+      },
+    ],
+    outputs: [{ name: 'outputAmount', type: 'uint256' }],
+  },
+  {
+    // Reverts for any token the Portal did not launch, which is the membership test.
+    type: 'function',
+    name: 'getTokenV9Safe',
+    stateMutability: 'view',
+    inputs: [{ name: 'token', type: 'address' }],
+    outputs: [
+      {
+        type: 'tuple',
+        components: [
+          { name: 'status', type: 'uint8' },
+          { name: 'reserve', type: 'uint256' },
+          { name: 'circulatingSupply', type: 'uint256' },
+          { name: 'price', type: 'uint256' },
+          { name: 'tokenVersion', type: 'uint8' },
+          { name: 'r', type: 'uint256' },
+          { name: 'h', type: 'uint256' },
+          { name: 'k', type: 'uint256' },
+          { name: 'dexSupplyThresh', type: 'uint256' },
+          { name: 'quoteTokenAddress', type: 'address' },
+          { name: 'nativeToQuoteSwapEnabled', type: 'bool' },
+          { name: 'extensionID', type: 'bytes32' },
+          { name: 'buyTaxRate', type: 'uint256' },
+          { name: 'sellTaxRate', type: 'uint256' },
+          { name: 'pool', type: 'address' },
+          { name: 'progress', type: 'uint256' },
+          { name: 'lpFeeProfile', type: 'uint8' },
+          { name: 'dexId', type: 'uint8' },
+          { name: 'bondingCurveFeeRate', type: 'uint16' },
+        ],
+      },
+    ],
+  },
+] as const;

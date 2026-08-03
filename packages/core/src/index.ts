@@ -25,10 +25,12 @@ export {
   PERMIT2,
   DOPPLER_HOOK,
   DOPPLER_AIRLOCK,
+  FLAP_PORTAL,
 } from './venues/registry.js';
 export { VenueRouter, type VenueResolution } from './venues/router.js';
 export { UniswapV3Adapter, applySlippage, type UniswapV3AdapterOptions } from './venues/uniswapV3.js';
 export { DopplerAdapter, type PoolKey } from './venues/doppler.js';
+export { FlapAdapter } from './venues/flap.js';
 export { createChainClient, robinhoodChain, ROBINHOOD_CHAIN_ID, DEFAULT_RPC_URL } from './chain.js';
 
 export {
