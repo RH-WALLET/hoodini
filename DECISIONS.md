@@ -793,7 +793,7 @@ site. Making it a test failure means it cannot happen quietly.
 ---
 
 ### D-037 — MIT licence, with the tradeoff stated
-**Decided 2026-08-03. Reversible in one commit — flag if you disagree.**
+**Decided 2026-08-03. CONFIRMED by Rory 2026-08-03 — MIT stands.**
 
 MIT: conventional for a browser extension, lowest friction for contributors and
 for Chrome Web Store review.
@@ -804,9 +804,12 @@ to publish their changes, which arguably protects the product's whole wedge —
 0%, open, auditable.
 
 MIT was chosen because permissive licensing is the norm here and copyleft
-deters casual contributors, but this is a strategic call rather than a technical
-one. Changing it later is cheap while there are few contributors and expensive
-once there are many, so it is worth deciding deliberately now.
+deters casual contributors. Rory was shown the fork-and-close risk explicitly
+and accepted it, so this is a considered choice rather than a default that was
+never examined.
+
+Revisiting it later means relicensing with every contributor's agreement, which
+is why it was raised before there were any.
 
 ---
 
