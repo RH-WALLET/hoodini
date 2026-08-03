@@ -5,6 +5,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getAddress, isAddress, type Address } from 'viem';
 import * as abis from '../src/abis.js';
 import * as core from '../src/index.js';
@@ -72,9 +75,69 @@ describe('invariant 6 — 0% platform fee', () => {
     }
   });
 
-  it('never exports a signing or sending helper from core', () => {
+  it('never exports a broadcast path from core', () => {
+    // Custody is core's job; *sending* is not. Key handling lives here on
+    // purpose — what must never appear is anything that puts a transaction on
+    // the wire, since that is the boundary LIVE_TRADING guards.
     const exported = Object.keys(core);
-    expect(exported.filter((k) => /sign|send|broadcast|wallet|privateKey/i.test(k))).toEqual([]);
+    expect(exported.filter((k) => /sendTransaction|sendRaw|broadcast|writeContract|walletClient/i.test(k))).toEqual([]);
+  });
+
+  it('exposes exactly the intended key-touching surface', () => {
+    // A new export that touches keys should be a deliberate edit to this list,
+    // not something that appears silently alongside a feature.
+    const keyTouching = Object.keys(core).filter((k) => /key|vault|keystore|password/i.test(k)).sort();
+    expect(keyTouching).toEqual(
+      [
+        'KeystoreError',
+        'KeystoreSession',
+        'changePassword',
+        'createRandomVault',
+        'createVault',
+        'exportPrivateKey',
+        'generatePrivateKey',
+        'unlockVault',
+      ].sort(),
+    );
+  });
+});
+
+describe('invariant 1 — keys never leave the device', () => {
+  // The strongest available static check: the keystore must contain no way to
+  // put bytes on the network. Reading the source is crude but it is exactly
+  // the property being claimed, and it fails loudly if anyone adds a fetch.
+  const keystoreDir = resolve(fileURLToPath(import.meta.url), '../../src/keystore');
+  // Strip comments first. The invariant is about what the code DOES; the
+  // prose necessarily mentions chrome.storage and networking to explain why
+  // they are absent, and matching that would be a false positive.
+  const stripComments = (src: string) =>
+    src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  const sources = readdirSync(keystoreDir)
+    .filter((f) => f.endsWith('.ts'))
+    .map((f) => ({ file: f, text: stripComments(readFileSync(resolve(keystoreDir, f), 'utf8')) }));
+
+  it('has source files to check', () => {
+    expect(sources.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(['fetch(', 'XMLHttpRequest', 'sendBeacon', 'WebSocket', 'import(', 'eval('])(
+    'contains no %s anywhere in the keystore',
+    (needle) => {
+      const offenders = sources.filter((s) => s.text.includes(needle)).map((s) => s.file);
+      expect(offenders).toEqual([]);
+    },
+  );
+
+  it('never writes a key to storage itself — persistence is the caller\'s decision', () => {
+    const offenders = sources.filter((s) => /chrome\.storage|localStorage|sessionStorage|indexedDB/.test(s.text));
+    expect(offenders.map((o) => o.file)).toEqual([]);
+  });
+
+  it('never logs from the keystore', () => {
+    // A stray console.log of a decrypted value would put a key in the devtools
+    // buffer, which outlives the session.
+    const offenders = sources.filter((s) => /console\.(log|info|warn|error|debug)/.test(s.text));
+    expect(offenders.map((o) => o.file)).toEqual([]);
   });
 });
 

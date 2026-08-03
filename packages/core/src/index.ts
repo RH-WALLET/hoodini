@@ -30,3 +30,18 @@ export { VenueRouter, type VenueResolution } from './venues/router.js';
 export { UniswapV3Adapter, applySlippage, type UniswapV3AdapterOptions } from './venues/uniswapV3.js';
 export { DopplerAdapter, type PoolKey } from './venues/doppler.js';
 export { createChainClient, robinhoodChain, ROBINHOOD_CHAIN_ID, DEFAULT_RPC_URL } from './chain.js';
+
+export {
+  createVault,
+  createRandomVault,
+  unlockVault,
+  exportPrivateKey,
+  changePassword,
+  generatePrivateKey,
+  KeystoreSession,
+  KeystoreError,
+  DEFAULT_KDF,
+  DEFAULT_AUTO_LOCK_MS,
+  type EncryptedVault,
+  type UnlockedAccount,
+} from './keystore/index.js';

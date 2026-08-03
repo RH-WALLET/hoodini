@@ -472,3 +472,53 @@ always fails would be worse than shipping none.
 
 Most likely explanation is one-sided liquidity while the auction distributes,
 but that is a hypothesis. Revisit when a Graduated Doppler asset can be observed.
+
+---
+
+### D-022 — Keystore design: scrypt N=2^17, AES-256-GCM, AAD-bound header
+**Decided 2026-08-03.** Implements CLAUDE.md invariant 1.
+
+- **scrypt N=2^17, r=8, p=1, dkLen=32** — ~134 MB and roughly a second per
+  derivation. Memory-hard so a stolen browser profile is throttled by RAM, not
+  just hash rate. Parameters are stored **inside each vault**, so the cost can
+  be raised later without stranding existing vaults.
+- **AES-256-GCM** — authenticated, so a tampered vault fails to decrypt rather
+  than yielding garbage that then gets signed with.
+- **AAD binds the header** (`hoodini-keystore-v1:<address>`) to the ciphertext,
+  so editing a vault's address fails authentication rather than silently
+  decrypting under another identity.
+- **`scryptAsync`**, not the sync variant: the sync one would stall the service
+  worker for the entire derivation.
+- **Password is NFKC-normalised** so a composed and decomposed "é" are the same
+  password, as they are to the person typing.
+
+**The key is never returned from the session.** `KeystoreSession.withKey(fn)`
+passes it as an argument and there is no getter, so a caller cannot retain it
+past a lock without an obvious, reviewable copy.
+
+**The vault stores the address in plaintext** so the UI can name a locked
+account. Local-only disclosure: it is never transmitted (invariant 2), and
+anyone who can read that storage can already read the ciphertext.
+
+---
+
+### D-023 — Invariants that are testable are tested, including by reading source
+**Decided 2026-08-03.**
+
+Invariant 1 ("keys never leave the device") is now enforced by a test that
+strips comments from every keystore source file and asserts the code contains no
+`fetch(`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, dynamic `import(`,
+`eval(`, any `chrome.storage`/`localStorage`/`indexedDB` write, or any
+`console.*` call. Crude, but it is precisely the claimed property, and it fails
+loudly the moment someone adds a network call to the keystore.
+
+Comments are stripped first: the prose necessarily *mentions* `chrome.storage`
+to explain why the module does not use it, and matching that was a false
+positive on the first run.
+
+The earlier "core exports nothing matching /sign|send|wallet|privateKey/" check
+was too blunt once real key custody arrived — it forbade the keystore itself.
+Replaced by two sharper checks: no broadcast path may be exported, and the
+key-touching export surface must match an explicit list, so a new key-handling
+export is a deliberate edit rather than something that appears alongside a
+feature.

@@ -60,11 +60,27 @@ independent risk.
 
 ## [ ] P1d+ — Additional launchpads, one thin adapter spec each (Sonnet-eligible)
 
-## [ ] P2 — Extension shell + keystore wallet
+## [~] P2 — Extension shell + keystore wallet
 
-- [ ] MV3 + Vite + CRXJS + React shell, strict CSP
-- [ ] Keystore: create / import / unlock / lock / export, AES-GCM + scrypt
-- [ ] Service-worker trade engine wired to `VenueRouter`
+Split by integration layer: the keystore is pure, offline-testable and the
+highest-risk code in the repo, so it lands and is verified before any UI or
+send path is built on top of it.
+
+### [x] P2a — keystore
+- [x] AES-256-GCM under a scrypt-derived key (N=2^17, r=8, p=1)
+- [x] create / import / unlock / export / change-password
+- [x] `KeystoreSession`: key reachable only inside `withKey`, idle auto-lock
+- [x] 39 tests, mutation-checked (7 mutations; one survivor found and fixed)
+- [x] Executable invariant checks: no fetch/eval/storage/logging in the keystore
+
+### [ ] P2b — extension shell
+- [ ] MV3 + Vite + CRXJS + React, strict CSP, minimal host permissions
+- [ ] Popup: create / import / unlock / lock / export flows
+- [ ] Service-worker message boundary (content scripts request, never sign)
+
+### [ ] P2c — trade engine
+- [ ] Service-worker engine wired to `VenueRouter`
+- [ ] Nonce serialisation, approve-then-swap sequencing, in-flight reconciliation
 - [ ] `LIVE_TRADING` gate at the send boundary; canary ≤ 0.005 ETH on approval
 
 ## [ ] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
