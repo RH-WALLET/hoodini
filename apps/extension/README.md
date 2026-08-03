@@ -28,3 +28,37 @@ These come from `CLAUDE.md` and are not negotiable at implementation time:
 - `DRY_RUN=true` / `LIVE_TRADING=false` by default; the send path re-checks
   `LIVE_TRADING` at the last possible moment.
 - 0% platform fee. No code path may append a fee, tip-skim, or spread.
+
+---
+
+## Loading it (P2b)
+
+```bash
+pnpm --filter @hoodini/extension build
+```
+
+Then `chrome://extensions` → enable Developer mode → **Load unpacked** →
+select `apps/extension/dist`.
+
+The popup can create, import, unlock, lock, export and reset a wallet. There is
+no trading yet — the trade engine and the `LIVE_TRADING` gate land in P2c, and
+site adapters in P3.
+
+## The trust boundary
+
+A content script runs in the page's world, so anything a hostile site can make
+it send, it will send. Content scripts are therefore untrusted callers.
+
+`src/background/protocol.ts` declares which surfaces may send each message and
+the router enforces it centrally, so no handler has to remember the rule and
+none can weaken it locally. Two independent defences:
+
+1. `ALLOWED_SURFACES` — the policy table. Today it grants pages **nothing**.
+2. `NEVER_PAGE_ACCESSIBLE` — a backstop that refuses unlock/export/create/
+   import/changePassword/reset to a page *even if the table is edited wrongly*.
+
+Both are tested independently, because a redundant defence is only worth having
+if each half is proven to work on its own.
+
+`classifySender` fails closed: a sender carrying a `tab` is a page no matter
+what URL it claims, and a message from another extension is refused outright.

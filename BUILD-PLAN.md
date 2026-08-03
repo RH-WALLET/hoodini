@@ -73,10 +73,13 @@ send path is built on top of it.
 - [x] 39 tests, mutation-checked (7 mutations; one survivor found and fixed)
 - [x] Executable invariant checks: no fetch/eval/storage/logging in the keystore
 
-### [ ] P2b — extension shell
-- [ ] MV3 + Vite + CRXJS + React, strict CSP, minimal host permissions
-- [ ] Popup: create / import / unlock / lock / export flows
-- [ ] Service-worker message boundary (content scripts request, never sign)
+### [x] P2b — extension shell
+- [x] MV3 + Vite + CRXJS + React; builds to a loadable unpacked extension
+- [x] Strict CSP (no `unsafe-eval`, no remote origins), `storage` permission
+      only, one host permission
+- [x] Popup: create / import / unlock / lock / export / reset
+- [x] Service-worker message boundary with a two-layer surface policy
+- [x] 29 tests, mutation-checked (8 mutations; one survivor found and fixed)
 
 ### [ ] P2c — trade engine
 - [ ] Service-worker engine wired to `VenueRouter`

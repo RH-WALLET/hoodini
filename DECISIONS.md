@@ -522,3 +522,48 @@ Replaced by two sharper checks: no broadcast path may be exported, and the
 key-touching export surface must match an explicit list, so a new key-handling
 export is a deliberate edit rather than something that appears alongside a
 feature.
+
+---
+
+### D-024 — Content scripts are untrusted; the surface policy is enforced centrally
+**Decided 2026-08-03.** Implements CLAUDE.md invariant 3 and ARCHITECTURE.md's
+trust boundary.
+
+A content script runs in the page's world. Any site can reach it, so anything a
+hostile page can make it send, it will send. Content scripts may eventually
+*request a trade*; they may never unlock, export, or sign.
+
+`protocol.ts` declares which surfaces may send each message, and the router
+checks it once at the front door. Handlers never receive a message they are not
+allowed to serve, so none has to remember the rule and none can weaken it
+locally.
+
+**Two independent defences:**
+
+1. `ALLOWED_SURFACES` — the policy table. Today it grants pages **nothing**;
+   the first page-facing capability arrives with the trade engine in P2c.
+2. `NEVER_PAGE_ACCESSIBLE` — a backstop refusing unlock/export/create/import/
+   changePassword/reset to a page even if the table is edited wrongly.
+
+`classifySender` fails closed: a sender carrying `tab` is a page regardless of
+the URL it claims (a content script can spoof `url`, not `tab`), and a message
+from another extension is refused outright.
+
+---
+
+### D-025 — Redundant defences must each be proven independently
+**Decided 2026-08-03, prompted by a surviving mutation.**
+
+Deleting `NEVER_PAGE_ACCESSIBLE` entirely broke no test. The backstop is
+redundant *given the current table*, so every assertion passed on the table
+alone — yet the backstop's entire purpose is to hold when the table is later
+edited wrongly, which is exactly the case nothing exercised.
+
+`isAllowed` now takes an optional policy table so the backstop can be tested
+against a deliberately sabotaged one. The test also asserts the backstop is
+narrow — a non-sensitive entry is still governed by the table — so it cannot
+degrade into a blanket denial that would mask policy mistakes.
+
+General rule: when two defences cover the same case, at least one test must
+isolate each. Otherwise the weaker one can be removed silently and the
+remaining coverage will look unchanged.

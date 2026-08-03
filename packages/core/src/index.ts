@@ -41,7 +41,9 @@ export {
   KeystoreSession,
   KeystoreError,
   DEFAULT_KDF,
+  TEST_KDF,
   DEFAULT_AUTO_LOCK_MS,
   type EncryptedVault,
+  type KdfParams,
   type UnlockedAccount,
 } from './keystore/index.js';
