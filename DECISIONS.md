@@ -1025,3 +1025,40 @@ quotes always fail, and a button that never works is worse than an honest
 
 Worth stating plainly: an exclusion is a claim about the world, and deserves the
 same evidence as an inclusion. This one did not have it.
+
+---
+
+### D-048 — `0x593da569…`: three hypotheses, two wrong, still unsupportable
+**Investigated 2026-08-03 at Rory's direction. Supersedes D-047's reasoning.**
+
+Pushed to dig further, and it was worth doing — the second explanation was
+wrong too.
+
+1. **"The key is not derivable"** (D-045) — wrong. Two shapes per token, both
+   derived and confirmed via `StateView`.
+2. **"The hook requires `hookData`"** (D-047) — **also wrong**. Two historical
+   successful swaps were decoded and both carried `hookData = 0x`. Empty. The
+   quoter was already passing exactly what real swaps pass.
+3. **A state or time condition inside the hook** — consistent with everything
+   observed, and unverifiable because the source is unverified.
+
+**What the effort produced.** The venue's entry point is the aggregator router
+`0x65050A9b…`, and its `swap(...)` signature is now decoded and confirmed —
+replaying a real transaction with its original expired deadline reverts with the
+readable `"Transaction too old"`, which pins the field layout. That router also
+carries plain-V4 and V3 routes, so the decode is reusable beyond this venue.
+
+**Why it stays out.** A swap that succeeded at its own block fails at head with a
+fresh deadline, zero minimum, and any sender, reverting with empty data. Across
+6 tokens × 2 shapes, **0 of 12** pools are swappable, all holding liquidity —
+and the `fee=100` liquidity is byte-identical across every token, meaning it was
+seeded and never traded.
+
+Registering it would make `claims()` succeed for ~71 tokens whose trades always
+fail.
+
+**The wider point.** Two of my three explanations for excluding this venue were
+wrong, and both only surfaced because the exclusion was challenged. A negative
+result deserves the same evidence as a positive one — and "I checked and it
+still does not work" is worth far more than "it cannot be done", which is what I
+said twice.

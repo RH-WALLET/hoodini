@@ -516,32 +516,56 @@ Live: resolves via `StateView`, quotes correctly, and the quote reports its
 counterparty as `quoteAsset` so it can never be summed into an ETH total. An
 ETH-funded buy is refused, because there is no ETH side to fund it with.
 
-### `0x593da569…` — pools exist, but cannot be quoted
+### `0x593da569…` — investigated to exhaustion, not supportable
 
-> **Correction.** This hook was previously excluded on the grounds that its pool
-> key was "not derivable". That was wrong. It opens exactly **two** shapes per
-> token — `fee=100/spacing=1` and `fee=300/spacing=10`, both native-paired — and
-> both keys were derived and confirmed live via `StateView`, with real
-> liquidity (9.9e19 and 7.9e17) and a set `sqrtPriceX96`.
+142 pools, real liquidity, and **not tradeable by us**. Three successive
+explanations were tested and the first two were wrong.
 
-The actual blocker is quoting. `V4Quoter.quoteExactInputSingle` reverts on
-**both** shapes with `UnexpectedRevertBytes` (`0x6190b2b0`) — the wrapper error
-meaning the hook itself reverted underneath. The hook almost certainly requires
-`hookData` or an allowlisted caller, and its **source is unverified**, so what
-it expects cannot be read.
+| Hypothesis | Verdict |
+|---|---|
+| "Pool key is not derivable" | **Wrong.** Two shapes per token — `fee=100/spacing=1`, `fee=300/spacing=10` — both native-paired, both derived and confirmed via `StateView`. |
+| "The hook requires `hookData`" | **Wrong.** Two historical *successful* swaps were decoded and both carried `hookData = 0x` — empty, exactly what the quoter passes. |
+| "Swaps are gated by state or time" | **Consistent with all evidence**, and unverifiable — see below. |
 
-It is therefore **not** registered. Registering it would make `claims()` succeed
-for ~71 tokens whose quotes then always fail — a broken button is worse than an
-honest "unsupported venue".
+**What was established.** The venue's entry point is the aggregator router
+`0x65050A9b7E5075A2bA5cED7b1b64EE66262c40Dc`, whose selector `0x4d819a2a`
+decodes to:
 
-142 pools of otherwise-real volume are unreachable until either the source is
-verified or the required `hookData` is established.
+```
+swap((uint8 kind, address in, address out, address extra, uint24 fee,
+      int24 tickSpacing, address hooks, bytes hookData, address poolManager,
+      bytes32) [] steps,
+     address recipient, uint256 amountIn, uint256 amountOutMin, uint256 deadline)
+```
+
+The decode is confirmed, not guessed: replaying a real transaction with its
+original (expired) deadline reverts with the readable reason
+`"Transaction too old"`, which pins the field.
+
+**Why it still cannot be used.** Replaying a swap that *succeeded* at its own
+block fails at head with a fresh deadline, `minOutMin = 0`, and either the
+original sender or a funded stranger — reverting with **empty** revert data. A
+sweep of 6 tokens × 2 shapes found **0 of 12 pools swappable**, every one holding
+liquidity. The `fee=100` liquidity is byte-identical across all six tokens
+(`99496368139291045458`), i.e. seeded at initialisation and never traded.
+
+The router itself is fine — other routes through it (plain V4, and V3 via
+`kind=1`) replay successfully from an arbitrary sender.
+
+So swaps worked once and no longer do, for every pool on this hook. That is a
+condition inside the hook, and its **source is unverified**, so which condition
+cannot be read. Guessing at an unverified contract's internal state is exactly
+what this project does not do.
+
+**Left unregistered.** `claims()` would succeed for ~71 tokens whose trades
+always fail, and a button that never works is worse than an honest "unsupported
+venue".
 
 ### V4 hooks still not adopted
 
 | Hook | Why not |
 |---|---|
-| `0x593da569…` (142 pools) | Key **is** derivable; quotes revert via the hook. See above. |
+| `0x593da569…` (142 pools) | Key derivable and `hookData` empty; swaps nonetheless revert for every pool tested. See above. |
 | `PositionManager` `0x5cf8e499…` | Not a launchpad; appears as a hook on LP plumbing. |
 
 ## 8. Overlay targets (terminals and screeners)
