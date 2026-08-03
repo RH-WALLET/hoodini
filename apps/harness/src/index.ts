@@ -19,6 +19,8 @@ import {
   FlapAdapter,
   KlikAdapter,
   VirtualsAdapter,
+  V4HookAdapter,
+  V4_HOOK_VENUES,
   VenueRouter,
   SWAP_ROUTER_02,
   UNIVERSAL_ROUTER,
@@ -59,7 +61,9 @@ async function main(): Promise<void> {
   const flap = new FlapAdapter(client);
   const klik = new KlikAdapter(client);
   const virtuals = new VirtualsAdapter(client);
-  const router = new VenueRouter([adapter, doppler, flap, klik, virtuals], undefined, client);
+  // Each fixed-parameter V4 hook is a config entry, not an adapter.
+  const hooks = V4_HOOK_VENUES.map((v) => new V4HookAdapter(client, v));
+  const router = new VenueRouter([adapter, doppler, flap, klik, virtuals, ...hooks], undefined, client);
 
   const token: TokenRef = { address: getAddress(rawToken), chainId: await client.getChainId() };
 

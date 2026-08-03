@@ -31,11 +31,14 @@ export {
   VIRTUALS_BONDING,
   VIRTUALS_ROUTER,
   VIRTUAL_TOKEN,
+  STATE_VIEW,
+  V4_HOOK_VENUES,
 } from './venues/registry.js';
 export { VenueRouter, type VenueResolution } from './venues/router.js';
 export { UniswapV3Adapter, applySlippage, type UniswapV3AdapterOptions } from './venues/uniswapV3.js';
 export { DopplerAdapter, type PoolKey } from './venues/doppler.js';
 export { FlapAdapter } from './venues/flap.js';
+export { V4HookAdapter, hookPoolKey, poolIdOfKey, type V4HookVenue } from './venues/v4hook.js';
 export { VirtualsAdapter, WrongDenominationError } from './venues/virtuals.js';
 export { KlikAdapter, klikPoolKey, poolIdOf, KLIK_POOL_FEE, KLIK_TICK_SPACING } from './venues/klik.js';
 export { encodeV4Buy, encodeV4Sell, packBytes, encodeV4Actions, encodeExactInSingle } from './venues/v4.js';

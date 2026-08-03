@@ -66,7 +66,7 @@ independent risk.
 - [x] Plain ERC-20 approval (no Permit2 on this venue)
 - [x] 21 tests, mutation-checked (5 mutations, all caught)
 
-## [~] P1d+ — Additional launchpads
+## [x] P1d+ — Additional launchpads
 
 - [x] **klik.finance** — genuinely thin: derived + verified pool key, reuses the
       shared V4 encoder. 15 tests, mutation-checked (5 mutations, all caught)
@@ -78,8 +78,12 @@ independent risk.
       15 tests, mutation-checked
 - [ ] NOXA needs no adapter — launches are disabled and its tokens trade on
       Uniswap V3, already covered
-- [ ] Smaller V4 hooks seen in the census (Clanker, PumpV4, CashCat, FriarTier)
-      are each a thin adapter if wanted
+- [x] **Clanker, CashCat, Pump (V4), EthCreatorFee** — one generic
+      `V4HookAdapter` plus four config entries. Pool existence proved via
+      `StateView.getSlot0` with a negative control. All four verified live
+- [x] 21 tests, mutation-checked (4 mutations, all caught)
+- [ ] Two remaining hooks are **not** derivable (mixed parameters, unverified
+      source) and are documented as excluded rather than skipped silently
 
 ## [x] P2 — Extension shell + keystore wallet
 

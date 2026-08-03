@@ -133,6 +133,50 @@ export const VIRTUALS_BONDING = getAddress('0xd4cCBFA37e2f35611b3042e4096Ad7a345
 export const VIRTUALS_ROUTER = getAddress('0xCa6395246B4382Ba70F886526dD9a9De984F6081');
 export const VIRTUAL_TOKEN = getAddress('0xc6911796042b15d7Fa4F6CDe69e245DdCd3d9c31');
 
+/** Bound to V4_POOL_MANAGER via its own poolManager(). Used for pool existence. */
+export const STATE_VIEW = getAddress('0xF3334192D15450CdD385c8B70e03f9A6bD9E673b');
+
+/**
+ * V4 launchpads that are "a pool with our hook, always the same parameters".
+ * Each is a config entry rather than an adapter (D-045). Every fee/tickSpacing/
+ * numeraire below was read off that hook's own Initialize events, and every
+ * constructed pool id was checked against the event and against StateView.
+ */
+export const V4_HOOK_VENUES = [
+  {
+    id: 'clanker',
+    displayName: 'Clanker',
+    hook: getAddress('0x48B8F6AD3A1b4aA477314c9a23035b8F84dDe8cc'),
+    fee: 8_388_608, // dynamic-fee flag
+    tickSpacing: 200,
+    numeraire: getAddress('0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'), // WETH
+  },
+  {
+    id: 'cashcat',
+    displayName: 'CashCat',
+    hook: getAddress('0xEfe669814e5Eec33406Bd50ffa8331618D076aEc'),
+    fee: 0,
+    tickSpacing: 200,
+    numeraire: getAddress('0x0000000000000000000000000000000000000000'), // native
+  },
+  {
+    id: 'pump-v4',
+    displayName: 'Pump (V4)',
+    hook: getAddress('0x14bcC18fDB0e7a427122b9C2F1A40fF7D63EAACC'),
+    fee: 0,
+    tickSpacing: 200,
+    numeraire: getAddress('0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'), // WETH
+  },
+  {
+    id: 'eth-creator-fee',
+    displayName: 'EthCreatorFee',
+    hook: getAddress('0xd7d69905657Ff6551d086ca0eb1d606a948f20cc'),
+    fee: 0,
+    tickSpacing: 200,
+    numeraire: getAddress('0x0000000000000000000000000000000000000000'), // native
+  },
+] as const;
+
 export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
   {
     id: 'uniswap-v3',
@@ -164,6 +208,15 @@ export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
     quoter: V4_QUOTER,
     status: 'VERIFIED',
   },
+  ...V4_HOOK_VENUES.map((v) => ({
+    id: v.id,
+    displayName: v.displayName,
+    kind: 'dex' as const,
+    dexFactory: V4_POOL_MANAGER,
+    router: UNIVERSAL_ROUTER,
+    quoter: V4_QUOTER,
+    status: 'VERIFIED' as const,
+  })),
   {
     id: 'virtuals',
     displayName: 'Virtuals',

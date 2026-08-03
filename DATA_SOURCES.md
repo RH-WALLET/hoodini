@@ -477,6 +477,41 @@ validate them) but **do** expose `poolManager()`, and both bind correctly.
 `execute(commands, inputs)` encoding plus Permit2 approvals, neither yet checked
 against deployed source. Deferred to P1b-2 (D-018).
 
+### V4 hook venues — one adapter, four config entries (2026-08-03)
+
+Several launchpads are simply "a V4 pool with our hook, always the same
+parameters". Each opens every pool with a fixed fee, tickSpacing and numeraire,
+so the `PoolKey` is derivable from the token address — and each is a **config
+entry**, not an adapter.
+
+| Venue | Hook | fee | tickSpacing | numeraire | pools seen |
+|---|---|---|---|---|---|
+| Clanker | `0x48B8F6AD3A1b4aA477314c9a23035b8F84dDe8cc` | 8388608 (dynamic) | 200 | WETH | 38 |
+| CashCat | `0xEfe669814e5Eec33406Bd50ffa8331618D076aEc` | 0 | 200 | native | 21 |
+| Pump (V4) | `0x14bcC18fDB0e7a427122b9C2F1A40fF7D63EAACC` | 0 | 200 | WETH | 13 |
+| EthCreatorFee | `0xd7d69905657Ff6551d086ca0eb1d606a948f20cc` | 0 | 200 | native | 5 |
+
+Every row was read off that hook's own `Initialize` events, not assumed.
+
+**Existence is proved, not derived.** klik can check a constructed key against
+its own `getTokenPrice`; these hooks expose no such getter. So membership is
+proved against Uniswap: hash the key into a poolId and read
+`StateView.getSlot0` (`0xF3334192D15450CdD385c8B70e03f9A6bD9E673b`, bound to our
+PoolManager). An uninitialised pool returns `sqrtPriceX96 == 0`.
+
+Verified live for all four, with a **negative control**: the same token under a
+different hook hashes to a poolId that reads back zero. Each venue's buy
+calldata executes against live state — Clanker 0.0001 ETH → 1,000,893.20;
+CashCat → 62,886.33; Pump → 72,284.41; EthCreatorFee → 73,021.95.
+
+### V4 hooks deliberately NOT adopted
+
+| Hook | Why not |
+|---|---|
+| `0x593da569c2a5a6999f59fcc5b06477d8bb4dc080` (142 pools) | Unverified source, and **two** parameter sets (`fee=100/spacing=1` and `fee=300/spacing=10`). A single config cannot describe it, so the key is not derivable. |
+| `0x3bff0db34ddb6d2e82050945b754d3580ff85ac8` (6 pools) | Unverified, and each pool uses a different numeraire — no fixed shape. |
+| `PositionManager` `0x5cf8e499…` | Not a launchpad; it appears as a hook on LP plumbing. |
+
 ## 8. Overlay targets (terminals and screeners)
 
 Where Hoodini's buttons get injected. Status = whether RH Chain support is

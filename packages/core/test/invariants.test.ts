@@ -103,6 +103,8 @@ describe('invariant 6 — 0% platform fee', () => {
         'unlockVault',
         // Uniswap V4 pool identity — nothing to do with private keys.
         'klikPoolKey',
+        'hookPoolKey',
+        'poolIdOfKey',
       ].sort(),
     );
   });

@@ -949,3 +949,32 @@ callbacks — but it is not the trade surface. `BondingV5` is, and it was found 
 following a real `sell` transaction rather than by searching names. The lesson
 generalises: when a contract's name suggests it should be the entry point and
 its interface disagrees, follow a transaction.
+
+---
+
+### D-045 — Fixed-parameter V4 hooks are config, not adapters
+**Decided 2026-08-03. Delivers what P1d promised.**
+
+Clanker, CashCat, Pump (V4) and EthCreatorFee are each "a V4 pool with our hook,
+always the same parameters". One `V4HookAdapter` plus a four-row config table
+covers all of them, reusing the shared encoder from D-041.
+
+**Existence is proved against Uniswap, not against the venue.** klik could
+verify a derived key using its own `getTokenPrice`; these hooks expose nothing
+equivalent. So the adapter hashes the key into a poolId and reads
+`StateView.getSlot0` — an uninitialised pool returns `sqrtPriceX96 == 0`. That
+generalises to *any* V4 hook, and needs no cooperation from the venue.
+
+The negative control matters as much as the positive one: the same token under a
+different hook hashes to a poolId that reads back zero, so a derived key cannot
+quietly resolve to some other pool.
+
+**Two hooks were deliberately excluded**, and recorded rather than skipped
+quietly:
+
+- `0x593da569…` — 142 pools, but **two** parameter sets, so no single config
+  describes it and the key is not derivable. Source unverified.
+- `0x3bff0db3…` — every pool uses a different numeraire. No fixed shape.
+
+Adding either would mean pool discovery by log scan, which `claims()` forbids as
+it must stay a single cheap call.
