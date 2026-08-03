@@ -11,3 +11,11 @@ export { mountOverlay, unmountAll, HOST_ATTR, TOKEN_ATTR, type OverlayIntent, ty
 export { AdapterRuntime, matchesSite, type RuntimeOptions } from './runtime.js';
 export { GenericAddressAdapter, type GenericAdapterOptions } from './adapters/generic.js';
 export { AxiomAdapter, AxiomAdapterNotReady } from './adapters/axiom.js';
+export {
+  ConfigurableSiteAdapter,
+  createXAdapter,
+  createTelegramAdapter,
+  createDexScreenerAdapter,
+  createSiteAdapters,
+  type SiteAdapterConfig,
+} from './adapters/sites.js';

@@ -733,3 +733,59 @@ used).
 pay — an arithmetic underflow, not a rejection. Combined with D-021, that is now
 two venues where a sell control must be gated on a successful `quoteSell` rather
 than on the user holding a balance. Treat that as the general rule.
+
+---
+
+### D-034 — Site selectors are a hint; shape is the fallback
+**Decided 2026-08-03.**
+
+X, Telegram Web and DexScreener share one adapter with different
+`anchorSelectors`. Selectors are tried in order and, when none matches,
+`nearestRow`'s shape heuristic takes over.
+
+That fallback is what makes shipping unverified selectors defensible. None of
+the three has a captured DOM snapshot, and X in particular changes markup
+without notice. With the fallback, a stale selector costs *precision* — the
+control lands on a slightly wrong block — instead of removing the overlay
+entirely and looking like the extension is broken.
+
+`data-testid="tweet"` is preferred on X because it is the site's own test hook
+and vastly more stable than its generated class names. A malformed selector is
+caught and skipped rather than taking the adapter down.
+
+---
+
+### D-035 — Positions are local, partial, and say so
+**Decided 2026-08-03.**
+
+There is no indexer and no backend (invariant 4), so holdings are computed by
+reading `balanceOf` for tokens the extension has actually seen — a watchlist
+populated when a token is quoted or traded.
+
+This cannot be a full portfolio: a token bought elsewhere will not appear. The
+panel states that outright rather than showing a total that looks
+authoritative.
+
+Two related honesty rules:
+
+- A position whose value cannot be quoted is **kept**, with the reason shown.
+  Two venues are known to refuse sells in some states (D-021, D-033), so "no
+  price" is a real condition a holder needs to see, not an error to hide.
+- The total reports how many positions were excluded from it. A total that
+  quietly omitted unsellable rows would read as complete.
+
+`positions.list` is popup-only and in `NEVER_PAGE_ACCESSIBLE`: a page that could
+read holdings would learn the wallet's contents just by being visited.
+
+---
+
+### D-036 — Content-script hosts are listed one by one
+**Decided 2026-08-03.**
+
+The manifest names all five hosts explicitly. A test asserts every pattern is
+`https://<host>/*` — no `<all_urls>`, no scheme wildcard, no wildcard TLD — and
+pins the exact host list.
+
+The match list is the most legible security claim a user can check, and
+widening it is the cheapest possible mistake to make while wiring up a new
+site. Making it a test failure means it cannot happen quietly.

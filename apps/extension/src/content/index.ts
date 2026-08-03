@@ -7,7 +7,7 @@
  * service worker refuses `trade.execute` from a page outright (D-026).
  */
 
-import { AdapterRuntime, GenericAddressAdapter, type OverlayIntent } from '@hoodini/adapters';
+import { AdapterRuntime, GenericAddressAdapter, createSiteAdapters, matchesSite, type OverlayIntent } from '@hoodini/adapters';
 
 const CHAIN_ID = 4663;
 const DEFAULT_SLIPPAGE_BPS = 100;
@@ -38,10 +38,13 @@ async function quote(intent: OverlayIntent): Promise<void> {
   }
 }
 
-const adapter = new GenericAddressAdapter({
-  chainId: CHAIN_ID,
-  onIntent: (intent) => void quote(intent),
-});
+const onIntent = (intent: OverlayIntent) => void quote(intent);
+
+// Prefer the adapter that knows this site; fall back to shape-based detection
+// so an unlisted page still gets controls rather than nothing.
+const adapter =
+  createSiteAdapters({ chainId: CHAIN_ID, onIntent }).find((a) => matchesSite(a, location.href)) ??
+  new GenericAddressAdapter({ chainId: CHAIN_ID, onIntent });
 
 const runtime = new AdapterRuntime(adapter, document, {
   onError: (e) => console.debug('[hoodini] scan error', e),

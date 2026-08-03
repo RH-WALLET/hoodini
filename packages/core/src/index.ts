@@ -59,3 +59,4 @@ export {
   type TradeStep,
   type StepKind,
 } from './engine/planner.js';
+export { loadPositions, summarise, type Position, type PositionsOptions } from './positions.js';

@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Address, Hex } from 'viem';
-import { wallet } from './client.js';
+import { wallet, positions as positionsApi, type PositionsResult } from './client.js';
 import type { WalletStatus } from '../background/protocol.js';
 
 type View = 'loading' | 'setup' | 'locked' | 'unlocked';
@@ -79,6 +79,90 @@ export function App(): React.JSX.Element {
 }
 
 type RunFn = (fn: () => Promise<unknown>) => Promise<void>;
+
+function formatEth(wei: string): string {
+  const v = BigInt(wei);
+  const whole = v / 10n ** 18n;
+  const frac = (v % 10n ** 18n).toString().padStart(18, '0').slice(0, 6);
+  return `${whole}.${frac}`;
+}
+
+/**
+ * Holdings, computed locally from tokens this extension has seen.
+ *
+ * Explicitly not a portfolio: with no indexer (invariant 4) a token bought
+ * elsewhere cannot appear, and the panel says so rather than showing a total
+ * that looks authoritative and is quietly incomplete.
+ */
+function Positions(): React.JSX.Element {
+  const [data, setData] = useState<PositionsResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await positionsApi.list());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not load positions');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div className="panel stack">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <strong style={{ fontSize: 12 }}>Positions</strong>
+        <button className="ghost" style={{ width: 'auto', padding: '2px 8px' }} onClick={() => void load()} disabled={loading}>
+          {loading ? '…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className="error">{error}</div>}
+      {!error && data && data.positions.length === 0 && (
+        <p className="note">Nothing yet. Tokens appear here once you quote or trade them.</p>
+      )}
+
+      {data?.positions.map((p) => (
+        <div key={p.token} className="stack" style={{ gap: 2 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span>{p.symbol ?? 'token'}</span>
+            <span className="mono">{p.balanceFormatted}</span>
+          </div>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span className="note">{p.venueId ?? 'no venue'}</span>
+            <span className="note">
+              {p.valueWei !== null ? `${formatEth(p.valueWei)} ETH` : (p.valueUnavailableReason ?? 'no quote')}
+            </span>
+          </div>
+        </div>
+      ))}
+
+      {data && data.positions.length > 0 && (
+        <>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <strong style={{ fontSize: 12 }}>Total</strong>
+            <strong style={{ fontSize: 12 }}>{formatEth(data.totalWei)} ETH</strong>
+          </div>
+          {/* Stated, not hidden: a total that quietly omitted unsellable rows
+              would read as complete. */}
+          {data.unvalued > 0 && (
+            <p className="note">
+              {data.unvalued} of {data.positions.length} could not be priced and are excluded from this total.
+            </p>
+          )}
+        </>
+      )}
+      <p className="note">Only tokens seen in Hoodini. Not a full portfolio — there is no indexer.</p>
+    </div>
+  );
+}
 
 function Setup({ busy, run }: { busy: boolean; run: RunFn }): React.JSX.Element {
   const [mode, setMode] = useState<'create' | 'import'>('create');
@@ -196,6 +280,8 @@ function Unlocked({ status, busy, run }: { status: WalletStatus; busy: boolean; 
         </button>
         <p className="note">Locks automatically after {minutes} minutes idle, and whenever the browser suspends it.</p>
       </div>
+
+      <Positions />
 
       <div className="panel stack">
         {!showExport ? (

@@ -24,3 +24,23 @@ export const wallet = {
   exportKey: (password: string) => send<{ privateKey: Hex }>({ type: 'wallet.export', password }),
   reset: (password: string) => send<Record<string, never>>({ type: 'wallet.reset', password }),
 };
+
+export interface PositionRow {
+  readonly token: Address;
+  readonly symbol: string | null;
+  readonly balanceFormatted: string;
+  readonly valueWei: string | null;
+  readonly valueUnavailableReason: string | null;
+  readonly venueId: string | null;
+}
+
+export interface PositionsResult {
+  readonly positions: readonly PositionRow[];
+  readonly totalWei: string;
+  readonly valued: number;
+  readonly unvalued: number;
+}
+
+export const positions = {
+  list: () => send<PositionsResult>({ type: 'positions.list' }),
+};

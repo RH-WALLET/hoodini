@@ -15,7 +15,7 @@ import {
   exportPrivateKey,
   DEFAULT_AUTO_LOCK_MS,
 } from '@hoodini/core';
-import { planBuy, planSell, UnsupportedVenueError, type KdfParams, type VenueRouter } from '@hoodini/core';
+import { loadPositions, planBuy, planSell, summarise, UnsupportedVenueError, type KdfParams, type VenueRouter } from '@hoodini/core';
 import { getAddress, type Address } from 'viem';
 import type { VaultStore } from './storage.js';
 import type { TradeEngine } from './engine.js';
@@ -28,7 +28,13 @@ export interface RouterDeps {
   /** Test seam only. Production always uses the module default (D-022). */
   readonly kdf?: Omit<KdfParams, 'salt'>;
   /** Absent until the trade surfaces are wired; their messages then report UNAVAILABLE. */
-  readonly trade?: { readonly venues: VenueRouter; readonly engine: TradeEngine; readonly chainId: number };
+  readonly trade?: {
+    readonly venues: VenueRouter;
+    readonly engine: TradeEngine;
+    readonly chainId: number;
+    readonly client: import('viem').PublicClient;
+    readonly watchlist: { list(): Promise<Address[]>; add(t: Address): Promise<void> };
+  };
 }
 
 function fail(code: string, message: string): Response<never> {
@@ -125,6 +131,37 @@ export function createRouter(deps: RouterDeps) {
           return { ok: true, data: {} };
         }
 
+        case 'positions.list': {
+          if (!trade) return fail('UNAVAILABLE', 'trading is not wired up in this build');
+          const owner = session.address;
+          if (!owner) return fail('LOCKED', 'unlock to see positions');
+          const tokens = await trade.watchlist.list();
+          const positions = await loadPositions(tokens, {
+            client: trade.client,
+            router: trade.venues,
+            owner,
+            chainId: trade.chainId,
+          });
+          const totals = summarise(positions);
+          return {
+            ok: true,
+            data: {
+              positions: positions.map((p) => ({
+                token: p.token,
+                symbol: p.symbol,
+                balanceFormatted: p.balanceFormatted,
+                valueWei: p.valueWei?.toString() ?? null,
+                valueUnavailableReason: p.valueUnavailableReason,
+                venueId: p.venueId,
+              })),
+              totalWei: totals.totalWei.toString(),
+              valued: totals.valued,
+              // Sent to the UI so a partial total is never shown as complete.
+              unvalued: totals.unvalued,
+            },
+          };
+        }
+
         case 'trade.quote':
         case 'trade.execute': {
           if (!trade) return fail('UNAVAILABLE', 'trading is not wired up in this build');
@@ -157,6 +194,9 @@ export function createRouter(deps: RouterDeps) {
               request.side === 'buy'
                 ? await planBuy(trade.venues, ref, amount, request.slippageBps)
                 : await planSell(trade.venues, ref, amount, request.slippageBps, owner as Address);
+
+            // Seen it, so it can appear in positions later.
+            await trade.watchlist.add(token).catch(() => {});
 
             if (request.type === 'trade.quote') {
               // Deliberately no calldata: a quote is for display, and handing

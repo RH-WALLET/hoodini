@@ -41,6 +41,7 @@ export type Request =
       readonly amount: string;
       readonly slippageBps: number;
     }
+  | { readonly type: 'positions.list' }
   | {
       readonly type: 'trade.execute';
       readonly side: 'buy' | 'sell';
@@ -82,6 +83,9 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   'wallet.reset': ['popup'],
   'trade.quote': ['popup', 'page'],
   'trade.execute': ['popup'],
+  // Holdings are the user's business, not a site's. A page that could read
+  // them would learn the wallet's contents just by being visited.
+  'positions.list': ['popup'],
 };
 
 /** Capabilities a page may never hold, whatever else changes. */
@@ -94,6 +98,7 @@ export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
   'wallet.reset',
   // Spending must never be reachable from a page without a confirm sheet.
   'trade.execute',
+  'positions.list',
 ];
 
 /**

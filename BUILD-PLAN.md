@@ -123,6 +123,18 @@ session, so it never fetches Axiom at all. Only recon is blocked.
 - [ ] `AxiomAdapter` selectors (thin layer; stub throws loudly meanwhile)
 - [ ] Anchor discovery resilient to SPA re-render
 
-## [ ] P4 — X / Telegram Web / DexScreener adapters + positions panel
+## [x] P4 — X / Telegram Web / DexScreener adapters + positions panel
+
+- [x] `ConfigurableSiteAdapter` — one machine, three ideas of a "content block"
+- [x] X (`article[data-testid="tweet"]`), Telegram Web (both K and A clients),
+      DexScreener (pair rows and plain tables)
+- [x] Every selector falls back to shape-based anchoring, so a stale selector
+      costs precision rather than the whole overlay
+- [x] Content script picks the site adapter by URL, generic otherwise
+- [x] Manifest lists each host explicitly — no wildcards, asserted by test
+- [x] Positions panel: local balances + live sell value, from a watchlist of
+      tokens the extension has actually seen
+- [x] 16 site-adapter tests + 9 positions tests, mutation-checked
+- [ ] **Selectors unverified against the live sites** (no DOM snapshots)
 
 ## [ ] P5 — Hardening, open-source release, landing page with token CA display, CWS submission

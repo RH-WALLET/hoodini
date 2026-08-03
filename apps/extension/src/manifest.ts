@@ -26,9 +26,16 @@ export default defineManifest({
 
   content_scripts: [
     {
-      // Narrow on purpose: a placeholder that matches nothing broad. P3 widens
-      // this to the specific terminal it supports.
-      matches: ['https://axiom.trade/*'],
+      // Each host listed explicitly. No wildcards across TLDs, no <all_urls>:
+      // the match list is the clearest statement of where this extension can
+      // read, and a user should be able to check it at a glance.
+      matches: [
+        'https://axiom.trade/*',
+        'https://x.com/*',
+        'https://www.x.com/*',
+        'https://web.telegram.org/*',
+        'https://dexscreener.com/*',
+      ],
       js: ['src/content/index.ts'],
       run_at: 'document_idle',
     },

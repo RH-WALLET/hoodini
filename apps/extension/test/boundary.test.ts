@@ -88,6 +88,13 @@ describe('surface policy', () => {
     expect(pageAllowed).toEqual(['trade.quote']);
   });
 
+  it('does not let a page read holdings', () => {
+    // A page that could list positions would learn the wallet's contents just
+    // by being visited.
+    expect(isAllowed('positions.list', 'page')).toBe(false);
+    expect(NEVER_PAGE_ACCESSIBLE).toContain('positions.list');
+  });
+
   it('does not let a page spend, even though it may quote', () => {
     // The dangerous adjacency: quote and execute differ by one word. Execute
     // stays popup-only until a confirm sheet exists (D-026).
@@ -260,6 +267,26 @@ describe('manifest — invariant 3 is checkable from the shipped file', () => {
     expect(csp).not.toContain('unsafe-inline');
     expect(csp).not.toContain('wasm-unsafe-eval');
     expect(csp).not.toMatch(/script-src[^;]*https?:/);
+  });
+
+  it('lists each content-script host explicitly, with no wildcards', () => {
+    const m = manifestExport as unknown as { content_scripts?: { matches?: string[] }[] };
+    const matches = m.content_scripts?.[0]?.matches ?? [];
+    expect(matches.length).toBeGreaterThan(0);
+    for (const pattern of matches) {
+      // The match list is the clearest statement of where this extension can
+      // read. No <all_urls>, no scheme wildcard, no wildcard TLD.
+      expect(pattern).not.toContain('<all_urls>');
+      expect(pattern).not.toMatch(/^\*:/);
+      expect(pattern).not.toMatch(/\*\.\*/);
+      expect(pattern).toMatch(/^https:\/\/[a-z0-9.-]+\/\*$/);
+    }
+  });
+
+  it('reads only the sites it claims to support', () => {
+    const m = manifestExport as unknown as { content_scripts?: { matches?: string[] }[] };
+    const hosts = (m.content_scripts?.[0]?.matches ?? []).map((p) => new URL(p.replace('/*', '/')).hostname);
+    expect(hosts.sort()).toEqual(['axiom.trade', 'dexscreener.com', 'web.telegram.org', 'www.x.com', 'x.com']);
   });
 
   it('never requests a permission that would let it read browsing activity', () => {
