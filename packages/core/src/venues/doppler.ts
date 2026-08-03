@@ -15,33 +15,11 @@
  * automatically correct here (D-020).
  */
 
-import {
-  encodeAbiParameters,
-  encodeFunctionData,
-  getAddress,
-  isAddressEqual,
-  parseAbiParameters,
-  zeroAddress,
-  type Address,
-  type Hex,
-  type PublicClient,
-} from 'viem';
-import {
-  ADDRESS_THIS,
-  DOPPLER_HOOK_ABI,
-  DOPPLER_POOL_STATUS,
-  ERC20_ABI,
-  MSG_SENDER,
-  PERMIT2_ABI,
-  UNIVERSAL_ROUTER_ABI,
-  UR_COMMANDS,
-  V4_ACTIONS,
-  V4_DYNAMIC_FEE_FLAG,
-  V4_OPEN_DELTA,
-  V4_QUOTER_ABI,
-} from '../abis.js';
+import { encodeFunctionData, getAddress, isAddressEqual, zeroAddress, type Address, type PublicClient } from 'viem';
+import { DOPPLER_HOOK_ABI, DOPPLER_POOL_STATUS, ERC20_ABI, PERMIT2_ABI, V4_DYNAMIC_FEE_FLAG, V4_QUOTER_ABI } from '../abis.js';
 import { DOPPLER_HOOK, PERMIT2, UNIVERSAL_ROUTER, V4_QUOTER, WETH } from './registry.js';
 import { applySlippage } from './uniswapV3.js';
+import { encodeV4Buy, encodeV4Sell } from './v4.js';
 import type { Quote, TokenRef, TxRequest, VenueAdapter, VenueState } from './types.js';
 
 /** A V4 pool identity. Unlike V3 there is no pool address — the key *is* the pool. */
@@ -220,85 +198,37 @@ export class DopplerAdapter implements VenueAdapter {
 
     const { amountOut } = await this.quoteBuy(token, ethIn);
     const minOut = applySlippage(amountOut, slippageBps);
-    const zeroForOne = isAddressEqual(s.poolKey.currency0, s.numeraire);
-
-    const v4 = encodeV4Actions(
-      [V4_ACTIONS.SWAP_EXACT_IN_SINGLE, V4_ACTIONS.SETTLE, V4_ACTIONS.TAKE_ALL],
-      [
-        encodeExactInSingle(s.poolKey, zeroForOne, ethIn, minOut),
-        encodeAbiParameters(parseAbiParameters('address, uint256, bool'), [s.numeraire, ethIn, false]),
-        encodeAbiParameters(parseAbiParameters('address, uint256'), [token.address, minOut]),
-      ],
-    );
-
+    const call = encodeV4Buy({
+      poolKey: s.poolKey,
+      numeraire: s.numeraire,
+      token: token.address,
+      amountIn: ethIn,
+      minOut,
+      deadline: this.#deadline(),
+    });
     return {
-      to: UNIVERSAL_ROUTER,
-      data: encodeFunctionData({
-        abi: UNIVERSAL_ROUTER_ABI,
-        functionName: 'execute',
-        args: [
-          commandBytes([UR_COMMANDS.WRAP_ETH, UR_COMMANDS.V4_SWAP]),
-          [encodeAbiParameters(parseAbiParameters('address, uint256'), [ADDRESS_THIS, ethIn]), v4],
-          this.#deadline(),
-        ],
-      }),
-      value: ethIn,
+      ...call,
       description: `Buy ${token.symbol ?? token.address} — ${ethIn} wei ETH in, min ${minOut} out (${slippageBps} bps)`,
     };
   }
 
-  /**
-   * Sell: Doppler asset in, native ETH out.
-   *
-   *   V4_SWAP:
-   *     SWAP_EXACT_IN_SINGLE                 minOut left 0, enforced at unwrap
-   *     SETTLE_ALL(asset, amountIn)          pulls from the user via Permit2
-   *     TAKE(WETH, ADDRESS_THIS, OPEN_DELTA) proceeds stay with the router
-   *   UNWRAP_WETH(MSG_SENDER, minOut)        ETH to the signer, min enforced
-   *
-   * Slippage is checked on the unwrap for the same reason as the V3 path: that
-   * is where the ETH the user actually receives is measured.
-   */
   async buildSell(token: TokenRef, amountIn: bigint, slippageBps: number): Promise<TxRequest> {
     assertPositive(amountIn);
     assertSlippage(slippageBps);
     const s = await this.#require(token);
     const { amountOut } = await this.quoteSell(token, amountIn);
     const minOut = applySlippage(amountOut, slippageBps);
-    const zeroForOne = isAddressEqual(s.poolKey.currency0, token.address);
-    const wethPaired = isAddressEqual(s.numeraire, WETH);
-
-    const v4 = encodeV4Actions(
-      [
-        V4_ACTIONS.SWAP_EXACT_IN_SINGLE,
-        V4_ACTIONS.SETTLE_ALL,
-        wethPaired ? V4_ACTIONS.TAKE : V4_ACTIONS.TAKE_ALL,
-      ],
-      [
-        encodeExactInSingle(s.poolKey, zeroForOne, amountIn, wethPaired ? 0n : minOut),
-        encodeAbiParameters(parseAbiParameters('address, uint256'), [token.address, amountIn]),
-        wethPaired
-          ? // Keep the WETH so UNWRAP_WETH can convert it to native ETH.
-            encodeAbiParameters(parseAbiParameters('address, address, uint256'), [s.numeraire, ADDRESS_THIS, V4_OPEN_DELTA])
-          : // Non-WETH numeraire: pay the ERC-20 straight out, min enforced here.
-            encodeAbiParameters(parseAbiParameters('address, uint256'), [s.numeraire, minOut]),
-      ],
-    );
-
-    const commands = wethPaired ? [UR_COMMANDS.V4_SWAP, UR_COMMANDS.UNWRAP_WETH] : [UR_COMMANDS.V4_SWAP];
-    const inputs = wethPaired
-      ? [v4, encodeAbiParameters(parseAbiParameters('address, uint256'), [MSG_SENDER, minOut])]
-      : [v4];
-
+    const call = encodeV4Sell({
+      poolKey: s.poolKey,
+      numeraire: s.numeraire,
+      token: token.address,
+      amountIn,
+      minOut,
+      deadline: this.#deadline(),
+    });
     return {
-      to: UNIVERSAL_ROUTER,
-      data: encodeFunctionData({
-        abi: UNIVERSAL_ROUTER_ABI,
-        functionName: 'execute',
-        args: [commandBytes(commands), inputs, this.#deadline()],
-      }),
-      value: 0n,
-      description: `Sell ${token.symbol ?? token.address} — ${amountIn} wei in, min ${minOut} wei ${wethPaired ? 'ETH' : 'numeraire'} out (${slippageBps} bps)`,
+      ...call,
+      description: `Sell ${token.symbol ?? token.address} — ${amountIn} wei in, min ${minOut} wei ${isAddressEqual(s.numeraire, WETH) ? 'ETH' : 'numeraire'} out (${slippageBps} bps)`,
     };
   }
 
@@ -359,47 +289,6 @@ export class DopplerAdapter implements VenueAdapter {
   #deadline(): bigint {
     return BigInt(Math.floor(this.#now() / 1000)) + DEADLINE_SECONDS;
   }
-}
-
-// ── encoding helpers ────────────────────────────────────────────────────────
-
-/** Commands are one byte each, concatenated. */
-function commandBytes(commands: readonly number[]): Hex {
-  return `0x${commands.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
-}
-
-/** V4_SWAP's input is abi.encode(bytes actions, bytes[] params). */
-function encodeV4Actions(actions: readonly number[], params: readonly Hex[]): Hex {
-  return encodeAbiParameters(parseAbiParameters('bytes, bytes[]'), [commandBytes(actions), [...params]]);
-}
-
-/** IV4Router.ExactInputSingleParams, field order from the verified source. */
-function encodeExactInSingle(poolKey: PoolKey, zeroForOne: boolean, amountIn: bigint, amountOutMinimum: bigint): Hex {
-  return encodeAbiParameters(
-    [
-      {
-        type: 'tuple',
-        components: [
-          {
-            name: 'poolKey',
-            type: 'tuple',
-            components: [
-              { name: 'currency0', type: 'address' },
-              { name: 'currency1', type: 'address' },
-              { name: 'fee', type: 'uint24' },
-              { name: 'tickSpacing', type: 'int24' },
-              { name: 'hooks', type: 'address' },
-            ],
-          },
-          { name: 'zeroForOne', type: 'bool' },
-          { name: 'amountIn', type: 'uint128' },
-          { name: 'amountOutMinimum', type: 'uint128' },
-          { name: 'hookData', type: 'bytes' },
-        ],
-      },
-    ],
-    [{ poolKey, zeroForOne, amountIn, amountOutMinimum, hookData: '0x' }],
-  );
 }
 
 function assertPositive(amount: bigint): void {

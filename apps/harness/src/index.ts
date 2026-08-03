@@ -17,6 +17,7 @@ import {
   UniswapV3Adapter,
   DopplerAdapter,
   FlapAdapter,
+  KlikAdapter,
   VenueRouter,
   SWAP_ROUTER_02,
   UNIVERSAL_ROUTER,
@@ -55,7 +56,8 @@ async function main(): Promise<void> {
   const adapter = new UniswapV3Adapter(client);
   const doppler = new DopplerAdapter(client);
   const flap = new FlapAdapter(client);
-  const router = new VenueRouter([adapter, doppler, flap], undefined, client);
+  const klik = new KlikAdapter(client);
+  const router = new VenueRouter([adapter, doppler, flap, klik], undefined, client);
 
   const token: TokenRef = { address: getAddress(rawToken), chainId: await client.getChainId() };
 

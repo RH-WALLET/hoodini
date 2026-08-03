@@ -859,3 +859,62 @@ outward-facing acts that put Rory's name on a product that custodies user keys.
 
 Those are his to make, not something to do on his behalf because the material
 happened to be ready.
+
+---
+
+### D-041 — klik's pool key is derived, then verified against the chain
+**Decided 2026-08-03.**
+
+Every klik pool uses fixed parameters — native ETH, fee 0, tickSpacing 200, its
+own hook — so the `PoolKey` can be constructed from the token address alone,
+with no lookup and no bundled data.
+
+Deriving pool identity from assumed constants is normally a bad idea: if a
+constant drifts, every quote and trade silently targets a different pool while
+looking healthy. So the adapter **proves** its construction. Hashing the key
+gives a Uniswap V4 poolId, and klik's own `getTokenPrice` returns the poolId it
+uses. A mismatch throws rather than trading.
+
+Verified live: the constructed key, the `Initialize` event and `getTokenPrice`
+all produced `0xa4d8acff…40be`.
+
+**Native pairing changes the write path.** klik settles from `msg.value`
+directly; Doppler's WETH pools must `WRAP_ETH` into the router first. Wrapping a
+native pool settles the wrong currency and reverts, so the shared encoder
+branches on the numeraire instead of assuming one shape.
+
+The shared `v4.ts` was extracted for this and Doppler was refactored onto it,
+with Doppler's 30 existing tests as the regression guard — they passed unchanged,
+which is the evidence the refactor preserved behaviour.
+
+---
+
+### D-042 — Virtuals is deferred; it is not a thin adapter
+**Decided 2026-08-03.**
+
+P1d's premise is that each further launchpad is a thin adapter following the
+established pattern. Virtuals is not.
+
+`VirtualsBondingAdapter` exposes only `ASSET_TOKEN()`, `sellBase(...)` and
+`sellQuote(...)` — callbacks invoked by another contract, with no user-facing
+trade entry point and no quote function. Its curve lives somewhere not yet
+identified, so adding it means fresh recon of the kind flap and Doppler each
+needed, not a config change.
+
+Deferring is the honest call. Writing a Virtuals adapter against the bonding
+adapter's callback surface would produce something that compiles and cannot
+trade — the same mistake the flap ABI nearly caused (D-032).
+
+---
+
+### D-043 — Sell quotes reverting is normal; treat it as a UI rule
+**Recorded 2026-08-03.** Third occurrence, so it is a pattern rather than a quirk.
+
+Doppler (D-021), flap (D-033) and now klik all have pools whose sell quote
+reverts while buys work fine — thin curve reserves, one-sided liquidity, or
+hook-imposed conditions.
+
+The rule, now general: **a sell control must be gated on a successful
+`quoteSell`**, never on `state()` and never on the user holding a balance. The
+positions panel already follows it, keeping unpriceable holdings visible with
+the reason attached rather than hiding them.

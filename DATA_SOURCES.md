@@ -119,6 +119,14 @@ what the curve's reserve can pay out (selling 513k tokens into a 5.34e-7 ETH
 reserve). Same UI consequence as D-021: gate the sell control on a successful
 quote, never on holding a balance.
 
+**Virtuals** — factory VERIFIED, trade path **NOT THIN — deferred**
+
+`VirtualsBondingAdapter` exposes only `ASSET_TOKEN()`, `sellBase(...)` and
+`sellQuote(...)` — callbacks used by another contract, not a user-facing trade
+interface, and with no quote function. Unlike klik, Virtuals cannot be added as
+a thin adapter: it needs its own recon into whatever contract actually holds its
+bonding curve. Deferred rather than guessed at (D-042).
+
 **Virtuals** — factory VERIFIED, trade path UNCONFIRMED
 - `AgentFactoryV7`, with `executeBondingCurveApplicationSalt(...)` and
   `allTokens(uint256)` / `allTradingTokens(uint256)` enumeration.
@@ -128,15 +136,31 @@ quote, never on holding a balance.
   `0x1d4B86491ec211257cbedD77A4380a7494624EfF` also appearing as counterparties.
 - **Open:** `VirtualsBondingAdapter` ABI, `claims()` read, quote method.
 
-**klik.finance** — factory VERIFIED, trade path UNCONFIRMED
-- `getTokenPrice(address)` view · `tokenInfoByAddress(address)` ·
-  `deployedTokens(uint256)` · `getAllTokensByCreator(address)` · `POOL_MANAGER()`.
-- Sample token `0x2c2a0Abe6AE007217c3D1e3F42D668A2AaD36D4f` has no V3/V2 pool; its
-  counterparty is `PoolManager` `0x8366a39C…` → Uniswap **V4**.
-- **`claims()`** candidate: `factory.tokenInfoByAddress(token)` — not yet confirmed
-  to return an emptiness-distinguishable value for a non-klik token.
-- **Open:** V4 quoting requires a V4 quoter or `PoolManager` simulation, not
-  `QuoterV2`.
+**klik.finance** — VERIFIED end to end (2026-08-03)
+
+| Item | Value |
+|---|---|
+| Factory | `0x16cF6788B762EE8969744586eD16fc5705140dd7` |
+| Hook | `UniversalKlikHook` `0x745d717620052a97a22dEEE2e5Eba59583f3e0CC` |
+| Pool shape | **native ETH** paired (`address(0)`), fee **0**, tickSpacing **200** |
+| `claims()` | `tokenInfoByAddress(token).token != address(0)` — a Pons token reads back an all-zero struct |
+| Pool identity | **derived** from the token address, then verified against `getTokenPrice(token).poolId` |
+
+**The pool key is constructed, not looked up.** Every klik pool uses fixed
+parameters, so the `PoolKey` follows from the token address alone. That is only
+safe because it is checked: hashing the constructed key gives a poolId, and klik
+reports the poolId it actually uses. Verified live on
+`0xf9b3ef2B…` — the constructed key, the `Initialize` event and `getTokenPrice`
+all produced `0xa4d8acff…40be`. A mismatch makes the adapter refuse (D-041).
+
+**Live:** 0.001 ETH → **984,779.65 tokens**; buy calldata executes against live
+state. Sell quotes revert for this pool — the **third** venue to do so, after
+Doppler and flap.
+
+**Native-paired changes the write path.** klik settles straight from
+`msg.value`; Doppler's WETH pools must `WRAP_ETH` first. Wrapping a native pool
+would settle the wrong currency and revert, so the shared V4 encoder branches on
+the numeraire rather than assuming one.
 
 ## 4. Routers observed carrying real trades
 

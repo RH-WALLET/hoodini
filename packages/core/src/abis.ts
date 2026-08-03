@@ -407,3 +407,44 @@ export const FLAP_PORTAL_ABI = [
     ],
   },
 ] as const;
+
+// ── klik.finance ────────────────────────────────────────────────────────────
+
+/**
+ * klik factory — the two reads the adapter needs.
+ *
+ * `tokenInfoByAddress` returns an all-zero struct for a token klik did not
+ * launch (verified against a Pons token), so a non-zero `token` field is the
+ * membership test. `getTokenPrice` returns the pool id first, which is what
+ * lets a constructed PoolKey be checked against the chain instead of trusted.
+ */
+export const KLIK_FACTORY_ABI = [
+  {
+    type: 'function',
+    name: 'tokenInfoByAddress',
+    stateMutability: 'view',
+    inputs: [{ name: 'token', type: 'address' }],
+    outputs: [
+      { name: 'token', type: 'address' },
+      { name: 'name', type: 'string' },
+      { name: 'symbol', type: 'string' },
+      { name: 'creator', type: 'address' },
+      { name: 'createdAt', type: 'uint256' },
+      { name: 'metadataURI', type: 'string' },
+      { name: 'configId', type: 'uint256' },
+      { name: 'index', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'getTokenPrice',
+    stateMutability: 'view',
+    inputs: [{ name: 'token', type: 'address' }],
+    outputs: [
+      { name: 'poolId', type: 'bytes32' },
+      { name: 'sqrtPriceX96', type: 'uint256' },
+      { name: 'price', type: 'uint256' },
+      { name: 'priceScaled', type: 'uint256' },
+    ],
+  },
+] as const;

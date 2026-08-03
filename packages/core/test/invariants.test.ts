@@ -86,6 +86,10 @@ describe('invariant 6 — 0% platform fee', () => {
   it('exposes exactly the intended key-touching surface', () => {
     // A new export that touches keys should be a deliberate edit to this list,
     // not something that appears silently alongside a feature.
+    //
+    // "key" is matched broadly on purpose, so Uniswap V4's *pool* keys land
+    // here too. They are pool identity, not key material — listed explicitly
+    // rather than filtered out, so the tripwire stays tight.
     const keyTouching = Object.keys(core).filter((k) => /key|vault|keystore|password/i.test(k)).sort();
     expect(keyTouching).toEqual(
       [
@@ -97,6 +101,8 @@ describe('invariant 6 — 0% platform fee', () => {
         'exportPrivateKey',
         'generatePrivateKey',
         'unlockVault',
+        // Uniswap V4 pool identity — nothing to do with private keys.
+        'klikPoolKey',
       ].sort(),
     );
   });

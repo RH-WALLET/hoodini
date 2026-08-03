@@ -121,6 +121,10 @@ export const PERMIT2 = getAddress('0x000000000022D473030F116dDEE9F6B43aC78BA3');
  */
 export const FLAP_PORTAL = getAddress('0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09');
 
+/** klik.finance — every pool is native-ETH paired, fee 0, tickSpacing 200. */
+export const KLIK_FACTORY = getAddress('0x16cF6788B762EE8969744586eD16fc5705140dd7');
+export const KLIK_HOOK = getAddress('0x745d717620052a97a22dEEE2e5Eba59583f3e0CC');
+
 export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
   {
     id: 'uniswap-v3',
@@ -139,6 +143,17 @@ export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
     // No factory attribution: the Portal itself answers whether it launched a
     // token, so claims() is one call and needs no bundled token list.
     router: FLAP_PORTAL,
+    status: 'VERIFIED',
+  },
+  {
+    id: 'klik',
+    displayName: 'klik.finance',
+    kind: 'dex',
+    // Pool identity is derivable from the token address and verified against
+    // the factory's own pool id, so no bundled token list is needed.
+    dexFactory: V4_POOL_MANAGER,
+    router: UNIVERSAL_ROUTER,
+    quoter: V4_QUOTER,
     status: 'VERIFIED',
   },
   {

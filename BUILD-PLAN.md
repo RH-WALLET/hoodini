@@ -66,7 +66,19 @@ independent risk.
 - [x] Plain ERC-20 approval (no Permit2 on this venue)
 - [x] 21 tests, mutation-checked (5 mutations, all caught)
 
-## [ ] P1d+ — Additional launchpads, one thin adapter spec each (Sonnet-eligible)
+## [~] P1d+ — Additional launchpads
+
+- [x] **klik.finance** — genuinely thin: derived + verified pool key, reuses the
+      shared V4 encoder. 15 tests, mutation-checked (5 mutations, all caught)
+- [x] Shared `v4.ts` encoder extracted; Doppler refactored onto it with its 30
+      existing tests as the regression guard
+- [ ] **Virtuals — deferred.** Its bonding adapter exposes only callbacks, no
+      user-facing trade interface and no quoter. Not a thin adapter; needs its
+      own recon (D-042)
+- [ ] NOXA needs no adapter — launches are disabled and its tokens trade on
+      Uniswap V3, already covered
+- [ ] Smaller V4 hooks seen in the census (Clanker, PumpV4, CashCat, FriarTier)
+      are each a thin adapter if wanted
 
 ## [x] P2 — Extension shell + keystore wallet
 

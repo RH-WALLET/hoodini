@@ -26,11 +26,15 @@ export {
   DOPPLER_HOOK,
   DOPPLER_AIRLOCK,
   FLAP_PORTAL,
+  KLIK_FACTORY,
+  KLIK_HOOK,
 } from './venues/registry.js';
 export { VenueRouter, type VenueResolution } from './venues/router.js';
 export { UniswapV3Adapter, applySlippage, type UniswapV3AdapterOptions } from './venues/uniswapV3.js';
 export { DopplerAdapter, type PoolKey } from './venues/doppler.js';
 export { FlapAdapter } from './venues/flap.js';
+export { KlikAdapter, klikPoolKey, poolIdOf, KLIK_POOL_FEE, KLIK_TICK_SPACING } from './venues/klik.js';
+export { encodeV4Buy, encodeV4Sell, packBytes, encodeV4Actions, encodeExactInSingle } from './venues/v4.js';
 export { createChainClient, robinhoodChain, ROBINHOOD_CHAIN_ID, DEFAULT_RPC_URL } from './chain.js';
 
 export {
