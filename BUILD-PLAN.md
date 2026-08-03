@@ -72,9 +72,10 @@ independent risk.
       shared V4 encoder. 15 tests, mutation-checked (5 mutations, all caught)
 - [x] Shared `v4.ts` encoder extracted; Doppler refactored onto it with its 30
       existing tests as the regression guard
-- [ ] **Virtuals — deferred.** Its bonding adapter exposes only callbacks, no
-      user-facing trade interface and no quoter. Not a thin adapter; needs its
-      own recon (D-042)
+- [x] **Virtuals** — recon done and adapter shipped. The trade surface is
+      `BondingV5`, not the bonding adapter; found by following a real `sell`
+      transaction. Priced in $VIRTUAL, which forced `Quote.quoteAsset` (D-044).
+      15 tests, mutation-checked
 - [ ] NOXA needs no adapter — launches are disabled and its tokens trade on
       Uniswap V3, already covered
 - [ ] Smaller V4 hooks seen in the census (Clanker, PumpV4, CashCat, FriarTier)

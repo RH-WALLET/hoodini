@@ -23,6 +23,12 @@ export interface Position {
   /** ETH the balance would fetch right now, or null when unquotable. */
   readonly valueWei: bigint | null;
   /**
+   * What `valueWei` is denominated in — null for native ETH, otherwise the
+   * ERC-20 the venue prices in. Virtuals quotes in $VIRTUAL, so a caller that
+   * assumed ETH would report a wrong portfolio value (D-044).
+   */
+  readonly valueAsset: Address | null;
+  /**
    * Why a value is missing. Two venues are known to refuse sells in some
    * states (D-021, D-033), so "no value" is often a real venue condition
    * rather than a failure worth hiding.
@@ -87,16 +93,29 @@ export async function loadPositions(tokens: readonly Address[], options: Positio
 
       const resolution = await router.resolve({ address: token, chainId }).catch(() => null);
       if (!resolution) {
-        return { ...base, valueWei: null, valueUnavailableReason: 'no venue found for this token', venueId: null };
+        return {
+          ...base,
+          valueWei: null,
+          valueAsset: null,
+          valueUnavailableReason: 'no venue found for this token',
+          venueId: null,
+        };
       }
 
       try {
         const quote = await resolution.adapter.quoteSell({ address: token, chainId }, balance);
-        return { ...base, valueWei: quote.amountOut, valueUnavailableReason: null, venueId: resolution.adapter.id };
+        return {
+          ...base,
+          valueWei: quote.amountOut,
+          valueAsset: quote.quoteAsset,
+          valueUnavailableReason: null,
+          venueId: resolution.adapter.id,
+        };
       } catch (e) {
         return {
           ...base,
           valueWei: null,
+          valueAsset: null,
           // Surfaced, not swallowed: a token that cannot be sold right now is
           // exactly what a holder needs to know.
           valueUnavailableReason: e instanceof Error ? (e.message.split('\n')[0] ?? 'cannot quote') : 'cannot quote',
@@ -109,13 +128,20 @@ export async function loadPositions(tokens: readonly Address[], options: Positio
   return results.filter((p): p is Position => p !== null);
 }
 
-/** Total of the positions that could be valued, and how many could not. */
+/**
+ * Total of the positions that could be valued **in ETH**, and how many could
+ * not.
+ *
+ * A position priced in another asset is counted as unvalued rather than added:
+ * summing VIRTUAL into an ETH total would produce a number that is not wrong by
+ * a little but meaningless, and it would look perfectly plausible (D-044).
+ */
 export function summarise(positions: readonly Position[]): { totalWei: bigint; valued: number; unvalued: number } {
   let totalWei = 0n;
   let valued = 0;
   let unvalued = 0;
   for (const p of positions) {
-    if (p.valueWei === null) unvalued++;
+    if (p.valueWei === null || p.valueAsset !== null) unvalued++;
     else {
       totalWei += p.valueWei;
       valued++;

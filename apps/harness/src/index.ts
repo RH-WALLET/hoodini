@@ -18,6 +18,7 @@ import {
   DopplerAdapter,
   FlapAdapter,
   KlikAdapter,
+  VirtualsAdapter,
   VenueRouter,
   SWAP_ROUTER_02,
   UNIVERSAL_ROUTER,
@@ -57,7 +58,8 @@ async function main(): Promise<void> {
   const doppler = new DopplerAdapter(client);
   const flap = new FlapAdapter(client);
   const klik = new KlikAdapter(client);
-  const router = new VenueRouter([adapter, doppler, flap, klik], undefined, client);
+  const virtuals = new VirtualsAdapter(client);
+  const router = new VenueRouter([adapter, doppler, flap, klik, virtuals], undefined, client);
 
   const token: TokenRef = { address: getAddress(rawToken), chainId: await client.getChainId() };
 
@@ -75,6 +77,11 @@ async function main(): Promise<void> {
   h(`quote buy — ${formatEther(ethIn)} ETH`);
   const buyQuote = await resolution.adapter.quoteBuy(token, ethIn);
   console.log(`  amountOut ${formatEther(buyQuote.amountOut)} tokens`);
+  if (buyQuote.quoteAsset) {
+    // Not ETH. Saying so prevents the round-trip figure below being read as a
+    // percentage of ETH returned.
+    console.log(`  ⚠ priced in ${buyQuote.quoteAsset}, NOT ETH — amounts above are in that asset`);
+  }
   console.log(
     `  venue fee ${buyQuote.feeBps === null ? 'dynamic (set per swap by the hook)' : `${buyQuote.feeBps} bps`}   (Hoodini adds 0)`,
   );

@@ -144,6 +144,7 @@ export class DopplerAdapter implements VenueAdapter {
       amountIn,
       amountOut,
       priceImpactBps: null,
+      quoteAsset: null, // native ETH
       // Doppler pools carry V4's dynamic-fee flag, so PoolKey.fee is a marker,
       // not a rate — the hook sets the real fee per swap. Reporting 0 would be a
       // lie and a sentinel would be worse; the fee is already inside amountOut.

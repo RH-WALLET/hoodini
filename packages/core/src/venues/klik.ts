@@ -146,6 +146,7 @@ export class KlikAdapter implements VenueAdapter {
       amountIn,
       amountOut: (result as unknown as readonly [bigint, bigint])[0],
       priceImpactBps: null,
+      quoteAsset: null, // native ETH
       // klik's pools carry fee 0 in the key and charge through the hook
       // instead, so no fixed rate is correct here — the cost is inside
       // amountOut. Null rather than a misleading zero.

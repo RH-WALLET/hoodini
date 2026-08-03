@@ -125,6 +125,14 @@ export const FLAP_PORTAL = getAddress('0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb0
 export const KLIK_FACTORY = getAddress('0x16cF6788B762EE8969744586eD16fc5705140dd7');
 export const KLIK_HOOK = getAddress('0x745d717620052a97a22dEEE2e5Eba59583f3e0CC');
 
+/**
+ * Virtuals. Priced in $VIRTUAL rather than ETH, which is why the registry entry
+ * records the asset explicitly.
+ */
+export const VIRTUALS_BONDING = getAddress('0xd4cCBFA37e2f35611b3042e4096Ad7a3459Bd007');
+export const VIRTUALS_ROUTER = getAddress('0xCa6395246B4382Ba70F886526dD9a9De984F6081');
+export const VIRTUAL_TOKEN = getAddress('0xc6911796042b15d7Fa4F6CDe69e245DdCd3d9c31');
+
 export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
   {
     id: 'uniswap-v3',
@@ -154,6 +162,13 @@ export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
     dexFactory: V4_POOL_MANAGER,
     router: UNIVERSAL_ROUTER,
     quoter: V4_QUOTER,
+    status: 'VERIFIED',
+  },
+  {
+    id: 'virtuals',
+    displayName: 'Virtuals',
+    kind: 'bonding-curve',
+    router: VIRTUALS_BONDING,
     status: 'VERIFIED',
   },
   {

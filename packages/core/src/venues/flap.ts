@@ -138,6 +138,7 @@ export class FlapAdapter implements VenueAdapter {
       amountIn: inputAmount,
       amountOut: result as unknown as bigint,
       priceImpactBps: null,
+      quoteAsset: null, // native ETH
       // Total venue-side cost, not just the curve fee: flap tokens can carry a
       // transfer tax (10% was observed), and reporting only the 1.25% curve fee
       // would understate what the trade actually costs.

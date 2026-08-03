@@ -213,6 +213,7 @@ export class UniswapV3Adapter implements VenueAdapter {
       // QuoterV2 gives no reference price, and deriving one from slot0 would be
       // a different number than the fill. Reporting null beats reporting a guess.
       priceImpactBps: null,
+      quoteAsset: null, // native ETH
       feeBps: poolRef.fee / 100,
       source: 'simulation',
     };

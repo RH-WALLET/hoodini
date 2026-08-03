@@ -448,3 +448,107 @@ export const KLIK_FACTORY_ABI = [
     ],
   },
 ] as const;
+
+// ── Virtuals ────────────────────────────────────────────────────────────────
+
+/**
+ * Virtuals `BondingV5` — the user-facing trade surface.
+ *
+ * `tokenInfo` returns an all-zero struct for a token Bonding never launched
+ * (verified against a Pons token), so a non-zero `token` field is the
+ * membership test. `trading` means on the curve; `tradingOnUniswap` means
+ * liquidity has graduated to a DEX.
+ *
+ * Both `buy` and `sell` are denominated in **$VIRTUAL**, not ETH (D-044).
+ */
+export const BONDING_ABI = [
+  {
+    type: 'function',
+    name: 'buy',
+    stateMutability: 'payable',
+    inputs: [
+      { name: 'amountIn_', type: 'uint256' },
+      { name: 'tokenAddress_', type: 'address' },
+      { name: 'amountOutMin_', type: 'uint256' },
+      { name: 'deadline_', type: 'uint256' },
+    ],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'sell',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amountIn_', type: 'uint256' },
+      { name: 'tokenAddress_', type: 'address' },
+      { name: 'amountOutMin_', type: 'uint256' },
+      { name: 'deadline_', type: 'uint256' },
+    ],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'tokenInfo',
+    stateMutability: 'view',
+    inputs: [{ name: 'token', type: 'address' }],
+    outputs: [
+      { name: 'creator', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'pair', type: 'address' },
+      { name: 'agentToken', type: 'address' },
+      {
+        name: 'data',
+        type: 'tuple',
+        components: [
+          { name: 'token', type: 'address' },
+          { name: 'name', type: 'string' },
+          { name: '_name', type: 'string' },
+          { name: 'ticker', type: 'string' },
+          { name: 'supply', type: 'uint256' },
+          { name: 'price', type: 'uint256' },
+          { name: 'marketCap', type: 'uint256' },
+          { name: 'liquidity', type: 'uint256' },
+          { name: 'volume', type: 'uint256' },
+          { name: 'volume24H', type: 'uint256' },
+          { name: 'prevPrice', type: 'uint256' },
+          { name: 'lastUpdated', type: 'uint256' },
+        ],
+      },
+      { name: 'description', type: 'string' },
+      { name: 'image', type: 'string' },
+      { name: 'twitter', type: 'string' },
+      { name: 'telegram', type: 'string' },
+      { name: 'youtube', type: 'string' },
+      { name: 'website', type: 'string' },
+      { name: 'trading', type: 'bool' },
+      { name: 'tradingOnUniswap', type: 'bool' },
+      { name: 'applicationId', type: 'uint256' },
+      { name: 'initialPurchase', type: 'uint256' },
+      { name: 'virtualId', type: 'uint256' },
+      { name: 'launchExecuted', type: 'bool' },
+    ],
+  },
+  { type: 'function', name: 'router', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+] as const;
+
+/**
+ * `FRouterV3` — the quoter.
+ *
+ * `getAmountsOut` branches on its third argument: passing `assetToken()` means
+ * "asset in, token out" (a buy); passing anything else means "token in, asset
+ * out" (a sell). Read from the deployed source, not guessed from the name.
+ */
+export const FROUTER_ABI = [
+  { type: 'function', name: 'assetToken', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  {
+    type: 'function',
+    name: 'getAmountsOut',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'assetToken_', type: 'address' },
+      { name: 'amountIn', type: 'uint256' },
+    ],
+    outputs: [{ name: 'amountOut', type: 'uint256' }],
+  },
+] as const;

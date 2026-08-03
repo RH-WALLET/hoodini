@@ -18,12 +18,13 @@ const T1 = getAddress('0xb84e494158976b4e14da155d1cdae16eb6d1c477');
 const T2 = getAddress('0x8b18800b8d7991aeaf8a7d8f10d34f06ea811ba3');
 const OWNER = getAddress('0x0000000000000000000000000000000000000003');
 
-const quote = (amountOut: bigint): Quote => ({
+const quote = (amountOut: bigint, quoteAsset: `0x${string}` | null = null): Quote => ({
   venueId: 'uniswap-v3',
   state: 'graduated',
   amountIn: 0n,
   amountOut,
   priceImpactBps: null,
+  quoteAsset,
   feeBps: 100,
   source: 'simulation',
 });
@@ -52,6 +53,14 @@ describe('loadPositions', () => {
     const p = await loadPositions([T1], opts(c, routerWith(async () => quote(10n ** 15n))));
     expect(p).toHaveLength(1);
     expect(p[0]).toMatchObject({ token: T1, balanceFormatted: '5', valueWei: 10n ** 15n, venueId: 'uniswap-v3' });
+    expect(p[0]!.valueAsset).toBeNull();
+  });
+
+  it('carries the venue denomination through to the position', async () => {
+    const VIRTUAL = '0xc6911796042b15d7Fa4F6CDe69e245DdCd3d9c31' as const;
+    const c = client({ [T1]: 10n ** 18n });
+    const [p] = await loadPositions([T1], opts(c, routerWith(async () => quote(42n, VIRTUAL))));
+    expect(p!.valueAsset).toBe(VIRTUAL);
   });
 
   it('omits dust rather than padding the panel with zero rows', async () => {
@@ -105,11 +114,21 @@ describe('summarise', () => {
   it('reports how many positions could not be valued alongside the total', async () => {
     // A total that silently omitted unvalued rows would read as complete.
     const positions = [
-      { valueWei: 10n } as never,
-      { valueWei: 5n } as never,
-      { valueWei: null } as never,
+      { valueWei: 10n, valueAsset: null } as never,
+      { valueWei: 5n, valueAsset: null } as never,
+      { valueWei: null, valueAsset: null } as never,
     ];
     expect(summarise(positions)).toEqual({ totalWei: 15n, valued: 2, unvalued: 1 });
+  });
+
+  it('excludes a position priced in another asset from the ETH total', async () => {
+    // Virtuals quotes in $VIRTUAL. Adding that to an ETH total would produce a
+    // number that is not slightly wrong but meaningless — and plausible-looking.
+    const positions = [
+      { valueWei: 10n, valueAsset: null } as never,
+      { valueWei: 999n, valueAsset: '0xc6911796042b15d7Fa4F6CDe69e245DdCd3d9c31' } as never,
+    ];
+    expect(summarise(positions)).toEqual({ totalWei: 10n, valued: 1, unvalued: 1 });
   });
 
   it('is zero for an empty portfolio', () => {

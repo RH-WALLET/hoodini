@@ -918,3 +918,34 @@ The rule, now general: **a sell control must be gated on a successful
 `quoteSell`**, never on `state()` and never on the user holding a balance. The
 positions panel already follows it, keeping unpriceable holdings visible with
 the reason attached rather than hiding them.
+
+---
+
+### D-044 — `Quote.quoteAsset`: denomination is part of a quote
+**Decided 2026-08-03, forced by Virtuals. Supersedes the deferral in D-042.**
+
+Every venue in this project traded against ETH or WETH, so `Quote.amountOut`
+carried an implicit denomination that was always the same. Virtuals prices in
+**$VIRTUAL**.
+
+That exposed a latent bug rather than merely an inconvenience: the positions
+panel summed `amountOut` into an ETH total. Once a Virtuals position existed,
+that total would have added VIRTUAL to ETH and produced a number that was not
+slightly wrong but meaningless — and entirely plausible-looking.
+
+So `Quote.quoteAsset` is now explicit: `null` for native ETH, otherwise the
+ERC-20 the venue prices in. `summarise` counts a non-ETH position as *unvalued*
+rather than adding it, and the panel already reports how many rows it excluded.
+
+**`buildBuy` on Virtuals throws.** The interface names the parameter `ethIn`,
+and a caller reaching it believes it is spending ETH. Spending that many VIRTUAL
+instead is a silent, expensive mistake, so a buy requires the explicit
+`buildBuyWithAsset`. Routing ETH → VIRTUAL → agent token is a multi-hop
+capability the trade engine does not have, and faking it here would hide the hop
+from the confirm sheet.
+
+**D-042 was half right.** `VirtualsBondingAdapter` really does only expose
+callbacks — but it is not the trade surface. `BondingV5` is, and it was found by
+following a real `sell` transaction rather than by searching names. The lesson
+generalises: when a contract's name suggests it should be the entry point and
+its interface disagrees, follow a transaction.

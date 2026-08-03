@@ -34,6 +34,16 @@ export interface Quote {
   /** Expected output before slippage, in wei of the output asset. */
   readonly amountOut: bigint;
   /**
+   * The asset this quote is denominated in — `null` for native ETH, otherwise
+   * the ERC-20 the venue prices against.
+   *
+   * Not cosmetic. Most venues here trade against ETH, but Virtuals prices in
+   * $VIRTUAL, and without this field a caller summing `amountOut` would add
+   * VIRTUAL into an ETH total and report a portfolio value that is simply
+   * wrong. Making the denomination explicit stops that being possible.
+   */
+  readonly quoteAsset: Address | null;
+  /**
    * Price impact in basis points, or null when the venue exposes no way to
    * compute it without a reference price. Never guessed.
    */

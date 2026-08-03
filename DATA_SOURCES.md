@@ -119,22 +119,33 @@ what the curve's reserve can pay out (selling 513k tokens into a 5.34e-7 ETH
 reserve). Same UI consequence as D-021: gate the sell control on a successful
 quote, never on holding a balance.
 
-**Virtuals** — factory VERIFIED, trade path **NOT THIN — deferred**
+**Virtuals** — VERIFIED end to end (2026-08-03)
 
-`VirtualsBondingAdapter` exposes only `ASSET_TOKEN()`, `sellBase(...)` and
-`sellQuote(...)` — callbacks used by another contract, not a user-facing trade
-interface, and with no quote function. Unlike klik, Virtuals cannot be added as
-a thin adapter: it needs its own recon into whatever contract actually holds its
-bonding curve. Deferred rather than guessed at (D-042).
+> ⚠ **Priced in $VIRTUAL, not ETH.** The only venue here that is. See D-044.
 
-**Virtuals** — factory VERIFIED, trade path UNCONFIRMED
-- `AgentFactoryV7`, with `executeBondingCurveApplicationSalt(...)` and
-  `allTokens(uint256)` / `allTradingTokens(uint256)` enumeration.
-- Sample token `0x401095…4cae` has **no AMM pool**. Trades route through
-  `VirtualsBondingAdapter` `0xDeEF773D61719a3181E35e9281600Db8bA063f71`, with
-  `PoolManager` `0x8366a39C…` (Uniswap V4) and `RobinHoodSettler`
-  `0x1d4B86491ec211257cbedD77A4380a7494624EfF` also appearing as counterparties.
-- **Open:** `VirtualsBondingAdapter` ABI, `claims()` read, quote method.
+| Item | Value |
+|---|---|
+| Bonding (proxy) | `0xd4cCBFA37e2f35611b3042e4096Ad7a3459Bd007` → `BondingV5` `0x319Dd22FEBD8AB7370761b59fBAEa1f00c80B970` |
+| Router / quoter | `0xCa6395246B4382Ba70F886526dD9a9De984F6081` → `FRouterV3` `0x09256b9D607c53fD946681F7C5a7a4381ba285A1` |
+| Asset token | **$VIRTUAL** `0xc6911796042b15d7Fa4F6CDe69e245DdCd3d9c31` |
+| Trade | `buy(amountIn, token, minOut, deadline)` · `sell(amountIn, token, minOut, deadline)` |
+| Quote | `FRouterV3.getAmountsOut(token, assetToken_, amountIn)` — passing `assetToken()` selects buy, anything else selects sell |
+| `claims()` | `tokenInfo(token).token != address(0)` — a Pons token reads back an all-zero struct |
+| `state()` | `tradingOnUniswap` → graduated; `trading` → curve |
+| Approval | plain ERC-20 to Bonding — no Permit2 |
+
+The earlier note that Virtuals was "not thin" was correct about the *bonding
+adapter* — `VirtualsBondingAdapter` only exposes callbacks. The user-facing
+surface is `BondingV5`, found by following a real `sell` transaction rather
+than by name.
+
+**Live:** `claims` true, `state` curve, 1 VIRTUAL → **93,417.51 tokens**,
+1000 tokens → **0.010703 VIRTUAL**. A Pons token is correctly not claimed.
+
+**`buildBuy` is refused** and `buildBuyWithAsset` must be used instead: a caller
+reaching `buildBuy` believes it is spending ETH, and spending that many VIRTUAL
+would be silent and expensive. Routing ETH → VIRTUAL → agent token is multi-hop
+and the engine has no such capability.
 
 **klik.finance** — VERIFIED end to end (2026-08-03)
 
