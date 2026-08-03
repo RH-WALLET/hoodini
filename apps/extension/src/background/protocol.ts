@@ -33,7 +33,21 @@ export type Request =
   | { readonly type: 'wallet.lock' }
   | { readonly type: 'wallet.export'; readonly password: string }
   | { readonly type: 'wallet.changePassword'; readonly currentPassword: string; readonly newPassword: string }
-  | { readonly type: 'wallet.reset'; readonly password: string };
+  | { readonly type: 'wallet.reset'; readonly password: string }
+  | {
+      readonly type: 'trade.quote';
+      readonly side: 'buy' | 'sell';
+      readonly token: Address;
+      readonly amount: string;
+      readonly slippageBps: number;
+    }
+  | {
+      readonly type: 'trade.execute';
+      readonly side: 'buy' | 'sell';
+      readonly token: Address;
+      readonly amount: string;
+      readonly slippageBps: number;
+    };
 
 export type RequestType = Request['type'];
 
@@ -44,9 +58,15 @@ export type Response<T = unknown> =
 /**
  * Which surfaces may send each message.
  *
- * Everything here is popup-only. No page-facing capability exists yet: quoting
- * and trading arrive in P2c, and adding one is a deliberate edit to this table
- * rather than something a handler can grant itself.
+ * `trade.quote` is the first and only page-facing capability: it is read-only
+ * public chain data, touches no key, and a site button cannot show a price
+ * without it.
+ *
+ * `trade.execute` stays popup-only. The architecture calls for a page to
+ * *request* a trade and the user to approve it in extension UI — that confirm
+ * sheet does not exist yet, so until it does, a page cannot start a trade at
+ * all. Granting execute first and building the confirmation afterwards would
+ * leave a window where any matched site could spend funds (D-026).
  *
  * `wallet.export` and `wallet.unlock` must never appear in a `page` list. A page
  * that could unlock could drain a wallet without the user ever seeing a prompt.
@@ -60,6 +80,8 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   'wallet.export': ['popup'],
   'wallet.changePassword': ['popup'],
   'wallet.reset': ['popup'],
+  'trade.quote': ['popup', 'page'],
+  'trade.execute': ['popup'],
 };
 
 /** Capabilities a page may never hold, whatever else changes. */
@@ -70,6 +92,8 @@ export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
   'wallet.import',
   'wallet.changePassword',
   'wallet.reset',
+  // Spending must never be reachable from a page without a confirm sheet.
+  'trade.execute',
 ];
 
 /**

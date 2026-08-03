@@ -15,8 +15,10 @@ import {
   exportPrivateKey,
   DEFAULT_AUTO_LOCK_MS,
 } from '@hoodini/core';
-import type { KdfParams } from '@hoodini/core';
+import { planBuy, planSell, UnsupportedVenueError, type KdfParams, type VenueRouter } from '@hoodini/core';
+import { getAddress, type Address } from 'viem';
 import type { VaultStore } from './storage.js';
+import type { TradeEngine } from './engine.js';
 import { isAllowed, type Request, type Response, type Surface, type WalletStatus } from './protocol.js';
 
 export interface RouterDeps {
@@ -25,6 +27,8 @@ export interface RouterDeps {
   readonly autoLockMs?: number;
   /** Test seam only. Production always uses the module default (D-022). */
   readonly kdf?: Omit<KdfParams, 'salt'>;
+  /** Absent until the trade surfaces are wired; their messages then report UNAVAILABLE. */
+  readonly trade?: { readonly venues: VenueRouter; readonly engine: TradeEngine; readonly chainId: number };
 }
 
 function fail(code: string, message: string): Response<never> {
@@ -38,7 +42,7 @@ function toError(e: unknown): Response<never> {
 }
 
 export function createRouter(deps: RouterDeps) {
-  const { store, session, kdf } = deps;
+  const { store, session, kdf, trade } = deps;
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
 
   async function status(): Promise<WalletStatus> {
@@ -119,6 +123,67 @@ export function createRouter(deps: RouterDeps) {
           session.lock();
           await store.clear();
           return { ok: true, data: {} };
+        }
+
+        case 'trade.quote':
+        case 'trade.execute': {
+          if (!trade) return fail('UNAVAILABLE', 'trading is not wired up in this build');
+          let token: Address;
+          try {
+            token = getAddress(request.token);
+          } catch {
+            // Addresses arrive from page DOM, which is untrusted input.
+            return fail('BAD_REQUEST', 'token is not a valid address');
+          }
+          let amount: bigint;
+          try {
+            amount = BigInt(request.amount);
+          } catch {
+            return fail('BAD_REQUEST', 'amount is not an integer');
+          }
+          if (amount <= 0n) return fail('BAD_REQUEST', 'amount must be greater than zero');
+          if (!Number.isInteger(request.slippageBps) || request.slippageBps < 0 || request.slippageBps >= 10_000) {
+            return fail('BAD_REQUEST', 'slippageBps out of range');
+          }
+
+          const ref = { address: token, chainId: trade.chainId };
+          try {
+            // A sell needs an owner to check allowances against, which only
+            // exists while unlocked.
+            const owner = session.address;
+            if (request.side === 'sell' && !owner) return fail('LOCKED', 'unlock to quote a sell');
+
+            const plan =
+              request.side === 'buy'
+                ? await planBuy(trade.venues, ref, amount, request.slippageBps)
+                : await planSell(trade.venues, ref, amount, request.slippageBps, owner as Address);
+
+            if (request.type === 'trade.quote') {
+              // Deliberately no calldata: a quote is for display, and handing
+              // a page ready-to-sign bytes serves no purpose it should have.
+              return {
+                ok: true,
+                data: {
+                  venueId: plan.venueId,
+                  state: plan.state,
+                  amountIn: plan.quote.amountIn.toString(),
+                  amountOut: plan.quote.amountOut.toString(),
+                  minOut: plan.minOut.toString(),
+                  feeBps: plan.quote.feeBps,
+                  steps: plan.steps.length,
+                },
+              };
+            }
+
+            const outcome = await trade.engine.execute(plan);
+            return { ok: true, data: outcome };
+          } catch (e) {
+            if (e instanceof UnsupportedVenueError) return fail('UNSUPPORTED_VENUE', e.message);
+            if (e instanceof Error && e.name === 'TradeRefused') {
+              return fail((e as Error & { code: string }).code, e.message);
+            }
+            return toError(e);
+          }
         }
 
         default:

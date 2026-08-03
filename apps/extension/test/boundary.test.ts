@@ -79,9 +79,20 @@ describe('classifySender', () => {
 });
 
 describe('surface policy', () => {
-  it('grants a page no capability at all right now', () => {
-    const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page'));
-    expect(pageAllowed).toEqual([]);
+  it('grants a page exactly one capability: quoting', () => {
+    // Pinned as an exact list rather than a count. A page may read a price —
+    // that is public chain data and a site button cannot render without it —
+    // and may do nothing else. Widening this must be a deliberate edit here,
+    // with the reasoning in D-026.
+    const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
+    expect(pageAllowed).toEqual(['trade.quote']);
+  });
+
+  it('does not let a page spend, even though it may quote', () => {
+    // The dangerous adjacency: quote and execute differ by one word. Execute
+    // stays popup-only until a confirm sheet exists (D-026).
+    expect(isAllowed('trade.quote', 'page')).toBe(true);
+    expect(isAllowed('trade.execute', 'page')).toBe(false);
   });
 
   it.each(NEVER_PAGE_ACCESSIBLE)('never exposes %s to a page', (type) => {

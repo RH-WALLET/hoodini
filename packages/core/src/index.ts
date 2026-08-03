@@ -47,3 +47,13 @@ export {
   type KdfParams,
   type UnlockedAccount,
 } from './keystore/index.js';
+export {
+  planBuy,
+  planSell,
+  minOutOf,
+  totalValueWei,
+  UnsupportedVenueError,
+  type TradePlan,
+  type TradeStep,
+  type StepKind,
+} from './engine/planner.js';

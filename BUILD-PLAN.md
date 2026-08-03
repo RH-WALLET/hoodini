@@ -60,7 +60,7 @@ independent risk.
 
 ## [ ] P1d+ — Additional launchpads, one thin adapter spec each (Sonnet-eligible)
 
-## [~] P2 — Extension shell + keystore wallet
+## [x] P2 — Extension shell + keystore wallet
 
 Split by integration layer: the keystore is pure, offline-testable and the
 highest-risk code in the repo, so it lands and is verified before any UI or
@@ -81,10 +81,15 @@ send path is built on top of it.
 - [x] Service-worker message boundary with a two-layer surface policy
 - [x] 29 tests, mutation-checked (8 mutations; one survivor found and fixed)
 
-### [ ] P2c — trade engine
-- [ ] Service-worker engine wired to `VenueRouter`
-- [ ] Nonce serialisation, approve-then-swap sequencing, in-flight reconciliation
-- [ ] `LIVE_TRADING` gate at the send boundary; canary ≤ 0.005 ETH on approval
+### [x] P2c — trade engine
+- [x] `TradePlanner` in core (send-free) + `TradeEngine` in the service worker
+- [x] `LIVE_TRADING` gate immediately before `sendRawTransaction`, as a
+      **build-time** constant so a shipped build cannot be talked into trading
+- [x] 0.005 ETH canary ceiling, counted across every step, enforced in dry run too
+- [x] Nonce read per step, all sends serialised, approve-then-swap sequencing
+- [x] In-flight journal written before broadcast; never auto-resends
+- [x] 47 extension tests, mutation-checked (9 mutations, all caught)
+- [ ] **Rory to approve the first live canary in-session** (invariant 5)
 
 ## [ ] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
 

@@ -567,3 +567,74 @@ degrade into a blanket denial that would mask policy mistakes.
 General rule: when two defences cover the same case, at least one test must
 isolate each. Otherwise the weaker one can be removed silently and the
 remaining coverage will look unchanged.
+
+---
+
+### D-026 — A page may quote, but may not spend
+**Decided 2026-08-03.** The first page-facing capability.
+
+`trade.quote` is now reachable from a content script: it is read-only public
+chain data, touches no key, and a button on a site cannot show a price without
+it. The handler deliberately returns **no calldata** — a page has no use for
+ready-to-sign bytes.
+
+`trade.execute` stays popup-only, and is listed in `NEVER_PAGE_ACCESSIBLE`.
+ARCHITECTURE.md calls for a page to *request* a trade which the user then
+approves in extension UI. That confirm sheet does not exist yet. Granting
+execute now and building the confirmation afterwards would leave a window in
+which any matched site could spend funds — so the capability waits for the UI
+that makes it safe, not the other way round.
+
+The page-accessible set is asserted as an exact list, so widening it is a
+deliberate edit with this entry to justify it.
+
+---
+
+### D-027 — `LIVE_TRADING` is a build-time constant, checked at the send boundary
+**Decided 2026-08-03.** Implements CLAUDE.md invariant 5 and D-004.
+
+**Build-time, not runtime.** A released build cannot be persuaded to broadcast
+by a page, the popup, or corrupted storage. Going live requires deliberately
+rebuilding:
+
+```
+VITE_LIVE_TRADING=true pnpm --filter @hoodini/extension build
+```
+
+The default is false, so an accidental release is inert.
+
+**Checked immediately before `sendRawTransaction`**, inside the one private
+method that can broadcast — not at construction and not at plan time. Anything
+between an earlier check and the send could invalidate it, so the only check
+that counts is the one on the same call.
+
+**A dry run is a real rehearsal.** With the gate closed the engine still
+`eth_call`s every step against live state and reports which would revert, rather
+than returning a no-op that proves nothing.
+
+**Canary ceiling: 0.005 ETH**, summed across *every* step so value hidden in an
+approval cannot slip past, and enforced in simulation too so the limit is never
+first discovered on the live attempt.
+
+Separation of duties makes this enforceable: `@hoodini/core` plans and exports
+no broadcast path (asserted by test), so signing and sending exist only in the
+service worker, which is exactly where the gate is.
+
+---
+
+### D-028 — An unresolved in-flight trade blocks trading and is never auto-resent
+**Decided 2026-08-03.**
+
+MV3 tears the service worker down at will, including between signing and
+receiving a receipt. A journal entry is written **before** each broadcast and
+cleared after the receipt, so the next worker lifetime can distinguish "never
+sent" from "sent, outcome unknown".
+
+An unresolved entry refuses further trading and is **never** auto-resent:
+resending a transaction whose fate is unknown is precisely how a double-spend
+happens. Resolution is a human decision after checking the chain.
+
+Sends are serialised behind a FIFO queue and the pending nonce is read
+immediately before each signature, so two concurrent trades cannot claim the
+same nonce. A rejected trade must not poison the queue, which is tested
+explicitly.
