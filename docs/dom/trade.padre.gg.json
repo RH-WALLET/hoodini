@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-08-04T15:49:12.751Z",
+  "capturedAt": "2026-08-04T15:55:35.613Z",
   "url": "https://trade.padre.gg/trenches",
   "host": "trade.padre.gg",
   "viewport": {
@@ -7,53 +7,764 @@
     "h": 1030
   },
   "addressMode": "full-text+attribute",
-  "addressCarriers": 73,
+  "addressCarriers": 74,
   "fullAddressAnywhereInDom": true,
-  "distinctFullAddresses": 25,
+  "distinctFullAddresses": 26,
   "distinctRowShapes": 5,
-  "likelyRowSelector": "a.MuiBox-root.css-j70pnc",
+  "likelyRowSelector": "div.",
   "likelyRowCount": 24,
   "sampleRows": [
     {
-      "tag": "a",
-      "classes": [
-        "MuiBox-root",
-        "css-j70pnc"
-      ],
+      "tag": "div",
+      "classes": [],
       "dataAttrs": [],
       "fullAddresses": [
-        "0x92e1a0537139ec131dedea2e5519f1c31bdfb282"
+        "0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777"
       ],
       "truncatedTexts": [],
-      "hrefs": [],
+      "hrefs": [
+        "https://x.com/blackardinal/status/2084669469775761611",
+        "https://www.tiktok.com/@rizzmasscoin?_r=1&_t=ZS-98bCejGK4oS",
+        "https://flap.sh/robinhood/0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777",
+        "https://x.com/search?q=0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777",
+        "https://x.com/blackardinal"
+      ],
       "labels": [],
       "childCount": 1,
-      "controls": [],
-      "outerHTML": "<a class=\"MuiBox-root css-j70pnc\" href=\"https://www.ponsfamily.com/launchpad/0x92e1a0537139ec131dedea2e5519f1c31bdfb282\" target=\"_blank\" aria-label=\"https://www.ponsfamily.com/launchpad/0x92e1a0537139ec131dedea2e5519f1c31bdfb282\"><img class=\"MuiBox-root css-540lu8\" src=\"/assets/pons-gray-Be8jGs2-.png\" alt=\"pons-gray-Be8jGs2-\"></a>"
+      "controls": [
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-secondary",
+            "MuiButton-secondarySuccess",
+            "MuiButton-sizeXsmall",
+            "MuiButton-secondarySizeXsmall"
+          ],
+          "text": "0.15",
+          "isBuy": true,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-0"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-tertiary",
+            "MuiButton-tertiaryPrimary",
+            "MuiButton-sizeXxsmall",
+            "MuiButton-tertiarySizeXxsmall"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-0"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-tertiary",
+            "MuiButton-tertiaryPrimary",
+            "MuiButton-sizeXxsmall",
+            "MuiButton-tertiarySizeXxsmall"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-0"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-tertiary",
+            "MuiButton-tertiaryPrimary",
+            "MuiButton-sizeXxsmall",
+            "MuiButton-tertiarySizeXxsmall"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-0"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "css-11uoyb3"
+          ],
+          "text": "0x5…7777",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-k008qs"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-tertiary",
+            "MuiButton-tertiaryPrimary",
+            "MuiButton-sizeMedium",
+            "MuiButton-tertiarySizeMedium"
+          ],
+          "text": "rizzmas",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-k008qs"
+          ]
+        }
+      ],
+      "outerHTML": "<div style=\"position: absolute; left: 0px; top: 0px; height: 142px; width: 100%;\"><span class=\"MuiBox-root css-197gbaj\"><div class=\"MuiStack-root css-lw9rnc\"><span class=\"MuiBox-root css-0\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-secondary MuiButton-secondarySuccess MuiButton-sizeXsmall MuiButton-secondarySizeXsmall MuiButton-colorSuccess MuiButton-root MuiButton-secondary MuiButton-secondarySuccess MuiButton-sizeXsmall MuiButton-secondarySizeXsmall MuiButton-colorSuccess trenches-quick-buy-hover css-od7ckp\" tabindex=\"-1\" type=\"button\"><span class=\"MuiButton-icon MuiButton-startIcon MuiButton-iconSizeXsmall css-1bt5rvo\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: currentcolor; fill: currentcolor;\"><path d=\"M7.92826 0.67044C7.92826 0.480261 7.80541 0.311865 7.62429 0.253817C7.44322 0.195771 7.24536 0.261371 7.13476 0.416118L1.59311 8.17289C1.49784 8.30624 1.48509 8.48165 1.56008 8.62737C1.63507 8.77309 1.78521 8.86467 1.9491 8.86467H5.59493V12.6288C5.59493 12.8196 5.71854 12.9883 5.90036 13.0459C6.08225 13.1035 6.28046 13.0366 6.39025 12.8806L11.9319 5.00555C12.0259 4.87198 12.0377 4.69718 11.9624 4.55221C11.8872 4.40725 11.7374 4.31627 11.5741 4.31627H7.92826V0.67044Z\"></path></svg></span><span class=\"MuiTypography-root MuiTypography-paragraph3 MuiTypography-noWrap css-1i38kly\">0.15</span></button></span></div><div class=\"MuiStack-root css-1h4eln5\"><div class=\"MuiStack-root css-5ax1kt\"><div class=\"MuiStack-root css-1mlp7o\"><div class=\"MuiBox-root css-1pu7rja\"><div class=\"MuiBox-root css-1efnu1n\"><div class=\"MuiBox-root css-vxcmzt\"><div class=\"MuiBox-root css-kjafn5\"><div class=\"MuiBox-root css-v1ckn7\"><div class=\"lens-icon-token-avatar MuiBox-root css-zeh1uk\"><svg class=\"MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeMedium css-1epi0sl\" focusable=\"false\" aria-hidden=\"true\" viewBox=\"0 0 24 24\" data-testid=\"CenterFocusWeakIcon\" style=\"width: 28px; height: 28px;\"><path d=\"M5 15H3v4c0 1.1.9 2 2 2h4v-2H5zM5 5h4V3H5c-1.1 0-2 .9-2 2v4h2zm14-2h-4v2h4v4h2V5c0-1.1-.9-2-2-2m0 16h-4v2h4c1.1 0 2-.9 2-2v-4h-2zM12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4m0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2\"></path></svg></div><div class=\"hide-buttons-token-avatar MuiBox-root css-19npibg\"><span class=\"MuiBox-root css-0\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary css-9p25e7\" tabindex=\"0\" type=\"button\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: rgb(119, 122, 140); stroke: rgb(119, 122, 140);\"><path d=\"M0.666992 8.00002C0.666992 8.00002 3.33366 2.66669 8.00033 2.66669C12.667 2.66669 15.3337 8.00002 15.3337 8.00002C15.3337 8.00002 12.667 13.3334 8.00033 13.3334C3.33366 13.3334 0.666992 8.00002 0.666992 8.00002Z\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path><path d=\"M8.00033 10C9.1049 10 10.0003 9.10459 10.0003 8.00002C10.0003 6.89545 9.1049 6.00002 8.00033 6.00002C6.89576 6.00002 6.00033 6.89545 6.00033 8.00002C6.00033 9.10459 6.89576 10 8.00033 10Z\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path></svg></button></span></div><div class=\"hide-buttons-token-avatar MuiBox-root css-14vm1tm\"><span class=\"MuiBox-root css-0\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary css-9p25e7\" tabindex=\"0\" type=\"button\"><svg width=\"14\" height=\"14\" viewBox=\"0 -1 24 28\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: rgb(119, 122, 140); stroke: rgb(119, 122, 140);\"><g clip-path=\"url(#clip0_325_17401)\" stroke-width=\"2.2\"><path d=\"M12 1.97559C13.9339 1.97559 15.5788 3.2243 16.168 4.96191L16.4355 5.75195L17.2617 5.62988C17.5022 5.59437 17.7486 5.5752 18 5.5752C20.7613 5.5752 22.9998 7.81396 23 10.5752C23 12.6238 21.7679 14.3876 20 15.1602L19.4648 15.3936L19.4053 15.9746L19.0967 19H4.90332L4.59473 15.9746L4.53516 15.3936L4 15.1602L3.67578 15.0039C2.08337 14.1662 1 12.4961 1 10.5752C1.00021 7.81396 3.23871 5.5752 6 5.5752C6.25143 5.5752 6.49789 5.59437 6.73828 5.62988L7.56348 5.75195L7.83203 4.96191C8.42131 3.22427 10.0661 1.97559 12 1.97559Z\"></path><path d=\"M18.9932 19C18.9878 19.8173 18.9771 20.7051 18.9355 21.5117C18.9058 22.0891 18.8628 22.6004 18.8008 23C18.7698 23.1998 18.7363 23.3548 18.7041 23.4668C18.6868 23.5271 18.6727 23.5619 18.666 23.5781C18.6498 23.5947 18.593 23.6459 18.4414 23.707C18.2479 23.785 17.972 23.8519 17.6064 23.9004C16.8694 23.9981 15.9628 24 15.001 24H8.99902C8.03718 24 7.13059 23.998‚Ä¶[truncated]"
     },
     {
-      "tag": "a",
-      "classes": [
-        "MuiBox-root",
-        "css-j70pnc"
-      ],
+      "tag": "div",
+      "classes": [],
       "dataAttrs": [],
       "fullAddresses": [
-        "0xecb03413cb98a2744cf78f5b2df734eea09904b7"
+        "0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1"
       ],
       "truncatedTexts": [],
-      "hrefs": [],
-      "labels": [],
+      "hrefs": [
+        "https://www.ponsfamily.com/launchpad/0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1",
+        "https://x.com/search?q=0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1"
+      ],
+      "labels": [
+        "https://www.ponsfamily.com/launchpad/0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1"
+      ],
       "childCount": 1,
-      "controls": [],
-      "outerHTML": "<a class=\"MuiBox-root css-j70pnc\" href=\"https://www.ponsfamily.com/launchpad/0xecb03413cb98a2744cf78f5b2df734eea09904b7\" target=\"_blank\" aria-label=\"https://www.ponsfamily.com/launchpad/0xecb03413cb98a2744cf78f5b2df734eea09904b7\"><img class=\"MuiBox-root css-540lu8\" src=\"/assets/pons-gray-Be8jGs2-.png\" alt=\"pons-gray-Be8jGs2-\"></a>"
+      "controls": [
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-secondary",
+            "MuiButton-secondarySuccess",
+            "MuiButton-sizeXsmall",
+            "MuiButton-secondarySizeXsmall"
+          ],
+          "text": "0.15",
+          "isBuy": true,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-0"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-tertiary",
+            "MuiButton-tertiaryPrimary",
+            "MuiButton-sizeXxsmall",
+            "MuiButton-tertiarySizeXxsmall"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-0"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-tertiary",
+            "MuiButton-tertiaryPrimary",
+            "MuiButton-sizeXxsmall",
+            "MuiButton-tertiarySizeXxsmall"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-0"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "css-11uoyb3"
+          ],
+          "text": "0x8…56b1",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-k008qs"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "MuiButtonBase-root",
+            "MuiButton-root",
+            "MuiButton-tertiary",
+            "MuiButton-tertiaryPrimary",
+            "MuiButton-sizeMedium",
+            "MuiButton-tertiarySizeMedium"
+          ],
+          "text": "Keslo",
+          "isBuy": false,
+          "parentClasses": [
+            "MuiBox-root",
+            "css-k008qs"
+          ]
+        }
+      ],
+      "outerHTML": "<div style=\"position: absolute; left: 0px; top: 142px; height: 142px; width: 100%;\"><span class=\"MuiBox-root css-197gbaj\"><div class=\"MuiStack-root css-lw9rnc\"><span class=\"MuiBox-root css-0\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-secondary MuiButton-secondarySuccess MuiButton-sizeXsmall MuiButton-secondarySizeXsmall MuiButton-colorSuccess MuiButton-root MuiButton-secondary MuiButton-secondarySuccess MuiButton-sizeXsmall MuiButton-secondarySizeXsmall MuiButton-colorSuccess trenches-quick-buy-hover css-od7ckp\" tabindex=\"-1\" type=\"button\"><span class=\"MuiButton-icon MuiButton-startIcon MuiButton-iconSizeXsmall css-1bt5rvo\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: currentcolor; fill: currentcolor;\"><path d=\"M7.92826 0.67044C7.92826 0.480261 7.80541 0.311865 7.62429 0.253817C7.44322 0.195771 7.24536 0.261371 7.13476 0.416118L1.59311 8.17289C1.49784 8.30624 1.48509 8.48165 1.56008 8.62737C1.63507 8.77309 1.78521 8.86467 1.9491 8.86467H5.59493V12.6288C5.59493 12.8196 5.71854 12.9883 5.90036 13.0459C6.08225 13.1035 6.28046 13.0366 6.39025 12.8806L11.9319 5.00555C12.0259 4.87198 12.0377 4.69718 11.9624 4.55221C11.8872 4.40725 11.7374 4.31627 11.5741 4.31627H7.92826V0.67044Z\"></path></svg></span><span class=\"MuiTypography-root MuiTypography-paragraph3 MuiTypography-noWrap css-1i38kly\">0.15</span></button></span></div><div class=\"MuiStack-root css-1h4eln5\"><div class=\"MuiStack-root css-5ax1kt\"><div class=\"MuiStack-root css-1mlp7o\"><div class=\"MuiBox-root css-1pu7rja\"><div class=\"MuiBox-root css-1efnu1n\"><div class=\"MuiBox-root css-vxcmzt\"><div class=\"MuiBox-root css-kjafn5\"><div class=\"MuiBox-root css-laa9rz\"><div class=\"lens-icon-token-avatar MuiBox-root css-zeh1uk\"><svg class=\"MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeMedium css-1epi0sl\" focusable=\"false\" aria-hidden=\"true\" viewBox=\"0 0 24 24\" data-testid=\"CenterFocusWeakIcon\" style=\"width: 28px; height: 28px;\"><path d=\"M5 15H3v4c0 1.1.9 2 2 2h4v-2H5zM5 5h4V3H5c-1.1 0-2 .9-2 2v4h2zm14-2h-4v2h4v4h2V5c0-1.1-.9-2-2-2m0 16h-4v2h4c1.1 0 2-.9 2-2v-4h-2zM12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4m0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2\"></path></svg></div><div class=\"hide-buttons-token-avatar MuiBox-root css-19npibg\"><span class=\"MuiBox-root css-0\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary css-9p25e7\" tabindex=\"0\" type=\"button\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: rgb(119, 122, 140); stroke: rgb(119, 122, 140);\"><path d=\"M0.666992 8.00002C0.666992 8.00002 3.33366 2.66669 8.00033 2.66669C12.667 2.66669 15.3337 8.00002 15.3337 8.00002C15.3337 8.00002 12.667 13.3334 8.00033 13.3334C3.33366 13.3334 0.666992 8.00002 0.666992 8.00002Z\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path><path d=\"M8.00033 10C9.1049 10 10.0003 9.10459 10.0003 8.00002C10.0003 6.89545 9.1049 6.00002 8.00033 6.00002C6.89576 6.00002 6.00033 6.89545 6.00033 8.00002C6.00033 9.10459 6.89576 10 8.00033 10Z\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path></svg></button></span></div><div class=\"hide-buttons-token-avatar MuiBox-root css-14vm1tm\"><span class=\"MuiBox-root css-0\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXxsmall MuiButton-tertiarySizeXxsmall MuiButton-colorPrimary css-9p25e7\" tabindex=\"0\" type=\"button\"><svg width=\"14\" height=\"14\" viewBox=\"0 -1 24 28\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: rgb(119, 122, 140); stroke: rgb(119, 122, 140);\"><g clip-path=\"url(#clip0_325_17401)\" stroke-width=\"2.2\"><path d=\"M12 1.97559C13.9339 1.97559 15.5788 3.2243 16.168 4.96191L16.4355 5.75195L17.2617 5.62988C17.5022 5.59437 17.7486 5.5752 18 5.5752C20.7613 5.5752 22.9998 7.81396 23 10.5752C23 12.6238 21.7679 14.3876 20 15.1602L19.4648 15.3936L19.4053 15.9746L19.0967 19H4.90332L4.59473 15.9746L4.53516 15.3936L4 15.1602L3.67578 15.0039C2.08337 14.1662 1 12.4961 1 10.5752C1.00021 7.81396 3.23871 5.5752 6 5.5752C6.25143 5.5752 6.49789 5.59437 6.73828 5.62988L7.56348 5.75195L7.83203 4.96191C8.42131 3.22427 10.0661 1.97559 12 1.97559Z\"></path><path d=\"M18.9932 19C18.9878 19.8173 18.9771 20.7051 18.9355 21.5117C18.9058 22.0891 18.8628 22.6004 18.8008 23C18.7698 23.1998 18.7363 23.3548 18.7041 23.4668C18.6868 23.5271 18.6727 23.5619 18.666 23.5781C18.6498 23.5947 18.593 23.6459 18.4414 23.707C18.2479 23.785 17.972 23.8519 17.6064 23.9004C16.8694 23.9981 15.9628 24 15.001 24H8.99902C8.03718 24 7.13059 23.9‚Ä¶[truncated]"
+    }
+  ],
+  "otherShapes": [
+    {
+      "signature": "img.MuiAvatar-img.css-1hy9t21",
+      "count": 23,
+      "hasBuyControl": false,
+      "sample": {
+        "tag": "img",
+        "classes": [
+          "MuiAvatar-img",
+          "css-1hy9t21"
+        ],
+        "dataAttrs": [],
+        "fullAddresses": [
+          "0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777"
+        ],
+        "truncatedTexts": [],
+        "hrefs": [],
+        "labels": [],
+        "childCount": 0,
+        "controls": [],
+        "outerHTML": "<img alt=\"rizzmas\" src=\"https://thumbnails.padre.gg/ROBINHOOD-0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777\" class=\"MuiAvatar-img css-1hy9t21\">"
+      }
+    },
+    {
+      "signature": "a.MuiBox-root.css-j70pnc",
+      "count": 23,
+      "hasBuyControl": false,
+      "sample": {
+        "tag": "a",
+        "classes": [
+          "MuiBox-root",
+          "css-j70pnc"
+        ],
+        "dataAttrs": [],
+        "fullAddresses": [
+          "0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777"
+        ],
+        "truncatedTexts": [],
+        "hrefs": [],
+        "labels": [],
+        "childCount": 1,
+        "controls": [],
+        "outerHTML": "<a class=\"MuiBox-root css-j70pnc\" href=\"https://flap.sh/robinhood/0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777\" target=\"_blank\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: currentcolor; fill: currentcolor;\"><path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M5.05932 20.4657C7.46648 20.4657 11.2165 17.6438 11.0879 12.59C11.1356 10.2128 9.78849 5.00505 4.20018 4.00504C2.09716 3.88847 1.80059 5.82105 2.09716 6.8372C2.39345 7.85321 3.5786 11.0272 8.40506 12.0997C9.54806 12.3678 9.70992 12.5248 9.70492 12.7658C9.69992 13.0067 9.37321 13.3791 8.40491 13.5961C7.38519 13.8247 3.78117 15.2258 3.44274 18.5483C3.37489 20.1239 4.47375 20.4657 5.05932 20.4657ZM18.9407 20.4659C16.5337 20.4659 12.7835 17.6441 12.9121 12.5901C12.8644 10.2129 14.2115 5.00534 19.7998 4.00519C21.9027 3.88861 22.1994 5.8212 21.9028 6.83735C21.6064 7.85349 20.4213 11.0274 15.595 12.0999C14.4518 12.3681 14.2899 12.525 14.2949 12.766C14.2999 13.007 14.6267 13.3794 15.595 13.5964C16.6147 13.825 20.2187 15.226 20.5571 18.5486C20.625 20.124 19.5263 20.4659 18.9407 20.4659Z\"></path></svg></a>"
+      }
+    },
+    {
+      "signature": "body.",
+      "count": 1,
+      "hasBuyControl": true,
+      "sample": {
+        "tag": "body",
+        "classes": [],
+        "dataAttrs": [],
+        "fullAddresses": [
+          "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+          "0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777",
+          "0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1"
+        ],
+        "truncatedTexts": [],
+        "hrefs": [
+          "/trenches",
+          "/trending",
+          "/portfolio",
+          "/tracker",
+          "/rewards",
+          "/trenches"
+        ],
+        "labels": [
+          "https://www.ponsfamily.com/launchpad/0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1",
+          "https://flap.sh/robinhood/0x2cffd852d6f0a091c1a9d50688967f98cade7777",
+          "https://app.virtuals.io/prototypes/0xfF5eD17855d6A4915A63643fe95E3f882AceE887",
+          "https://flap.sh/robinhood/0xcf8f7e60809328c580f3dbf96b479250475e7777"
+        ],
+        "childCount": 7,
+        "controls": [
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "Voice chat",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "Paste CA",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "Search coins.../",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-b06bh3"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "10.11/0.36",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-1gomreu"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXxsmall",
+              "MuiButton-tertiarySizeXxsmall"
+            ],
+            "text": "Trenches",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-hnqmn0"
+            ]
+          }
+        ],
+        "outerHTML": "<body style=\"\">\n    <div id=\"root\"><div class=\"MuiStack-root css-1g4yje1\"><div class=\"MuiBox-root css-1tu59u4\"></div><div class=\"MuiStack-root css-2u6gam\"><div class=\"padre-no-scroll MuiBox-root css-1ww61dr\" data-testid=\"top-bar\"><div class=\"MuiStack-root css-1ifsp7h\"><div class=\"MuiStack-root css-539gni\"><div class=\"MuiStack-root css-1usnhtc\" data-testid=\"header-nav-bar\"><a aria-label=\"Terminal Home\" class=\"MuiBox-root css-z97p8g active\" href=\"/trenches\" aria-current=\"page\"><img src=\"/logo.svg\" alt=\"Padre.gg logo\" height=\"18\" width=\"103.5\"></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/trending\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Trending</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/portfolio\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Portfolio</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/tracker\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Track</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/rewards\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Rewards</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-4k59rz active\" href=\"/trenches\" aria-current=\"page\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Trenches</span></a></div><div class=\"MuiStack-root css-1cwudor\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXsmall MuiButton-tertiarySizeXsmall MuiButton-colorPrimary MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXsmall MuiButton-tertiarySizeXsmall MuiButton-colorPrimary css-urmely\" tabindex=\"0\" type=\"button\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: rgb(245, 238, 238); fill: rgb(245, 238, 238);\"><g clip-path=\"url(#clip0_5313_99671)\"><path d=\"M9.91249 12.2559H8.65955V13.5088H9.91249V12.2559Z\"></path><path d=\"M13.5056 12.2559H12.2527V13.5088H13.5056V12.2559Z\"></path><path d=\"M11.7105 10.4993H10.4575V11.7523H11.7105V10.4993Z\"></path><path d=\"M12.9427 9.78193H9.22556C8.9211 9.78193 8.67419 9.53502 8.67419 9.23056C8.67419 8.9261 8.9211 8.67919 9.22556 8.67919H12.9427C13.2471 8.67919 13.4941 8.9261 13.4941 9.23056C13.4938 9.53502 13.2471 9.78193 12.9427 9.78193Z\"></path><path d=\"M6.43947 13.4991H3.39084C2.90249 13.4991 2.50537 13.1019 2.50537 12.6136V9.56466C2.50537 9.07632 2.90249 8.67919 3.39084 8.67919H6.43947C6.92781 8.67919 7.32494 9.07632 7.32494 9.56466V12.6133C7.32494 13.1016 6.92753 13.4991 6.43947 13.4991ZM3.60781 12.3963H6.2222V9.78193H3.60781V12.3963Z\"></path><path d=\"M6.43947 7.3198H3.39084C2.90249 7.3198 2.50537 6.92268 2.50537 6.43433V3.3857C2.50537 2.89735 2.90249 2.50023 3.39084 2.50023H6.43947C6.92781 2.50023 7.32494 2.89735 7.32494 3.3857V6.43433C7.32494 6.92239 6.92753 7.3198 6.43947 7.3198ZM3.60781 6.21707H6.2222V3.60268H3.60781V6.21707Z\"></path><path d=\"M12.6083 7.3198H9.55966C9.07132 7.3198 8.67419 6.92268 8.67419 6.43433V3.3857C8.67419 2.89735 9.07132 2.50023 9.55966 2.50023H12.6083C13.0966 2.50023 13.4938 2.89735 13.4938 3.3857V6.43433C13.4938 6.92239 13.0966 7.3198 12.6083 7.3198ZM9.77693 6.21707H12.3913V3.60268H9.77693V6.21707Z\"></path><path d=\"M0.551367 4.43856C0.246906 4.43856 0 4.19165 0 3.88719V1.88806C0 0.846906 0.846906 0 1.88806 0H3.88719C4.19165 0 4.43856 0.246906 4.43856 0.551367C4.43856 0.855827 4.19165 1.10273 3.88719 1.10273H1.88806C1.45496 1.10273 1.10273 1.45496 1.10273 1.88806V3.88719C1.10273 4.19165 0.855827 4.43856 0.551367 4.43856Z\"></path><path d=\"M15.4477 4.43856C15.1433 4.43856 14.8964 4.19165 14.8964 3.88719V1.88806C14.8964 1.45496 14.5441 1.10273 14.111 1.10273H12.1119C11.8075 1.10273 11.5605 0.855827 11.5605 0.551367C11.5605 0.246906 11.8075 0 12.1119 0H14.111C15.1522 0 15.9991 0.846906 15.9991 1.88806V3.88719C15.9991 4.19165 15.7522 4.43856 15.4477 4.43856Z\"></path><path d=\"M3.88719 15.9988H1.88806C0.846906 15.9988 0 15.1519 0 14.1108V12.1116C0 11.8072 0.246906 11.5603 0.551367 11.5603C0.855827 11.5603 1.10273 11.8072 1.10273 12.1116V14.1108C1.10273 14.5439 1.45496 14.8961 1.88806 14.8961H3.88719C4.19165 14.8961 4.43856 15.143 4.43856 15.4475C4.43856 15.7519 4.19165 15.9988 3.88719 15.9988Z\"></path><path d=\"M14.111 15.9988H12.1119C11.8075 15.9988 11.5605 15.7519 11.5605 15.4475C11.5605 15.143 11.8075 14.8961 12.1119 14.8961H14.111C14.5441 14.8961 14.8964 14.5439 14.8964 14.1108V12.1116C14.8964 11.8072 15.1433 11.5603 15.4477 11.5603C15.7522 11.5603 15.9991 11.8072 15.9991 12.1116V14.1108C15.9991 15.1519 15.1522 15.9988 14.111 15.9988Z\"></path><‚Ä¶[truncated]"
+      }
+    },
+    {
+      "signature": "div.MuiStack-root.css-2u6gam",
+      "count": 1,
+      "hasBuyControl": true,
+      "sample": {
+        "tag": "div",
+        "classes": [
+          "MuiStack-root",
+          "css-2u6gam"
+        ],
+        "dataAttrs": [],
+        "fullAddresses": [
+          "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+          "0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777",
+          "0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1"
+        ],
+        "truncatedTexts": [],
+        "hrefs": [
+          "/trenches",
+          "/trending",
+          "/portfolio",
+          "/tracker",
+          "/rewards",
+          "/trenches"
+        ],
+        "labels": [
+          "https://www.ponsfamily.com/launchpad/0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1",
+          "https://flap.sh/robinhood/0x2cffd852d6f0a091c1a9d50688967f98cade7777",
+          "https://app.virtuals.io/prototypes/0xfF5eD17855d6A4915A63643fe95E3f882AceE887",
+          "https://flap.sh/robinhood/0xcf8f7e60809328c580f3dbf96b479250475e7777"
+        ],
+        "childCount": 2,
+        "controls": [
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "Voice chat",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "Paste CA",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "Search coins.../",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-b06bh3"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "10.11/0.36",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-1cwudor"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXsmall",
+              "MuiButton-tertiarySizeXsmall"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-1gomreu"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-ghost",
+              "MuiButton-ghostPrimary",
+              "MuiButton-sizeTiny",
+              "MuiButton-ghostSizeTiny"
+            ],
+            "text": "",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiBox-root",
+              "css-0"
+            ]
+          },
+          {
+            "tag": "button",
+            "classes": [
+              "MuiButtonBase-root",
+              "MuiButton-root",
+              "MuiButton-tertiary",
+              "MuiButton-tertiaryPrimary",
+              "MuiButton-sizeXxsmall",
+              "MuiButton-tertiarySizeXxsmall"
+            ],
+            "text": "Trenches",
+            "isBuy": false,
+            "parentClasses": [
+              "MuiStack-root",
+              "css-hnqmn0"
+            ]
+          }
+        ],
+        "outerHTML": "<div class=\"MuiStack-root css-2u6gam\"><div class=\"padre-no-scroll MuiBox-root css-1ww61dr\" data-testid=\"top-bar\"><div class=\"MuiStack-root css-1ifsp7h\"><div class=\"MuiStack-root css-539gni\"><div class=\"MuiStack-root css-1usnhtc\" data-testid=\"header-nav-bar\"><a aria-label=\"Terminal Home\" class=\"MuiBox-root css-z97p8g active\" href=\"/trenches\" aria-current=\"page\"><img src=\"/logo.svg\" alt=\"Padre.gg logo\" height=\"18\" width=\"103.5\"></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/trending\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Trending</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/portfolio\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Portfolio</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/tracker\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Track</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1jr1tqn\" href=\"/rewards\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Rewards</span></a><a class=\"MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-4k59rz active\" href=\"/trenches\" aria-current=\"page\"><span class=\"MuiTypography-root MuiTypography-paragraph1 MuiTypography-noWrap css-1ype6pq\">Trenches</span></a></div><div class=\"MuiStack-root css-1cwudor\"><button class=\"MuiButtonBase-root MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXsmall MuiButton-tertiarySizeXsmall MuiButton-colorPrimary MuiButton-root MuiButton-tertiary MuiButton-tertiaryPrimary MuiButton-sizeXsmall MuiButton-tertiarySizeXsmall MuiButton-colorPrimary css-urmely\" tabindex=\"0\" type=\"button\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"color: rgb(245, 238, 238); fill: rgb(245, 238, 238);\"><g clip-path=\"url(#clip0_5313_99671)\"><path d=\"M9.91249 12.2559H8.65955V13.5088H9.91249V12.2559Z\"></path><path d=\"M13.5056 12.2559H12.2527V13.5088H13.5056V12.2559Z\"></path><path d=\"M11.7105 10.4993H10.4575V11.7523H11.7105V10.4993Z\"></path><path d=\"M12.9427 9.78193H9.22556C8.9211 9.78193 8.67419 9.53502 8.67419 9.23056C8.67419 8.9261 8.9211 8.67919 9.22556 8.67919H12.9427C13.2471 8.67919 13.4941 8.9261 13.4941 9.23056C13.4938 9.53502 13.2471 9.78193 12.9427 9.78193Z\"></path><path d=\"M6.43947 13.4991H3.39084C2.90249 13.4991 2.50537 13.1019 2.50537 12.6136V9.56466C2.50537 9.07632 2.90249 8.67919 3.39084 8.67919H6.43947C6.92781 8.67919 7.32494 9.07632 7.32494 9.56466V12.6133C7.32494 13.1016 6.92753 13.4991 6.43947 13.4991ZM3.60781 12.3963H6.2222V9.78193H3.60781V12.3963Z\"></path><path d=\"M6.43947 7.3198H3.39084C2.90249 7.3198 2.50537 6.92268 2.50537 6.43433V3.3857C2.50537 2.89735 2.90249 2.50023 3.39084 2.50023H6.43947C6.92781 2.50023 7.32494 2.89735 7.32494 3.3857V6.43433C7.32494 6.92239 6.92753 7.3198 6.43947 7.3198ZM3.60781 6.21707H6.2222V3.60268H3.60781V6.21707Z\"></path><path d=\"M12.6083 7.3198H9.55966C9.07132 7.3198 8.67419 6.92268 8.67419 6.43433V3.3857C8.67419 2.89735 9.07132 2.50023 9.55966 2.50023H12.6083C13.0966 2.50023 13.4938 2.89735 13.4938 3.3857V6.43433C13.4938 6.92239 13.0966 7.3198 12.6083 7.3198ZM9.77693 6.21707H12.3913V3.60268H9.77693V6.21707Z\"></path><path d=\"M0.551367 4.43856C0.246906 4.43856 0 4.19165 0 3.88719V1.88806C0 0.846906 0.846906 0 1.88806 0H3.88719C4.19165 0 4.43856 0.246906 4.43856 0.551367C4.43856 0.855827 4.19165 1.10273 3.88719 1.10273H1.88806C1.45496 1.10273 1.10273 1.45496 1.10273 1.88806V3.88719C1.10273 4.19165 0.855827 4.43856 0.551367 4.43856Z\"></path><path d=\"M15.4477 4.43856C15.1433 4.43856 14.8964 4.19165 14.8964 3.88719V1.88806C14.8964 1.45496 14.5441 1.10273 14.111 1.10273H12.1119C11.8075 1.10273 11.5605 0.855827 11.5605 0.551367C11.5605 0.246906 11.8075 0 12.1119 0H14.111C15.1522 0 15.9991 0.846906 15.9991 1.88806V3.88719C15.9991 4.19165 15.7522 4.43856 15.4477 4.43856Z\"></path><path d=\"M3.88719 15.9988H1.88806C0.846906 15.9988 0 15.1519 0 14.1108V12.1116C0 11.8072 0.246906 11.5603 0.551367 11.5603C0.855827 11.5603 1.10273 11.8072 1.10273 12.1116V14.1108C1.10273 14.5439 1.45496 14.8961 1.88806 14.8961H3.88719C4.19165 14.8961 4.43856 15.143 4.43856 15.4475C4.43856 15.7519 4.19165 15.9988 3.88719 15.9988Z\"></path><path d=\"M14.111 15.9988H12.1119C11.8075 15.9988 11.5605 15.7519 11.5605 15.4475C11.5605 15.143 11.8075 14.8961 12.1119 14.8961H14.111C14.5441 14.8961 14.8964 14.5439 14.8964 14.1108V12.1116C14.8964 11.8072 15.1433 11.5603 15.4477 11.5603C15.7522 11.5603 15.9991 11.8072 15.9991 12.1116V14.1108C15.9991 15.1519 15.1522 15.9988 14.111 15.9988Z\"></path><path d=\"M5.54128 4.28351H4.28833V5.53646H5.54128V4.28351Z\"></path><path d=\"M11.7105 4.28351H10.4575V5.53646H11.7105V4‚Ä¶[truncated]"
+      }
     }
   ],
   "chainHints": [
     {
       "kind": "img",
-      "src": "/assets/pons-gray-Be8jGs2-.png",
-      "alt": "pons-gray-Be8jGs2-"
+      "src": "https://thumbnails.padre.gg/ROBINHOOD-0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777",
+      "alt": "rizzmas"
     }
   ],
   "siteChrome": {
@@ -65,10 +776,6 @@
       {
         "src": "/logo.svg",
         "alt": "Padre.gg logo"
-      },
-      {
-        "src": "https://thumbnails.padre.gg/SOLANA-EmX4kQRgv6BoLGSf5KNer3QeQSHmV2h5FNU57SQCpump",
-        "alt": "Stillwater.finance"
       },
       {
         "src": "https://thumbnails.padre.gg/SOLANA-BdQ7L3Lye5iAhoV5f5XY275LkyPAPpcKFk2VpF29pump",
@@ -87,33 +794,96 @@
         "alt": "CASHCAT"
       },
       {
-        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x9c891bfaf19eea6abe006b37f0e5b9599b0e7777",
-        "alt": "Crashfalcon's Skeleton"
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x5ebe38f4f654a7d38ee540ab6e38c78e6e587777",
+        "alt": "rizzmas"
       },
       {
-        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x57761170f65b311a276af9d9a3e000a869172fbd",
-        "alt": "Pikachu"
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x81c5bb64c48fe551bd8e7f56db2f05efad4656b1",
+        "alt": "Keslo"
       },
       {
-        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x49c303ac431e91da59965614533cd396ab397777",
-        "alt": "The Cursed Prompt"
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xff5ed17855d6a4915a63643fe95e3f882acee887",
+        "alt": "melisa by Virtuals"
       },
       {
-        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xe575d324c9910b57c6a02ac3becf1f6b28587e50",
-        "alt": "Rayza"
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xa9b49b038835bf5a664e07ea86d9fc9a5d841a9c",
+        "alt": "BananaGun"
       },
       {
-        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xf70a29795db9f5214326b8e6065f157d4777fdfe",
-        "alt": "Pandu"
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xcf8f7e60809328c580f3dbf96b479250475e7777",
+        "alt": "The Doom Currency"
       },
       {
-        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x6e30ff7c02665c7bce1f8e868baf665e0f357777",
-        "alt": "Voidify On-chain"
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xe75a72a84f8813dc2c9cddd85caeab23815a0223",
+        "alt": "dao"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x878294958578fc02cc0da6041eab9195b3b57777",
+        "alt": "Stock Rip"
       }
     ],
     "query": ""
   },
-  "anchorHints": [],
+  "anchorHints": [
+    {
+      "tag": "button",
+      "classes": [
+        "MuiButtonBase-root",
+        "MuiButton-root",
+        "MuiButton-secondary",
+        "MuiButton-secondarySuccess"
+      ],
+      "text": "0.15"
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "MuiButtonBase-root",
+        "MuiButton-root",
+        "MuiButton-tertiary",
+        "MuiButton-tertiaryPrimary"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "MuiButtonBase-root",
+        "MuiButton-root",
+        "MuiButton-tertiary",
+        "MuiButton-tertiaryPrimary"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "MuiButtonBase-root",
+        "MuiButton-root",
+        "MuiButton-tertiary",
+        "MuiButton-tertiaryPrimary"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "MuiButtonBase-root",
+        "css-11uoyb3"
+      ],
+      "text": "0x5…7777"
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "MuiButtonBase-root",
+        "MuiButton-root",
+        "MuiButton-tertiary",
+        "MuiButton-tertiaryPrimary"
+      ],
+      "text": "rizzmas"
+    }
+  ],
   "framework": {
     "react": true,
     "nextjs": false,
