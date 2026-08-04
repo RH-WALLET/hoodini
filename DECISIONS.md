@@ -1161,3 +1161,56 @@ reported nothing about a page it could read perfectly well. A capture tool that
 only works in the easy case is not a capture tool; v2 reports which mode found
 the rows, because "the full address is not in the text" is itself the finding
 that decides how detection has to work.
+
+---
+
+### D-051 — When chain and address share an attribute, the gate is parsing
+**Decided 2026-08-04.** GMGN and Terminal adapters; extends D-050.
+
+Both sites put the chain and the address in a single attribute value:
+
+```
+GMGN      href="/robinhood/token/0xd82f70f5…"
+Terminal  src="https://thumbnails.padre.gg/ROBINHOOD-0x5ebe38f4…"
+```
+
+This is a materially better arrangement than Axiom's, where the chain lives in
+a badge and the address in an image URL. There the two *can* be read apart, and
+reading the address without the chain is the exact mistake D-050 exists to
+prevent — the gate is a check someone could forget to call. Here it is a
+property of parsing: a locator pattern must capture both named groups or it
+yields nothing, so an address cannot enter the adapter unaccompanied.
+
+The chain group is therefore **mandatory, not optional**. A config supplying a
+pattern with only an address group detects nothing rather than silently
+dropping the gate, and there is a test for exactly that — the machine is
+exported, so a future config is the realistic threat, not today's two.
+
+**One machine, two configs**, following D-045. The sites differ in their
+locator and their anchor, not in their logic. GMGN gets an `anchorSelectors`
+entry because it ships Sentry instrumentation naming its React components
+(`data-sentry-source-file="TokenItem.tsx"`) — the most semantic hook any of the
+three terminals offers. Terminal gets none: its `css-*` classes are emotion
+hashes that change every build, and MUI's stable globals describe the button
+rather than the row, so shape is the honest option.
+
+**A guard that only mutation testing could have found.** On Terminal the
+address lives on the token thumbnail, so the natural anchor is an `<img>`.
+`appendChild` on an image succeeds and renders nothing — every assertion about
+mounting would have passed while the user saw no button. The adapter now climbs
+off any element that cannot host a child. This is the second time in this
+project that mutation testing found a real defect rather than a test gap, and
+both times the defect was invisible to reading the code, because the code did
+exactly what it said.
+
+**Two more host permissions.** `gmgn.ai` and `trade.padre.gg` now appear in the
+manifest, taking the content-script list from five hosts to seven. That list is
+the most legible security claim the extension makes (invariant 3), so the test
+asserting it is an exact equality: adding a host has to turn a test red rather
+than slipping in behind an adapter. Whether seven hosts is the right shape for
+a first Chrome Web Store submission is a product question, and it is Rory's.
+
+**Not verified against the live sites.** The adapters are built from committed
+snapshots and tested against fixtures that mirror them. No one has watched
+either overlay render — the same caveat P4's selectors carry, and it applies to
+Axiom too.

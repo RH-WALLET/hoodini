@@ -31,6 +31,8 @@ export default defineManifest({
       // read, and a user should be able to check it at a glance.
       matches: [
         'https://axiom.trade/*',
+        'https://gmgn.ai/*',
+        'https://trade.padre.gg/*',
         'https://x.com/*',
         'https://www.x.com/*',
         'https://web.telegram.org/*',

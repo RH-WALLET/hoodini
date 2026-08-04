@@ -289,7 +289,18 @@ describe('manifest — invariant 3 is checkable from the shipped file', () => {
   it('reads only the sites it claims to support', () => {
     const m = manifestExport as unknown as { content_scripts?: { matches?: string[] }[] };
     const hosts = (m.content_scripts?.[0]?.matches ?? []).map((p) => new URL(p.replace('/*', '/')).hostname);
-    expect(hosts.sort()).toEqual(['axiom.trade', 'dexscreener.com', 'web.telegram.org', 'www.x.com', 'x.com']);
+    // Every host here is one a user will read in the install prompt, so the
+    // list is asserted exactly — adding one should be a deliberate act that
+    // turns this test red, not something that slips in with an adapter.
+    expect(hosts.sort()).toEqual([
+      'axiom.trade',
+      'dexscreener.com',
+      'gmgn.ai',
+      'trade.padre.gg',
+      'web.telegram.org',
+      'www.x.com',
+      'x.com',
+    ]);
   });
 
   it('never requests a permission that would let it read browsing activity', () => {

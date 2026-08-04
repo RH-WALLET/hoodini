@@ -12,6 +12,13 @@ export { AdapterRuntime, matchesSite, type RuntimeOptions } from './runtime.js';
 export { GenericAddressAdapter, type GenericAdapterOptions } from './adapters/generic.js';
 export { AxiomAdapter, createAxiomAdapter, type AxiomAdapterOptions } from './adapters/axiom.js';
 export {
+  ChainTaggedSiteAdapter,
+  createGmgnAdapter,
+  createTerminalAdapter,
+  type ChainTaggedConfig,
+  type ChainTaggedLocator,
+} from './adapters/chainTagged.js';
+export {
   ConfigurableSiteAdapter,
   createXAdapter,
   createTelegramAdapter,

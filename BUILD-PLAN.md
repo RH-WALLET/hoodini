@@ -170,6 +170,28 @@ session, so it never fetches Axiom at all. Only recon is blocked.
 - [x] 16 site-adapter tests + 9 positions tests, mutation-checked
 - [ ] **Selectors unverified against the live sites** (no DOM snapshots)
 
+## [~] P4b — GMGN + Terminal adapters
+
+Both sites tag chain and address in one attribute, so they are one machine with
+two configs rather than two adapters (D-051, following D-045).
+
+- [x] DOM captured for both → `docs/dom/gmgn.ai.home.json`,
+      `docs/dom/trade.padre.gg.json`
+- [x] `ChainTaggedSiteAdapter` — locator patterns must capture *both* a chain
+      slug and an address, so the D-050 gate is a property of parsing rather
+      than a check that can be skipped
+- [x] GMGN config: `href="/robinhood/token/0x…"`, anchored on
+      `data-sentry-source-file="TokenItem.tsx"` with shape fallbacks
+- [x] Terminal config: `thumbnails.padre.gg/ROBINHOOD-0x…`, anchored by shape
+      (its `css-*` classes are per-build emotion hashes)
+- [x] Two host permissions added; the manifest host list is asserted by exact
+      equality so a new one cannot slip in unnoticed
+- [x] 25 tests, mutation-checked (12 mutations; three survivors, one of which
+      was a real defect — the overlay could anchor on an `<img>` and render
+      nothing)
+- [ ] **Neither overlay has been seen render.** Same caveat as P4, and Axiom
+- [ ] GMGN's Trenches tab is uncaptured; the adapter is built from its home tab
+
 ## [~] P5 — Hardening, open-source release, landing page, CWS submission
 
 - [x] Hardening pass on the **shipped bundle**: no eval, no `new Function`, no
