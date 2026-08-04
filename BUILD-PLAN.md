@@ -151,7 +151,7 @@ session, so it never fetches Axiom at all. Only recon is blocked.
       sidesteps the two quick-buy buttons every card carries
 - [x] Content script prefers Axiom over the generic adapter, which has no chain
       concept and would decorate BNB rows
-- [x] 26 Axiom tests, mutation-checked (10 mutations; two survivors — one
+- [x] 28 Axiom tests, mutation-checked (10 mutations; two survivors — one
       unreachable guard removed, one redundant defence given its own test)
 - [ ] Anchor placement unverified *visually* — the overlay mounts on the correct
       element, but nobody has seen where it lands on the card
