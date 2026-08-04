@@ -8,7 +8,14 @@ fetched by automation — and shouldn't need to be. The extension runs *inside*
 an already-authenticated browser session, so a snapshot taken from that same
 session is exactly what a `SiteAdapter` will see at runtime.
 
-One file per site, named for the host: `axiom.trade.json`, `gmgn.ai.json`, …
+One file per *view*, named for the host and — where a site's views differ
+structurally — the view: `axiom.trade.json`, `gmgn.ai.home.json`,
+`trade.padre.gg.json`. GMGN's home tab and Trenches tab are not the same DOM,
+so a single file per host would quietly claim more coverage than exists.
+
+**Strip anything account-specific before committing.** GMGN puts a referral
+code in the URL, which the capture records verbatim; it is redacted in the
+committed file.
 
 **Before committing a snapshot, skim it.** It captures structure only — tags,
 classes, `data-*` names, and two truncated sample rows — and never touches

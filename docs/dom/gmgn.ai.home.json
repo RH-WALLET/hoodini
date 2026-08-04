@@ -1,0 +1,187 @@
+{
+  "capturedAt": "2026-08-04T15:40:30.746Z",
+  "url": "https://gmgn.ai/?chain=robinhood&ref=REDACTED&tab=home",
+  "host": "gmgn.ai",
+  "viewport": {
+    "w": 1128,
+    "h": 1030
+  },
+  "addressMode": "full-attribute",
+  "addressCarriers": 62,
+  "fullAddressAnywhereInDom": true,
+  "distinctFullAddresses": 34,
+  "distinctRowShapes": 3,
+  "likelyRowSelector": "div.",
+  "likelyRowCount": 30,
+  "sampleRows": [
+    {
+      "tag": "div",
+      "classes": [],
+      "dataAttrs": [],
+      "fullAddresses": [
+        "0x297b94b8615b56bf902a776b979cc5b5104c0a9e"
+      ],
+      "truncatedTexts": [
+        "0x29...0a9e"
+      ],
+      "hrefs": [
+        "https://lens.google.com/uploadbyurl?url=https://gmgn.ai/external-res/c03ac24fe10d23d74c642d940aaeca7c_v2.webp",
+        "http://ponsfamily.com/launchpad/0x297b94b8615b56bf902a776b979cc5b5104c0a9e",
+        "https://x.com/vladtenev/status/2084665282661126226",
+        "https://x.com/vladtenev/status/2084665282661126226"
+      ],
+      "labels": [],
+      "childCount": 1,
+      "controls": [],
+      "outerHTML": "<div style=\"position: absolute; top: 0px; left: 0px; width: 100%; contain: layout style paint; height: 144px; transform: translateY(576px);\"><div class=\"relative  !w-full flex flex-col gap-[2px]] pb-[12px] overflow-hidden w-full text-sm cursor-pointer group/a border-b-[1px] border-solid hover:bg-hover-100 border-line-50\" href=\"/robinhood/token/0x297b94b8615b56bf902a776b979cc5b5104c0a9e\" data-sentry-element=\"SimulateLinkByConfig\" data-sentry-source-file=\"TokenItem.tsx\" style=\"transform: translate(0px, 0px); height: 144px;\"><div class=\"flex flex-col justify-between h-full \" data-sentry-component=\"renderSmallContent\" data-sentry-source-file=\"TokenItem.tsx\"><div class=\"p-[14px] pb-0 \"><div class=\"flex flex-1 gap-[8px]\"><div class=\"flex flex-col items-center justify-center\"><div class=\"flex flex-col items-center justify-center\" data-sentry-component=\"TokenIconView\" data-sentry-source-file=\"TokenIconView.tsx\"><div class=\"relative flex flex-col items-center justify-center\"><div class=\"flex flex-col items-center justify-center\" style=\"width: 72px; height: 72px; border-radius: 8px;\"><div class=\"flex flex-col items-center justify-center bg-bg-100 border-bg-100\" style=\"width: 68px; height: 68px; border-width: 3px; border-radius: 6px;\"><div class=\"relative text-center flex justify-center items-center whitespace-nowrap flex-shrink-0 w-[40px] h-[40px] undefined\" dupimagesize=\"14\" network=\"robinhood\" data-sentry-element=\"ContainerEl\" data-sentry-source-file=\"index.tsx\" data-sentry-component=\"TokenHeader\" style=\"border-radius: 6px; width: 66px; height: 66px; align-items: center; justify-content: center;\"><div class=\"relative w-full h-full\"><div class=\"w-full h-full overflow-hidden text-center bg-bg-100 border-line-100 [&amp;_.token-blacklist-button]:hover:visible \" style=\"line-height: 66px; border-radius: 6px;\"><div class=\"absolute top-0 left-0 w-full h-full z-[100]\" style=\"transform: translate(0px, 0px);\"><a class=\"flex w-full h-full opacity-0 hover:opacity-50 text-[10px] justify-center items-center z-[1] cursor-pointer break-words bg-card-100\" href=\"https://lens.google.com/uploadbyurl?url=https://gmgn.ai/external-res/c03ac24fe10d23d74c642d940aaeca7c_v2.webp\" target=\"_blank\" style=\"border-radius: 6px;\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16px\" height=\"16px\" viewBox=\"0 0 16 16\" fill=\"currentColor\" data-icon=\"IconOnlycollection16px\"><path fill-rule=\"evenodd\" d=\"M7.5 2.8c-2.5957 0-4.7 2.1042-4.7 4.7 0 2.5957 2.1043 4.7 4.7 4.7 1.2946 0 2.4657-.5224 3.3165-1.3698a4.7 4.7 0 0 0 .469-.544 4.7 4.7 0 0 0 .4025-.6504c.3271-.64.512-1.3651.512-2.1358 0-2.5958-2.1043-4.7-4.7-4.7M1.2 7.5c0-3.4794 2.8206-6.3 6.3-6.3s6.3 2.8206 6.3 6.3c0 1.0297-.2477 2.004-.6874 2.8641a6.3 6.3 0 0 1-.5394.8718 6.3 6.3 0 0 1-.6277.728C10.8071 13.0977 9.2348 13.8 7.5 13.8c-3.4794 0-6.3-2.8207-6.3-6.3\" clip-rule=\"evenodd\"></path><path fill-rule=\"evenodd\" d=\"M10.9343 10.9343a.8.8 0 0 1 1.1314 0l3 3a.8.8 0 0 1 0 1.1313.8.8 0 0 1-1.1314 0l-3-3a.8.8 0 0 1 0-1.1313\" clip-rule=\"evenodd\"></path></svg></a></div><div class=\"token-blacklist-button flex absolute rounded-4px z-[999] hover:cursor-pointer justify-center items-center bg-btn-secondary-200 border-[0.5px] border-solid border-text-400 -top-6px -left-6px w-20px h-20px table-row-hide-button [&amp;_.hide-token-icon]:text-text-300 [&amp;_.hide-token-icon]:hover:text-text-200\" style=\"transform: translate(0px, 0px);\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14px\" height=\"14px\" viewBox=\"0 0 14 14\" fill=\"currentColor\" data-icon=\"IconHide114px\" class=\"hide-token-icon\"><path d=\"M12.9638 1.3914a.726.726 0 0 1 .0579.9448l-.0712.081-1.5862 1.5408a15.3 15.3 0 0 1 1.968 1.6944 2.2105 2.2105 0 0 1 .1165 2.9882l-.1165.1256-.2708.268C10.9875 11.0405 8.9679 12.0447 7 12.0447c-1.021 0-2.0559-.2708-3.1061-.8116l-1.7795 1.7306a.7254.7254 0 0 1-.9827.0189.726.726 0 0 1-.1004-.9777l.0726-.0802 1.5157-1.476A15.34 15.34 0 0 1 .6677 8.7662 2.211 2.211 0 0 1 .552 5.778l.1158-.1256.2708-.268C3.0132 3.3774 5.0328 2.3732 7 2.3732c1.0154 0 2.0454.268 3.0887.8025l1.8493-1.7983a.7257.7257 0 0 1 1.0251.0133h.0007zM9.8214 5.4626 8.7369 6.5184A1.8668 1.8668 0 0 1 6.2652 8.926L5.1786 9.9825A3.3175 3.3175 0 0 0 9.8214 5.462l-.0014.0007zM7 3.891A3.3175 3.3175 0 0 0 4.1688 8.94l1.0887-1.0587A1.8675 1.8675 0 0 1 7.7188 5.485l1.088-1.06A3.3 3.3 0 0 0 7 3.8924z\"></path></svg></div><div class=\"token-blacklist-button flex absolute rounded-4px z-[999] hover:cursor-pointer justify-center items-center bg-btn-secondary-200 border-[0.5px] border-solid border-text-400 top-[15px] -left-6px w-20px h-20px table-row-hide-button \" style=\"transform: translate(0px, 0px);\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14px\" height=\"14px\" viewBox=\"0 0 17 16\" fill=\"currentColor\" data-icon=\"IconBlacklistdev16pxRegular\" class=\"hover:text-text-200 text-text-300\"><path d=\"M8.0012.0796c1.621 0 3.0382.859 3.8301 2.1416.0297-.0008.0597-.003.0898-.003 2.0099 0 3.6396 1.6298 3.6397 3.6397-.0002 1.4753-.8803 2.7357-2.1387 3.3067h-1.4346V8.768c.0003-.3658.2456-.‚Ä¶[truncated]"
+    },
+    {
+      "tag": "div",
+      "classes": [],
+      "dataAttrs": [],
+      "fullAddresses": [
+        "0x3271e52ee008c97e6a43430a14b18533df807777"
+      ],
+      "truncatedTexts": [
+        "0x32...7777"
+      ],
+      "hrefs": [
+        "https://lens.google.com/uploadbyurl?url=https://gmgn.ai/external-res/d6d6717c34c3b6bbcdfc53bfb079d1d8_v2.webp",
+        "https://flap.sh/robinhood/0x3271e52ee008c97e6a43430a14b18533df807777",
+        "https://x.com/BoltricksDev/status/2084664843873743214",
+        "https://x.com/i/trending/2084652729885159656",
+        "https://x.com/BoltricksDev/status/2084664843873743214"
+      ],
+      "labels": [],
+      "childCount": 1,
+      "controls": [],
+      "outerHTML": "<div style=\"position: absolute; top: 0px; left: 0px; width: 100%; contain: layout style paint; height: 144px; transform: translateY(720px);\"><div class=\"relative  !w-full flex flex-col gap-[2px]] pb-[12px] overflow-hidden w-full text-sm cursor-pointer group/a border-b-[1px] border-solid hover:bg-hover-100 border-line-50\" href=\"/robinhood/token/0x3271e52ee008c97e6a43430a14b18533df807777\" data-sentry-element=\"SimulateLinkByConfig\" data-sentry-source-file=\"TokenItem.tsx\" style=\"transform: translate(0px, 0px); height: 144px;\"><div class=\"flex flex-col justify-between h-full \" data-sentry-component=\"renderSmallContent\" data-sentry-source-file=\"TokenItem.tsx\"><div class=\"p-[14px] pb-0 \"><div class=\"flex flex-1 gap-[8px]\"><div class=\"flex flex-col items-center justify-center\"><div class=\"flex flex-col items-center justify-center\" data-sentry-component=\"TokenIconView\" data-sentry-source-file=\"TokenIconView.tsx\"><div class=\"relative flex flex-col items-center justify-center\"><div class=\"flex flex-col items-center justify-center\" style=\"width: 72px; height: 72px; border-radius: 8px;\"><div class=\"flex flex-col items-center justify-center bg-bg-100 border-bg-100\" style=\"width: 68px; height: 68px; border-width: 3px; border-radius: 6px;\"><div class=\"relative text-center flex justify-center items-center whitespace-nowrap flex-shrink-0 w-[40px] h-[40px] undefined\" dupimagesize=\"14\" network=\"robinhood\" data-sentry-element=\"ContainerEl\" data-sentry-source-file=\"index.tsx\" data-sentry-component=\"TokenHeader\" style=\"border-radius: 6px; width: 66px; height: 66px; align-items: center; justify-content: center;\"><div class=\"relative w-full h-full\"><div class=\"w-full h-full overflow-hidden text-center bg-bg-100 border-line-100 [&amp;_.token-blacklist-button]:hover:visible \" style=\"line-height: 66px; border-radius: 6px;\"><div class=\"absolute top-0 left-0 w-full h-full z-[100]\" style=\"transform: translate(0px, 0px);\"><a class=\"flex w-full h-full opacity-0 hover:opacity-50 text-[10px] justify-center items-center z-[1] cursor-pointer break-words bg-card-100\" href=\"https://lens.google.com/uploadbyurl?url=https://gmgn.ai/external-res/d6d6717c34c3b6bbcdfc53bfb079d1d8_v2.webp\" target=\"_blank\" style=\"border-radius: 6px;\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16px\" height=\"16px\" viewBox=\"0 0 16 16\" fill=\"currentColor\" data-icon=\"IconOnlycollection16px\"><path fill-rule=\"evenodd\" d=\"M7.5 2.8c-2.5957 0-4.7 2.1042-4.7 4.7 0 2.5957 2.1043 4.7 4.7 4.7 1.2946 0 2.4657-.5224 3.3165-1.3698a4.7 4.7 0 0 0 .469-.544 4.7 4.7 0 0 0 .4025-.6504c.3271-.64.512-1.3651.512-2.1358 0-2.5958-2.1043-4.7-4.7-4.7M1.2 7.5c0-3.4794 2.8206-6.3 6.3-6.3s6.3 2.8206 6.3 6.3c0 1.0297-.2477 2.004-.6874 2.8641a6.3 6.3 0 0 1-.5394.8718 6.3 6.3 0 0 1-.6277.728C10.8071 13.0977 9.2348 13.8 7.5 13.8c-3.4794 0-6.3-2.8207-6.3-6.3\" clip-rule=\"evenodd\"></path><path fill-rule=\"evenodd\" d=\"M10.9343 10.9343a.8.8 0 0 1 1.1314 0l3 3a.8.8 0 0 1 0 1.1313.8.8 0 0 1-1.1314 0l-3-3a.8.8 0 0 1 0-1.1313\" clip-rule=\"evenodd\"></path></svg></a></div><div class=\"token-blacklist-button flex absolute rounded-4px z-[999] hover:cursor-pointer justify-center items-center bg-btn-secondary-200 border-[0.5px] border-solid border-text-400 -top-6px -left-6px w-20px h-20px table-row-hide-button [&amp;_.hide-token-icon]:text-text-300 [&amp;_.hide-token-icon]:hover:text-text-200\" style=\"transform: translate(0px, 0px);\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14px\" height=\"14px\" viewBox=\"0 0 14 14\" fill=\"currentColor\" data-icon=\"IconHide114px\" class=\"hide-token-icon\"><path d=\"M12.9638 1.3914a.726.726 0 0 1 .0579.9448l-.0712.081-1.5862 1.5408a15.3 15.3 0 0 1 1.968 1.6944 2.2105 2.2105 0 0 1 .1165 2.9882l-.1165.1256-.2708.268C10.9875 11.0405 8.9679 12.0447 7 12.0447c-1.021 0-2.0559-.2708-3.1061-.8116l-1.7795 1.7306a.7254.7254 0 0 1-.9827.0189.726.726 0 0 1-.1004-.9777l.0726-.0802 1.5157-1.476A15.34 15.34 0 0 1 .6677 8.7662 2.211 2.211 0 0 1 .552 5.778l.1158-.1256.2708-.268C3.0132 3.3774 5.0328 2.3732 7 2.3732c1.0154 0 2.0454.268 3.0887.8025l1.8493-1.7983a.7257.7257 0 0 1 1.0251.0133h.0007zM9.8214 5.4626 8.7369 6.5184A1.8668 1.8668 0 0 1 6.2652 8.926L5.1786 9.9825A3.3175 3.3175 0 0 0 9.8214 5.462l-.0014.0007zM7 3.891A3.3175 3.3175 0 0 0 4.1688 8.94l1.0887-1.0587A1.8675 1.8675 0 0 1 7.7188 5.485l1.088-1.06A3.3 3.3 0 0 0 7 3.8924z\"></path></svg></div><div class=\"token-blacklist-button flex absolute rounded-4px z-[999] hover:cursor-pointer justify-center items-center bg-btn-secondary-200 border-[0.5px] border-solid border-text-400 top-[15px] -left-6px w-20px h-20px table-row-hide-button \" style=\"transform: translate(0px, 0px);\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14px\" height=\"14px\" viewBox=\"0 0 17 16\" fill=\"currentColor\" data-icon=\"IconBlacklistdev16pxRegular\" class=\"hover:text-text-200 text-text-300\"><path d=\"M8.0012.0796c1.621 0 3.0382.859 3.8301 2.1416.0297-.0008.0597-.003.0898-.003 2.0099 0 3.6396 1.6298 3.6397 3.6397-.0002 1.4753-.8803 2.7357-2.1387 3.3067h-1.4346V8.768c.0003-.3658.2456-.‚Ä¶[truncated]"
+    }
+  ],
+  "chainHints": [
+    {
+      "kind": "img",
+      "src": "https://gmgn.ai/external-res/c03ac24fe10d23d74c642d940aaeca7c_v2.webp",
+      "alt": "logo"
+    },
+    {
+      "kind": "img",
+      "src": "/static/icons/icon_ponsfamily_16px_s.8f4d1cf0.webp",
+      "alt": ""
+    },
+    {
+      "kind": "img",
+      "src": "/static/icons/icon_robinhoodeth_16px_s.6f0d36b9.webp",
+      "alt": ""
+    }
+  ],
+  "siteChrome": {
+    "chainWords": [
+      "Robinhood",
+      "ETH"
+    ],
+    "chainImages": [
+      {
+        "src": "https://gmgn.ai/static/logo_small2.svg",
+        "alt": "logo"
+      },
+      {
+        "src": "/static/icons/icon_solbscchain_16px_s.68ad81e4.webp",
+        "alt": ""
+      },
+      {
+        "src": "/static/icons/icon_solchain_16px_s.ca7c0bd9.webp",
+        "alt": ""
+      },
+      {
+        "src": "/static/icons/icon_robinhoodeth_16px_s.6f0d36b9.webp",
+        "alt": ""
+      }
+    ],
+    "query": "?chain=robinhood&ref=REDACTED&tab=home"
+  },
+  "anchorHints": [
+    {
+      "tag": "div",
+      "classes": [
+        "token-blacklist-button",
+        "flex",
+        "absolute",
+        "rounded-4px"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "token-blacklist-button",
+        "flex",
+        "absolute",
+        "rounded-4px"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "token-blacklist-button",
+        "flex",
+        "absolute",
+        "rounded-4px"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "hidden",
+        "bg-[var(--customize-button-ultra-color)]",
+        "group-btns-hover:bg-[var(--customize-button-ultra-color)]"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "relative",
+        "w-fit",
+        "group/btn"
+      ],
+      "text": "Buy"
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "text-primary",
+        "rounded-[6px]",
+        "bg-btn-secondary-buy",
+        "py-1.5"
+      ],
+      "text": "Buy"
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "hidden",
+        "bg-[var(--customize-button-ultra-color)]",
+        "group-btns-hover:bg-[var(--customize-button-ultra-color)]"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "relative",
+        "w-fit",
+        "group/btn"
+      ],
+      "text": "0.15 ETH"
+    }
+  ],
+  "framework": {
+    "react": true,
+    "nextjs": true,
+    "virtualised": true,
+    "reactPropsOnRow": true
+  }
+}

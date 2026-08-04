@@ -581,13 +581,13 @@ Axiom — so any adapter for this class of site reads attributes, not text.
 | Target | URL | RH Chain | Notes |
 |---|---|---|---|
 | **Axiom** | `axiom.trade` | VERIFIED (on-page) | **P3 target, adapter shipped.** DOM captured 2026-08-04 → `docs/dom/axiom.trade.json`. **Multi-chain: SOL / BNB / Robinhood rows interleave in one column**, so the adapter gates per row on the `alt="Robinhood"` badge (D-050). |
-| **GMGN** | `gmgn.ai` | VERIFIED (external) | ~10 chains incl. Robinhood. Charges 1%. Bloom overlays it. |
+| **GMGN** | `gmgn.ai` | VERIFIED (on-page) | ~10 chains incl. Robinhood. Charges 1%. DOM captured 2026-08-04 → `docs/dom/gmgn.ai.home.json` (home tab; Trenches not yet captured). **Best hooks of the three:** ships Sentry attributes naming its React components (`data-sentry-source-file="TokenItem.tsx"`), and each row carries `href="/robinhood/token/0x…"` — chain slug and address in one attribute. Virtualised list, so nodes recycle. Not in the manifest; would need a new host permission. |
 | **DexScreener** | `dexscreener.com` | VERIFIED (external) | 670 links in Rory's own alert corpus. Screener, not a competitor. |
 | **GeckoTerminal** | `geckoterminal.com` | VERIFIED (external) | 670 links in the alert corpus. |
 | **Blockscout** | `robinhoodchain.blockscout.com` | VERIFIED | 670 links in the corpus; also our explorer API. |
 | **BasedBot** | `basedbot.tech` | LIKELY | Multi-chain EVM terminal. The alert corpus Rory scraped is *emitted by* BasedBot and labels Pons launches — strong evidence of RH coverage. |
 | **Nock Terminal** | `nockterminal.com` | VERIFIED (external) | **Name collision — see D-012.** RH-native screener + NockBot (1% fee) + launchpad. Competitor, not an overlay target. |
-| **Terminal (ex-Padre)** | `trade.padre.gg` | VERIFIED (screenshot) | Multi-chain, acquired by the Pump.fun team. RH support confirmed 2026-08-04 from Rory's own Trenches screenshot — HOOD, TPONS, RWA and Red Bull with `…7777` / `…8888` addresses. Same three-column lifecycle layout as Axiom and GMGN. No DOM snapshot yet. |
+| **Terminal (ex-Padre)** | `trade.padre.gg` | VERIFIED (on-page) | Multi-chain, acquired by the Pump.fun team. DOM captured 2026-08-04 → `docs/dom/trade.padre.gg.json`. **Chain and address arrive together in the thumbnail URL** — `thumbnails.padre.gg/ROBINHOOD-0x…` vs `SOLANA-…` — so like Axiom it interleaves chains per row, but with an unambiguous marker. MUI + emotion, so class names are build-hashed (`css-j70pnc`) and unusable; no `data-*` hooks. **Token row and buy control not yet located** — the capture's row heuristic picked a launchpad badge instead. Not in the manifest. |
 | **Banana Gun** | `bananagun.io` | VERIFIED (external) | Telegram bot, RH Chain from day one. Telegram surface, not a web terminal. |
 | **Photon / BullX Neo / J7Tracker** | — | UNCONFIRMED | Bloom overlays these; RH Chain support unverified. |
 

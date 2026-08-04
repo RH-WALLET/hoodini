@@ -1,0 +1,123 @@
+{
+  "capturedAt": "2026-08-04T15:49:12.751Z",
+  "url": "https://trade.padre.gg/trenches",
+  "host": "trade.padre.gg",
+  "viewport": {
+    "w": 1272,
+    "h": 1030
+  },
+  "addressMode": "full-text+attribute",
+  "addressCarriers": 73,
+  "fullAddressAnywhereInDom": true,
+  "distinctFullAddresses": 25,
+  "distinctRowShapes": 5,
+  "likelyRowSelector": "a.MuiBox-root.css-j70pnc",
+  "likelyRowCount": 24,
+  "sampleRows": [
+    {
+      "tag": "a",
+      "classes": [
+        "MuiBox-root",
+        "css-j70pnc"
+      ],
+      "dataAttrs": [],
+      "fullAddresses": [
+        "0x92e1a0537139ec131dedea2e5519f1c31bdfb282"
+      ],
+      "truncatedTexts": [],
+      "hrefs": [],
+      "labels": [],
+      "childCount": 1,
+      "controls": [],
+      "outerHTML": "<a class=\"MuiBox-root css-j70pnc\" href=\"https://www.ponsfamily.com/launchpad/0x92e1a0537139ec131dedea2e5519f1c31bdfb282\" target=\"_blank\" aria-label=\"https://www.ponsfamily.com/launchpad/0x92e1a0537139ec131dedea2e5519f1c31bdfb282\"><img class=\"MuiBox-root css-540lu8\" src=\"/assets/pons-gray-Be8jGs2-.png\" alt=\"pons-gray-Be8jGs2-\"></a>"
+    },
+    {
+      "tag": "a",
+      "classes": [
+        "MuiBox-root",
+        "css-j70pnc"
+      ],
+      "dataAttrs": [],
+      "fullAddresses": [
+        "0xecb03413cb98a2744cf78f5b2df734eea09904b7"
+      ],
+      "truncatedTexts": [],
+      "hrefs": [],
+      "labels": [],
+      "childCount": 1,
+      "controls": [],
+      "outerHTML": "<a class=\"MuiBox-root css-j70pnc\" href=\"https://www.ponsfamily.com/launchpad/0xecb03413cb98a2744cf78f5b2df734eea09904b7\" target=\"_blank\" aria-label=\"https://www.ponsfamily.com/launchpad/0xecb03413cb98a2744cf78f5b2df734eea09904b7\"><img class=\"MuiBox-root css-540lu8\" src=\"/assets/pons-gray-Be8jGs2-.png\" alt=\"pons-gray-Be8jGs2-\"></a>"
+    }
+  ],
+  "chainHints": [
+    {
+      "kind": "img",
+      "src": "/assets/pons-gray-Be8jGs2-.png",
+      "alt": "pons-gray-Be8jGs2-"
+    }
+  ],
+  "siteChrome": {
+    "chainWords": [
+      "HOOD",
+      "ROBINHOOD"
+    ],
+    "chainImages": [
+      {
+        "src": "/logo.svg",
+        "alt": "Padre.gg logo"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/SOLANA-EmX4kQRgv6BoLGSf5KNer3QeQSHmV2h5FNU57SQCpump",
+        "alt": "Stillwater.finance"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/SOLANA-BdQ7L3Lye5iAhoV5f5XY275LkyPAPpcKFk2VpF29pump",
+        "alt": "Grok4.6"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/SOLANA-AEv6xLECJ2KKmwFGX85mHb9S2c2BQE7dqE5midyrXHBb",
+        "alt": "GLDr"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/SOLANA-pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn",
+        "alt": "PUMP"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x020bfc650a365f8bb26819deaabf3e21291018b4",
+        "alt": "CASHCAT"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x9c891bfaf19eea6abe006b37f0e5b9599b0e7777",
+        "alt": "Crashfalcon's Skeleton"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x57761170f65b311a276af9d9a3e000a869172fbd",
+        "alt": "Pikachu"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x49c303ac431e91da59965614533cd396ab397777",
+        "alt": "The Cursed Prompt"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xe575d324c9910b57c6a02ac3becf1f6b28587e50",
+        "alt": "Rayza"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0xf70a29795db9f5214326b8e6065f157d4777fdfe",
+        "alt": "Pandu"
+      },
+      {
+        "src": "https://thumbnails.padre.gg/ROBINHOOD-0x6e30ff7c02665c7bce1f8e868baf665e0f357777",
+        "alt": "Voidify On-chain"
+      }
+    ],
+    "query": ""
+  },
+  "anchorHints": [],
+  "framework": {
+    "react": true,
+    "nextjs": false,
+    "virtualised": false,
+    "reactPropsOnRow": true
+  }
+}

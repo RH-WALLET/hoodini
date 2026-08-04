@@ -58,26 +58,38 @@
 
   const attrsOf = (el) => [...el.attributes].map((a) => `${a.name}=${a.value}`).join(' ');
 
-  /**
-   * Three passes, cheapest and most useful first. The mode that succeeds tells
-   * the adapter where to read an address from at runtime, so it is recorded.
-   */
-  const passes = [
-    { mode: 'full-text', test: (el) => FULL.test(ownTextOf(el)) },
-    { mode: 'full-attribute', test: (el) => FULL.test(attrsOf(el)) },
-    { mode: 'truncated-text', test: (el) => TRUNC.test(ownTextOf(el)) },
-  ];
-
   const all = [...document.querySelectorAll('*')];
-  let carriers = [];
-  let mode = 'none';
-  for (const pass of passes) {
-    const hits = all.filter(pass.test);
-    if (hits.length > 0) {
-      carriers = hits;
-      mode = pass.mode;
-      break;
-    }
+
+  /**
+   * Where a full address can live, unioned — NOT first-match-wins.
+   *
+   * An earlier version tried text, then attributes, then truncated forms, and
+   * stopped at the first mode returning anything. On Terminal that threw the
+   * capture away: exactly one element had an address in its own text, so the
+   * text pass "succeeded" with a single hit and the attribute pass — holding
+   * all 26 of the page's addresses, in thumbnail URLs — was never run. The row
+   * finder then had one node to work with and collapsed to `body`.
+   *
+   * Modes are not exclusive, so treating them as alternatives was wrong from
+   * the start. Take everything, and record which sources actually contributed.
+   */
+  const inText = all.filter((el) => FULL.test(ownTextOf(el)));
+  const inAttrs = all.filter((el) => FULL.test(attrsOf(el)));
+
+  let carriers = [...new Set([...inText, ...inAttrs])];
+  let mode =
+    inText.length && inAttrs.length
+      ? 'full-text+attribute'
+      : inText.length
+        ? 'full-text'
+        : inAttrs.length
+          ? 'full-attribute'
+          : 'none';
+
+  // Only when no full address exists anywhere does the truncated form matter.
+  if (carriers.length === 0) {
+    carriers = all.filter((el) => TRUNC.test(ownTextOf(el)));
+    if (carriers.length) mode = 'truncated-text';
   }
 
   /** Walk up to the repeating ancestor — the "row" a button would mount into. */
@@ -126,8 +138,19 @@
   const bySig = {};
   for (const r of rows) (bySig[signature(r)] ??= []).push(r);
 
-  // The most repeated signature is the token row.
-  const [topSig, topRows] = Object.entries(bySig).sort((a, b) => b[1].length - a[1].length)[0] ?? [];
+  /**
+   * The most repeated signature is *probably* the token row — but "probably"
+   * has now been wrong twice. On Terminal the winner was a 24×-repeated
+   * launchpad badge (an `<a>` wrapping one icon); on GMGN it was the virtual
+   * list's positioning wrapper. Both times the real row was a shape the
+   * capture never sampled, and the round trip was wasted.
+   *
+   * So sample the top few shapes rather than betting everything on one. The
+   * cost is a larger file; the benefit is that being wrong about which shape
+   * matters no longer loses the data.
+   */
+  const ranked = Object.entries(bySig).sort((a, b) => b[1].length - a[1].length);
+  const [topSig, topRows] = ranked[0] ?? [];
   const samples = (topRows ?? []).slice(0, 2);
 
   const describe = (el) => ({
@@ -205,7 +228,43 @@
     likelyRowCount: topRows?.length ?? 0,
     // Two rows: one alone can hide which parts are per-token vs static chrome.
     sampleRows: samples.map(describe),
+    /**
+     * One sample from each of the next few shapes, so the real token row is in
+     * the file even when the ranking puts something else first.
+     */
+    otherShapes: ranked.slice(1, 5).map(([sig, els]) => ({
+      signature: sig,
+      count: els.length,
+      hasBuyControl: [...els[0].querySelectorAll('button, [role="button"], a')].some(isBuyControl),
+      sample: describe(els[0]),
+    })),
     chainHints,
+
+    /**
+     * Page-level chain state.
+     *
+     * Axiom marks the chain on every row because it mixes them in one column.
+     * GMGN does not: its header carries a single chain selector and the whole
+     * page follows it. For that shape of site the marker an adapter must read
+     * is here rather than in the card — and it has to be re-read when the user
+     * switches chains, since nothing about the rows will change shape.
+     */
+    siteChrome: {
+      /** Chain names rendered as their own text node anywhere on the page. */
+      chainWords: [...new Set(
+        all
+          .map((n) => ownTextOf(n).trim())
+          .filter((t) => /^(robinhood|hood|solana|sol|bnb|bsc|ethereum|eth|base|abstract)$/i.test(t)),
+      )].slice(0, 12),
+      /** Chain-ish artwork page-wide, deduped by src — logos name their chain. */
+      chainImages: [...new Map(
+        [...document.querySelectorAll('img')]
+          .filter((i) => /robinhood|solana|bnb|bsc|ethereum|base|chain|logo/i.test(i.getAttribute('src') ?? ''))
+          .map((i) => [i.getAttribute('src'), { src: (i.getAttribute('src') ?? '').slice(0, 120), alt: i.getAttribute('alt') ?? '' }]),
+      ).values()].slice(0, 12),
+      /** A chain is often in the querystring too — Axiom put it there. */
+      query: location.search.slice(0, 300),
+    },
 
     // Where a button could go without fighting the app's own layout.
     anchorHints: samples.slice(0, 1).flatMap((r) =>
@@ -252,11 +311,31 @@
     );
   }
 
-  // Always leave something on the clipboard, even in the empty case — a silent
-  // no-op is what made v1 useless.
+  /**
+   * Save to a file, not just the clipboard.
+   *
+   * The clipboard route kept failing in practice, and for a mundane reason: to
+   * get the snapshot out of devtools you look at the console, and selecting the
+   * console text to copy it overwrites the clipboard with the log — including
+   * the several hundred lines of this script that devtools echoes back. The
+   * snapshot was fine every time; the transport was not. A file survives that.
+   */
+  try {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    link.download = `${location.host}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+    console.log(`%c  ✓ saved to Downloads as ${location.host}.json`, 'color:#0a0');
+  } catch (e) {
+    console.log('  (download blocked — falling back to the clipboard)', e);
+  }
+
+  // Clipboard as well, for the case where downloads are blocked. Always set,
+  // even on an empty result — a silent no-op is what made v1 useless.
   try {
     copy(json); // devtools helper
-    console.log('%c  ✓ copied to clipboard — paste it into the chat', 'color:#0a0');
+    console.log('%c  ✓ also on the clipboard', 'color:#0a0');
   } catch {
     console.log('  (copy() unavailable — right-click the object above → Copy object)');
   }
