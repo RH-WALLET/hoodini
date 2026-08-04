@@ -7,7 +7,7 @@ pass, and the thing it claims to do can be demonstrated read-only.
 
 ---
 
-## [~] P0 — scaffold + census
+## [x] P0 — scaffold + census
 
 - [x] Harvest RH Chain facts from sibling repos (`printer`, `tg-ca-relay`, `fork-in-hood`)
 - [x] pnpm + Turborepo monorepo, TypeScript strict
@@ -15,7 +15,9 @@ pass, and the thing it claims to do can be demonstrated read-only.
 - [x] `SiteAdapter` interface
 - [x] `scripts/recon.ts` — launchpad census, read-only
 - [x] Documentation set (this file, CLAUDE.md, DECISIONS.md, ARCHITECTURE.md, DATA_SOURCES.md)
-- [ ] **PAUSE GATE** — Rory confirms terminal target, launchpad priority, repo name, venue order
+- [x] **PAUSE GATE** — all four answered: repo name is Hoodini Finance (D-015),
+      venue order starts at Doppler by volume (D-018), and the terminal target
+      is Axiom (confirmed 2026-08-03, see P3)
 
 ## [x] P1a — VenueAdapter finalization + VenueRouter + Uniswap adapter + harness
 
