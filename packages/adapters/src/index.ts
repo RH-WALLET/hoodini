@@ -10,7 +10,7 @@ export { addressesInText, detectTokensIn, elementsFor, nearestRow, type DetectOp
 export { mountOverlay, unmountAll, HOST_ATTR, TOKEN_ATTR, type OverlayIntent, type OverlayOptions, type SellUnavailable } from './overlay.js';
 export { AdapterRuntime, matchesSite, type RuntimeOptions } from './runtime.js';
 export { GenericAddressAdapter, type GenericAdapterOptions } from './adapters/generic.js';
-export { AxiomAdapter, AxiomAdapterNotReady } from './adapters/axiom.js';
+export { AxiomAdapter, createAxiomAdapter, type AxiomAdapterOptions } from './adapters/axiom.js';
 export {
   ConfigurableSiteAdapter,
   createXAdapter,

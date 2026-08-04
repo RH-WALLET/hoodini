@@ -1,57 +1,203 @@
 /**
- * Axiom adapter — NOT IMPLEMENTED.
+ * Axiom adapter — `axiom.trade`, designed against `docs/dom/axiom.trade.json`.
  *
- * Axiom is the confirmed first terminal target (DATA_SOURCES.md §8), but its
- * markup has not been observed: the site sits behind Cloudflare bot protection,
- * so it cannot be fetched by automation, and defeating bot detection is not
- * something this project does.
+ * Axiom is a **multi-chain** terminal, and that single fact shapes everything
+ * here. Its Pulse columns interleave Solana, BNB Chain and Robinhood Chain rows,
+ * so an `0x…` address on this page is not necessarily a Robinhood Chain token.
+ * The captured snapshot has a live example: `0xffea30fa…149a7777` and
+ * `0x05274cf4…26187777` both end in the `7777` vanity suffix that Robinhood
+ * launches use, and both are BNB Chain tokens on Flap — proved by their own
+ * `flap.sh/bnb/…` and `coinmarketcap/token/bsc/…` links.
  *
- * Writing selectors against a page nobody has seen would produce an adapter
- * that looks finished, silently matches nothing, and fails in a way no test
- * here could catch. So this stays a stub until a DOM snapshot exists.
+ * Since the same address can exist on two EVM chains, decorating by address
+ * shape could offer a Robinhood Chain buy against a token the user was never
+ * looking at. So this adapter refuses to decorate a row it cannot positively
+ * identify as Robinhood Chain (D-050).
  *
- * ## To finish it
+ * ## Where the address comes from
  *
- * 1. Open Axiom, paste `scripts/capture-dom.js` into the devtools console.
- * 2. Save the output to `docs/dom/axiom.trade.json`.
- * 3. Replace the selectors below and delete the throw.
+ * Not from the visible text: Axiom renders every contract truncated
+ * (`0x5d...2ba3`). The full address is in ordinary attributes, which is what
+ * matters — an isolated-world content script can read an `src` or an `href`,
+ * but not a React prop:
  *
- * Everything else is already built: detection, row-finding, the shadow-DOM
- * overlay and the runtime are site-agnostic and tested. This file is the thin
- * layer that says *where* on Axiom a control belongs.
+ *   - `img src="…axiomtrading-<chain>-v2.axiom-cdn.io/<address>.webp"`
+ *   - `a href="https://x.com/search?q=<address>"`
  *
- * `GenericAddressAdapter` works on Axiom today wherever it renders raw
- * addresses, so the site is not unsupported in the meantime — just not
- * first-class.
+ * `detectTokensIn` already reads attributes as well as text, so detection needs
+ * no Axiom-specific parsing — only the chain gate below.
+ *
+ * ## What is NOT a chain marker
+ *
+ *   - **The address suffix.** `…7777` appears on BNB Chain too (above).
+ *   - **The image CDN host.** Robinhood rows are served from
+ *     `axiomtrading-eth-v2`, the same bucket as Ethereum.
+ *   - **`alt="ETH"`.** On a Robinhood row that alt sits on a file named
+ *     `eth-robinhood-v2.svg` — Robinhood Chain's gas token *is* ETH, so the
+ *     denomination icon says ETH while the chain is not Ethereum.
+ *   - **The quick-buy button's label.** Same reason: it reads `0.1 ETH`.
+ *
+ * The one unambiguous marker is Axiom's own chain badge, which carries
+ * `alt="Robinhood"` on `robinhood-logo.svg`, observed on every Robinhood row in
+ * both captures and absent from every BNB row.
  */
 
+import type { Address } from 'viem';
 import type { TokenRef } from '@hoodini/core';
 import type { SiteAdapter } from '../site.js';
+import { detectTokensIn, elementsFor } from '../detect.js';
+import { HOST_ATTR, mountOverlay, type OverlayIntent, type SellUnavailable } from '../overlay.js';
 
-export class AxiomAdapterNotReady extends Error {
-  constructor() {
-    super(
-      'axiom adapter is not implemented: no DOM snapshot yet. ' +
-        'Run scripts/capture-dom.js on axiom.trade and save docs/dom/axiom.trade.json.',
-    );
-    this.name = 'AxiomAdapterNotReady';
-  }
+export interface AxiomAdapterOptions {
+  readonly chainId: number;
+  readonly onIntent: (intent: OverlayIntent) => void;
+  readonly amounts?: readonly string[];
+  /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
+  readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
 }
 
-/** Placeholder so the wiring compiles and the gap is impossible to miss. */
+/**
+ * How far to climb from the node carrying an address before giving up. The
+ * observed distance is about nine levels (the address is on the token image,
+ * deep inside the icon block); twelve matches `nearestRow`'s budget.
+ */
+const MAX_CLIMB = 12;
+
+/**
+ * A quick-buy control as Axiom labels it: `0 BNB`, `0.1 ETH`, `0.15`, `Buy`.
+ *
+ * The end anchor is load-bearing. It is what excludes the copy-contract button,
+ * whose text is a truncated address (`0x5d...2ba3`): the leading `0` starts a
+ * match that then fails to reach the end. An earlier version also tested
+ * `/^0x/` explicitly; mutation testing showed that branch was unreachable, so
+ * it was decoration rather than protection and is gone.
+ */
+const BUY_TEXT = /^[\s⚡]*(?:buy|\d[\d.,]*\s*(?:eth|bnb|sol|hood)?)$/i;
+
+/**
+ * Axiom names this Tailwind group itself, so unlike the utility classes around
+ * it (`flex`, `w-full`, `z-[1]`) it carries intent and is worth matching. It is
+ * a hint, not a requirement — the text pattern stands alone if it is renamed
+ * (D-034).
+ */
+const BUY_GROUP = 'quickBuyButton';
+
+function isBuyControl(el: Element): boolean {
+  if ([...el.classList].some((c) => c.includes(BUY_GROUP))) return true;
+  const text = (el.textContent ?? '').trim();
+  // The bound is not cosmetic: a long run of digits and commas — a market cap
+  // rendered inside a button, say — satisfies the pattern below and is not a
+  // price control.
+  if (!text || text.length > 24) return false;
+  return BUY_TEXT.test(text);
+}
+
+function hasBuyControl(root: Element): boolean {
+  for (const el of root.querySelectorAll('button, [role="button"]')) {
+    if (isBuyControl(el)) return true;
+  }
+  return false;
+}
+
+/**
+ * Is this card a Robinhood Chain token?
+ *
+ * The alt text is the primary signal; the filename is a fallback for the day
+ * Axiom localises or drops the alt. Both were present on every Robinhood row in
+ * the capture. Anything else — including a card with no badge at all — is
+ * treated as "not Robinhood", because the cost of a false negative is a missing
+ * button and the cost of a false positive is a trade on the wrong chain.
+ */
+function isRobinhoodCard(card: Element): boolean {
+  for (const img of card.querySelectorAll('img')) {
+    if ((img.getAttribute('alt') ?? '').trim().toLowerCase() === 'robinhood') return true;
+    if (/robinhood-logo|eth-robinhood/i.test(img.getAttribute('src') ?? '')) return true;
+  }
+  return false;
+}
+
+/**
+ * The smallest ancestor holding both this address and a buy control.
+ *
+ * Defined by shape rather than by selector, per D-030 — Axiom's markup is pure
+ * Tailwind utilities with no `data-*` hooks and no ids, so `div.relative.z-[1]`
+ * is not something to build on. Climbing stops at the first ancestor with a
+ * control, which is the card: the token's own icon-and-name block has no buy
+ * button (the first capture proved it), and the column has many.
+ */
+function cardFor(el: Element): Element | null {
+  let cur: Element | null = el;
+  for (let i = 0; i < MAX_CLIMB && cur; i++) {
+    if (hasBuyControl(cur)) return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
 export class AxiomAdapter implements SiteAdapter {
   readonly id = 'axiom';
   readonly siteMatch = new URLPattern({ hostname: 'axiom.trade' });
 
-  detectTokens(): TokenRef[] {
-    throw new AxiomAdapterNotReady();
+  readonly #o: AxiomAdapterOptions;
+  #doc: Document | null = null;
+
+  constructor(options: AxiomAdapterOptions) {
+    this.#o = options;
   }
 
-  findAnchors(): Element[] {
-    throw new AxiomAdapterNotReady();
+  /**
+   * Only tokens on a Robinhood Chain card are returned at all — the gate lives
+   * in detection, not just in anchoring, so a foreign-chain address never
+   * becomes a `TokenRef` that some later caller might quote.
+   */
+  detectTokens(document: Document): TokenRef[] {
+    this.#doc = document;
+    return detectTokensIn(document, { chainId: this.#o.chainId }).filter(
+      (t) => this.#cardsFor(t.address).length > 0,
+    );
   }
 
-  mount(): void {
-    throw new AxiomAdapterNotReady();
+  findAnchors(tokenRef: TokenRef): Element[] {
+    return this.#cardsFor(tokenRef.address);
   }
+
+  /**
+   * Anchor on the card, not on Axiom's buy button.
+   *
+   * Two reasons. Each card carries *two* quick-buy buttons — one
+   * `block sm:hidden`, one `hidden sm:block` — so anchoring on "the buy button"
+   * would mount twice, once invisibly. And their desktop button sits inside a
+   * container that is `opacity-0` until hover below the `xl` breakpoint, so a
+   * control mounted beside it would inherit that and vanish at exactly the
+   * width the capture was taken at.
+   */
+  mount(anchor: Element, tokenRef: TokenRef): void {
+    mountOverlay(anchor, tokenRef, {
+      onIntent: this.#o.onIntent,
+      ...(this.#o.amounts ? { amounts: this.#o.amounts } : {}),
+      ...(this.#o.probeSell ? { probeSell: this.#o.probeSell } : {}),
+    });
+  }
+
+  #cardsFor(address: Address): Element[] {
+    const doc = this.#doc;
+    if (!doc) return [];
+
+    const cards = new Set<Element>();
+    for (const el of elementsFor(doc, address)) {
+      const card = cardFor(el);
+      if (!card) continue;
+      // Never anchor inside our own control, or a rescan nests overlays.
+      if (card.closest(`[${HOST_ATTR}]`)) continue;
+      if (!isRobinhoodCard(card)) continue;
+      cards.add(card);
+    }
+    // Deduplicated: an address appears on the image, the X search link and the
+    // copy button, all of which resolve to the same card.
+    return [...cards];
+  }
+}
+
+export function createAxiomAdapter(options: AxiomAdapterOptions): AxiomAdapter {
+  return new AxiomAdapter(options);
 }

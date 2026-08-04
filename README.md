@@ -45,8 +45,10 @@ docs/landing/       landing page (token CA display)
 | Doppler | Uniswap V4 bonding curve | quote + trade |
 | flap.sh | bonding curve via Portal | quote + trade |
 
-Sites: Axiom *(selectors pending a DOM snapshot)*, X, Telegram Web,
-DexScreener, plus a generic adapter for any page showing raw addresses.
+Sites: Axiom *(DOM-verified; only Robinhood Chain rows are decorated, since the
+page mixes chains)*, X, Telegram Web and DexScreener *(selectors written blind,
+with shape-based fallback)*, plus a generic adapter for any page showing raw
+addresses.
 
 ## Getting started
 

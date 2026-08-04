@@ -571,18 +571,23 @@ venue".
 ## 8. Overlay targets (terminals and screeners)
 
 Where Hoodini's buttons get injected. Status = whether RH Chain support is
-confirmed. None of these are DOM-verified yet — that needs the P3 snapshot.
+confirmed. Axiom is DOM-verified as of 2026-08-04; the rest are not, and their
+selectors remain written blind.
+
+**Every terminal here renders contracts truncated** (`0x5d...2ba3`). The full
+address lives in attributes — the token image URL and the X-search link on
+Axiom — so any adapter for this class of site reads attributes, not text.
 
 | Target | URL | RH Chain | Notes |
 |---|---|---|---|
-| **Axiom** | `axiom.trade` | VERIFIED (external) | **CONFIRMED BY RORY as the P3 target.** First major terminal on RH Chain, integrated ~2026-07-11. Bloom overlays it. Still needs a DOM snapshot for adapter design. |
+| **Axiom** | `axiom.trade` | VERIFIED (on-page) | **P3 target, adapter shipped.** DOM captured 2026-08-04 → `docs/dom/axiom.trade.json`. **Multi-chain: SOL / BNB / Robinhood rows interleave in one column**, so the adapter gates per row on the `alt="Robinhood"` badge (D-050). |
 | **GMGN** | `gmgn.ai` | VERIFIED (external) | ~10 chains incl. Robinhood. Charges 1%. Bloom overlays it. |
 | **DexScreener** | `dexscreener.com` | VERIFIED (external) | 670 links in Rory's own alert corpus. Screener, not a competitor. |
 | **GeckoTerminal** | `geckoterminal.com` | VERIFIED (external) | 670 links in the alert corpus. |
 | **Blockscout** | `robinhoodchain.blockscout.com` | VERIFIED | 670 links in the corpus; also our explorer API. |
 | **BasedBot** | `basedbot.tech` | LIKELY | Multi-chain EVM terminal. The alert corpus Rory scraped is *emitted by* BasedBot and labels Pons launches — strong evidence of RH coverage. |
 | **Nock Terminal** | `nockterminal.com` | VERIFIED (external) | **Name collision — see D-012.** RH-native screener + NockBot (1% fee) + launchpad. Competitor, not an overlay target. |
-| **Terminal (ex-Padre)** | `trade.padre.gg` | UNCONFIRMED | Multi-chain, acquired by the Pump.fun team. RH support not confirmed. Bloom overlays it. |
+| **Terminal (ex-Padre)** | `trade.padre.gg` | VERIFIED (screenshot) | Multi-chain, acquired by the Pump.fun team. RH support confirmed 2026-08-04 from Rory's own Trenches screenshot — HOOD, TPONS, RWA and Red Bull with `…7777` / `…8888` addresses. Same three-column lifecycle layout as Axiom and GMGN. No DOM snapshot yet. |
 | **Banana Gun** | `bananagun.io` | VERIFIED (external) | Telegram bot, RH Chain from day one. Telegram surface, not a web terminal. |
 | **Photon / BullX Neo / J7Tracker** | — | UNCONFIRMED | Bloom overlays these; RH Chain support unverified. |
 

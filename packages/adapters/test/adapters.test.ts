@@ -13,7 +13,6 @@ import { addressesInText, detectTokensIn, nearestRow, elementsFor } from '../src
 import { mountOverlay, unmountAll, HOST_ATTR, TOKEN_ATTR } from '../src/overlay.js';
 import { AdapterRuntime, matchesSite } from '../src/runtime.js';
 import { GenericAddressAdapter } from '../src/adapters/generic.js';
-import { AxiomAdapter, AxiomAdapterNotReady } from '../src/adapters/axiom.js';
 import type { OverlayIntent } from '../src/overlay.js';
 import type { TokenRef } from '@hoodini/core';
 
@@ -287,19 +286,7 @@ describe('matchesSite', () => {
   });
 });
 
-describe('AxiomAdapter', () => {
-  it('refuses loudly instead of silently matching nothing', () => {
-    // A stub that returned [] would look like a working adapter on a page it
-    // simply failed to understand. Throwing makes the gap impossible to miss.
-    const a = new AxiomAdapter();
-    expect(() => a.detectTokens()).toThrow(AxiomAdapterNotReady);
-    expect(() => a.findAnchors()).toThrow(AxiomAdapterNotReady);
-  });
-
-  it('still claims the right site, so wiring it up is a one-line change later', () => {
-    expect(matchesSite(new AxiomAdapter(), 'https://axiom.trade/discover')).toBe(true);
-  });
-});
+// AxiomAdapter has its own suite in axiom.test.ts, built from the captured DOM.
 
 // ── sell gating (D-049) ─────────────────────────────────────────────────────
 

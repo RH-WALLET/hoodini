@@ -677,7 +677,9 @@ token — otherwise a click would buy something the user is no longer looking at
 ---
 
 ### D-031 — The Axiom adapter throws rather than returning empty
-**Decided 2026-08-03.**
+**Decided 2026-08-03. Superseded 2026-08-04 by D-050** — the snapshot exists and
+the adapter is real, so there is no longer a stub to throw. The reasoning below
+is kept because it is why the gap stayed visible long enough to get filled.
 
 Axiom's markup has never been observed (Cloudflare bot protection, and
 defeating that is out of scope), so its selectors cannot be written honestly.
@@ -1095,3 +1097,67 @@ Two mutations survived the first pass and both were test gaps rather than code
 gaps: clicking a `disabled` button is a no-op in jsdom, so the in-flight guard
 looked untested until the test dispatched the event directly; and the extension
 suite had no coverage of `trade.quote` at all. Both fixed.
+
+---
+
+### D-050 — On a multi-chain terminal, the chain is read per row or nothing is offered
+**Decided 2026-08-04.** Unblocked P3; the first rule written from a real DOM.
+
+Axiom's Pulse interleaves Solana, BNB Chain and Robinhood Chain rows in the same
+column. So an `0x…` address on that page is not evidence of a Robinhood Chain
+token, and the captured DOM contains the proof: `0xffea30fa…149a7777` and
+`0x05274cf4…26187777` both carry the `7777` suffix I had been reading as the
+Robinhood launchpad's vanity marker, and both are BNB Chain tokens on Flap — per
+their own `flap.sh/bnb/…` and `coinmarketcap/token/bsc/…` links.
+
+**Why this is a safety rule and not a polish item.** The same address can exist
+on two EVM chains — deterministic deployment makes that ordinary, not exotic. A
+detector keyed on address shape would resolve a BNB address against Robinhood
+Chain, and if something happened to live there, quote and offer a buy on a token
+the user was never looking at. Wrong-chain is not a degraded result; it is a
+different asset.
+
+**The rule.** A site adapter for a multi-chain surface must positively identify
+each row's chain from that row, and must decorate nothing it cannot identify. A
+missing button costs a trade; a wrong button costs the trade.
+
+**Four things that are not chain markers**, all of which looked like one:
+
+| Signal | Why it fails |
+|---|---|
+| Address suffix `…7777` | Flap uses it on BNB too — two examples in one capture |
+| Image CDN host | Robinhood rows are served from `axiomtrading-eth-v2`, same as Ethereum |
+| `alt="ETH"` | Sits on `eth-robinhood-v2.svg`; Robinhood's gas token *is* ETH |
+| Quick-buy label `0.1 ETH` | Same reason |
+
+What works is Axiom's own chain badge: `alt="Robinhood"` on `robinhood-logo.svg`,
+present on every Robinhood row across both captures and absent from every BNB
+row. The adapter accepts either the alt or the filename, and D-025 applies — each
+is proven by its own test, because in the real markup they always co-occur and a
+mutation showed the alt branch was otherwise unexercised.
+
+**Detection is gated, not just anchoring.** The filter sits in `detectTokens`, so
+a foreign-chain address never becomes a `TokenRef` at all. Gating only at mount
+time would leave a wrong-chain token in hand for any later caller to quote.
+
+**The generic adapter is now the dangerous one.** `GenericAddressAdapter` has no
+chain concept, which is correct for a single-chain explorer and wrong for a
+multi-chain terminal — so the content script tries `AxiomAdapter` first, and the
+fallback never sees axiom.trade.
+
+**Anchoring, decided by the same capture.** Each card carries *two* quick-buy
+buttons (`block sm:hidden` and `hidden sm:block`), so anchoring on "the buy
+button" would mount twice, once invisibly; and the desktop one lives in a
+container that is `opacity-0` until hover below `xl`, which would have hidden our
+control at exactly the width the snapshot was taken at. The anchor is therefore
+the card — defined by shape, as the smallest ancestor holding both the address
+and a buy control, since Axiom's markup is pure Tailwind utilities with no
+`data-*` and no ids (D-030 again, and this time against a page I have seen).
+
+**A note on the tool.** The first capture script gave up when it found no full
+address, which is precisely what happens on all three terminals — they render
+every contract truncated. It bailed silently, left the clipboard untouched, and
+reported nothing about a page it could read perfectly well. A capture tool that
+only works in the easy case is not a capture tool; v2 reports which mode found
+the rows, because "the full address is not in the text" is itself the finding
+that decides how detection has to work.

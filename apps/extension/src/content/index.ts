@@ -7,7 +7,7 @@
  * service worker refuses `trade.execute` from a page outright (D-026).
  */
 
-import { AdapterRuntime, GenericAddressAdapter, createSiteAdapters, matchesSite, type OverlayIntent } from '@hoodini/adapters';
+import { AdapterRuntime, AxiomAdapter, GenericAddressAdapter, createSiteAdapters, matchesSite, type OverlayIntent } from '@hoodini/adapters';
 import type { TokenRef } from '@hoodini/core';
 
 const CHAIN_ID = 4663;
@@ -73,10 +73,15 @@ async function probeSell(token: TokenRef): Promise<{ reason: string } | null> {
 const onIntent = (intent: OverlayIntent) => void quote(intent);
 
 // Prefer the adapter that knows this site; fall back to shape-based detection
-// so an unlisted page still gets controls rather than nothing.
+// so an unlisted page still gets controls rather than nothing. Axiom is tried
+// first because it is the only adapter that gates on chain, and on a
+// multi-chain terminal the generic fallback would decorate BNB and Ethereum
+// rows as though they were Robinhood Chain (D-050).
+const adapterOptions = { chainId: CHAIN_ID, onIntent, probeSell };
 const adapter =
-  createSiteAdapters({ chainId: CHAIN_ID, onIntent, probeSell }).find((a) => matchesSite(a, location.href)) ??
-  new GenericAddressAdapter({ chainId: CHAIN_ID, onIntent, probeSell });
+  [new AxiomAdapter(adapterOptions), ...createSiteAdapters(adapterOptions)].find((a) =>
+    matchesSite(a, location.href),
+  ) ?? new GenericAddressAdapter(adapterOptions);
 
 const runtime = new AdapterRuntime(adapter, document, {
   onError: (e) => console.debug('[hoodini] scan error', e),

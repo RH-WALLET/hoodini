@@ -122,9 +122,9 @@ send path is built on top of it.
 - [x] 47 extension tests, mutation-checked (9 mutations, all caught)
 - [ ] **Rory to approve the first live canary in-session** (invariant 5)
 
-## [ ] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
+## [~] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
 
-Confirmed by Rory 2026-08-03. Blocked on a DOM snapshot.
+Confirmed by Rory 2026-08-03. Snapshot captured 2026-08-04; adapter shipped.
 
 Axiom is behind Cloudflare bot protection (403 `cf-mitigated: challenge`), so it
 cannot be fetched by automation and defeating that is off-limits. This does not
@@ -141,10 +141,20 @@ session, so it never fetches Axiom at all. Only recon is blocked.
 - [x] Content script wired: detects, mounts, and quotes via the worker
 - [x] 25 adapter tests, mutation-checked (7 mutations; two survivors found,
       one of which exposed dead code)
-- [ ] **BLOCKED —** Rory runs `scripts/capture-dom.js` on Axiom →
-      `docs/dom/axiom.trade.json`
-- [ ] `AxiomAdapter` selectors (thin layer; stub throws loudly meanwhile)
-- [ ] Anchor discovery resilient to SPA re-render
+- [x] **Snapshot captured** 2026-08-04 → `docs/dom/axiom.trade.json`. Took two
+      passes: v1 of the capture script gave up when it found no *full* address,
+      which is exactly what every terminal does (all contracts render
+      truncated). v2 falls back and reports which mode found the rows
+- [x] `AxiomAdapter` — address read from `img[src]` / `a[href]`, not from the
+      truncated text; **hard per-row Robinhood Chain gate** in `detectTokens`,
+      not just at mount (D-050); anchored on the card by shape, which also
+      sidesteps the two quick-buy buttons every card carries
+- [x] Content script prefers Axiom over the generic adapter, which has no chain
+      concept and would decorate BNB rows
+- [x] 26 Axiom tests, mutation-checked (10 mutations; two survivors — one
+      unreachable guard removed, one redundant defence given its own test)
+- [ ] Anchor placement unverified *visually* — the overlay mounts on the correct
+      element, but nobody has seen where it lands on the card
 
 ## [x] P4 — X / Telegram Web / DexScreener adapters + positions panel
 

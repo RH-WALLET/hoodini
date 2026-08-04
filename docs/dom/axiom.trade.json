@@ -1,0 +1,440 @@
+{
+  "capturedAt": "2026-08-04T15:06:46.997Z",
+  "url": "https://axiom.trade/pulse?chain=sol&pulseChains=sol,robinhood,bnb&trackerChains=sol,eth",
+  "host": "axiom.trade",
+  "viewport": {
+    "w": 1272,
+    "h": 1030
+  },
+  "addressMode": "full-attribute",
+  "addressCarriers": 72,
+  "fullAddressAnywhereInDom": true,
+  "distinctFullAddresses": 25,
+  "distinctRowShapes": 2,
+  "likelyRowSelector": "div.relative.z-[1].flex.h-full",
+  "likelyRowCount": 19,
+  "sampleRows": [
+    {
+      "tag": "div",
+      "classes": [
+        "relative",
+        "z-[1]",
+        "flex",
+        "h-full",
+        "w-full",
+        "flex-col"
+      ],
+      "dataAttrs": [],
+      "fullAddresses": [
+        "0x5dbaca8327b0baa57eb6c872a333bf8d6f642ba3"
+      ],
+      "truncatedTexts": [
+        "0x5d...2ba3"
+      ],
+      "hrefs": [
+        "https://x.com/smolemaru",
+        "https://wagies-dashboard.vercel.app",
+        "https://t.me/zaibatsuwagies",
+        "https://x.com/search?q=0x5dbaca8327b0baa57eb6c872a333bf8d6f642ba3",
+        "https://x.com/smolemaru"
+      ],
+      "labels": [],
+      "childCount": 9,
+      "controls": [
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "z-50",
+            "text-textTertiary",
+            "opacity-0",
+            "transition-opacity",
+            "duration-0"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "contents"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "z-50",
+            "bg-backgroundTertiary",
+            "text-textTertiary",
+            "opacity-0",
+            "transition-opacity"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "contents"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "z-50",
+            "bg-backgroundTertiary",
+            "text-textTertiary",
+            "opacity-0",
+            "transition-opacity"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "contents"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "bg-primaryBlue",
+            "hover:bg-primaryBlueHover",
+            "text-[#090909]",
+            "flex",
+            "flex-row",
+            "gap-[4px]"
+          ],
+          "text": "0.1 ETH",
+          "isBuy": true,
+          "parentClasses": []
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "bg-primaryBlue",
+            "hover:bg-primaryBlueHover",
+            "text-[#090909]",
+            "flex",
+            "flex-row",
+            "gap-[4px]"
+          ],
+          "text": "0.1 ETH",
+          "isBuy": true,
+          "parentClasses": []
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "inset-0",
+            "flex",
+            "items-center",
+            "justify-center",
+            "bg-black/50"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "group/image",
+            "relative",
+            "h-full",
+            "w-full"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "group/copy",
+            "flex",
+            "max-w-[74px]",
+            "items-center",
+            "gap-[4px]",
+            "text-center"
+          ],
+          "text": "0x5d...2ba3",
+          "isBuy": false,
+          "parentClasses": [
+            "max-w-[74px]",
+            "text-center",
+            "text-[12px]",
+            "font-medium",
+            "text-textTertiary"
+          ]
+        },
+        {
+          "tag": "div",
+          "classes": [
+            "cursor-pointer"
+          ],
+          "text": "Zaibatsu Wagies",
+          "isBuy": false,
+          "parentClasses": [
+            "min-w-0",
+            "overflow-hidden",
+            "flex-1"
+          ]
+        }
+      ],
+      "outerHTML": "<div class=\"relative z-[1] flex h-full w-full flex-col\"><svg class=\"pointer-events-none absolute inset-y-0 right-0 w-1/3 z-[2] overflow-hidden\" width=\"100%\" height=\"100%\" viewBox=\"0 0 100 40\" preserveAspectRatio=\"none\" aria-hidden=\"true\" style=\"display: none; width: 33.3333%; opacity: 1; mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgb(0, 0, 0) 100%);\"><defs><linearGradient id=\"cc-_r_nm_-up\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0%\" stop-opacity=\"0.43\" style=\"stop-color: rgb(var(--chart-up, 11 153 129));\"></stop><stop offset=\"100%\" stop-opacity=\"0\" style=\"stop-color: rgb(var(--chart-up, 11 153 129));\"></stop></linearGradient><linearGradient id=\"cc-_r_nm_-down\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0%\" stop-opacity=\"0.43\" style=\"stop-color: rgb(var(--chart-down, 242 53 70));\"></stop><stop offset=\"100%\" stop-opacity=\"0\" style=\"stop-color: rgb(var(--chart-down, 242 53 70));\"></stop></linearGradient></defs><path d=\"\" fill=\"url(#cc-_r_nm_-up)\"></path><polyline points=\"\" fill=\"none\" stroke-opacity=\"0.86\" stroke-width=\"2\" stroke-linejoin=\"round\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\" style=\"stroke: rgb(var(--chart-up, 11 153 129));\"></polyline></svg><span class=\"contents\"><button type=\"button\" class=\"absolute z-50 text-textTertiary opacity-0 transition-opacity duration-0 hover:text-primaryBlueHover group-hover:opacity-100 h-[24px] w-[24px] flex items-center justify-center rounded-[4px] border border-secondaryStroke/50 bg-backgroundTertiary\" style=\"top: 6px; left: 6px;\"><i class=\"ri-eye-off-line text-[14px]\"></i></button></span><span class=\"contents\"><button type=\"button\" class=\"absolute z-50 bg-backgroundTertiary text-textTertiary opacity-0 transition-opacity duration-0 hover:text-primaryBlueHover group-hover:opacity-100 h-[24px] w-[24px] flex items-center justify-center rounded-[4px] border border-secondaryStroke/50\" style=\"top: 32px; left: 6px;\"><i class=\"icon-chefhat-off \" style=\"font-size: 12px;\"></i></button></span><span class=\"contents\"><button type=\"button\" class=\"absolute z-50 bg-backgroundTertiary text-textTertiary opacity-0 transition-opacity duration-0 hover:text-primaryBlueHover group-hover:opacity-100 h-[24px] w-[24px] flex items-center justify-center rounded-[4px] border border-secondaryStroke/50\" style=\"top: 58px; left: 6px;\"><i class=\"icon-at-off-line \" style=\"font-size: 12px;\"></i></button></span><div class=\"absolute z-30 block sm:hidden bottom-[10px] right-[12px] sm:bottom-[12px] sm:right-[16px]\"><div class=\"\"><div class=\"  \"><button type=\"button\" class=\"bg-primaryBlue hover:bg-primaryBlueHover text-[#090909] flex flex-row gap-[4px] items-center justify-center rounded-[999px] h-[24px] group/quickBuyButton relative overflow-hidden whitespace-nowrap transition-all duration-0  \" style=\"padding-left: 6px; padding-right: 6px;\"><span class=\"relative z-10 flex flex-row gap-[4px] items-center justify-center\"><i class=\"ri-flashlight-fill relative z-10 flex items-center text-[16px]\"></i><span class=\"text-[12px] font-bold  relative z-10\">0.1 ETH</span></span></button></div></div></div><div class=\"absolute z-30 hidden sm:block right-[12px] bottom-[16px] sm:right-[16px] sm:bottom-[16px] lg:opacity-0 lg:group-hover:opacity-100 xl:opacity-100 2xl:!opacity-100\"><div class=\"opacity-0 group-hover:opacity-100 2xl:!opacity-100\"><div class=\"  \"><button type=\"button\" class=\"bg-primaryBlue hover:bg-primaryBlueHover text-[#090909] flex flex-row gap-[4px] items-center justify-center rounded-[999px] h-[24px] group/quickBuyButton relative overflow-hidden whitespace-nowrap transition-all duration-0  \" style=\"padding-left: 6px; padding-right: 6px;\"><span class=\"relative z-10 flex flex-row gap-[4px] items-center justify-center\"><i class=\"ri-flashlight-fill relative z-10 flex items-center text-[16px]\"></i><span class=\"text-[12px] font-bold  relative z-10\">0.1 ETH</span></span></button></div></div></div><div class=\"pointer-events-none absolute right-[16px] top-[16px] block\"><div class=\"flex flex-col items-end gap-[1px]\"><div class=\"flex flex-col gap-[4px] relative items-end\"><div class=\"absolute z-[1]\" style=\"inset: -12px -8px 1px -4px;\"><div class=\" group-hover:bg-primaryStroke/50 absolute inset-0 z-[5]\"></div><div class=\"bg-backgroundSecondary absolute inset-0 z-0\"></div></div><div class=\"relative z-20 flex items-end justify-end\"><span class=\"contents\"><div class=\"flex flex-row h-[18px] gap-[4px] justify-end items-end\"><span class=\"text-textTertiary text-[12px] font-medium pb-[1.6px]\">MC</span><span class=\"text-[16px] font-medium \" style=\"color: rgb(82, 197, 255);\">$0</span></div></span></div><div class=\"relative z-20 flex items-end justify-end\"><span class=\"contents\"><div class=\"flex flex-row h-[18px] flex-1 gap-[4px] justify-end items-end\"><span class=\"text-textTertiary text-[12px] font-medium pb-[1.6px] flex justify-center items-center\">V</span><span class=\"text-[16px] font-medium text-textPrimary\">$0</span></div></span></div></div><div class=\"relative flex flex-row items-end justif…[truncated]"
+    },
+    {
+      "tag": "div",
+      "classes": [
+        "relative",
+        "z-[1]",
+        "flex",
+        "h-full",
+        "w-full",
+        "flex-col"
+      ],
+      "dataAttrs": [],
+      "fullAddresses": [
+        "0x05274cf4b065e8665cec084c4a41608926187777",
+        "0x05274CF4b065E8665CEc084c4A41608926187777"
+      ],
+      "truncatedTexts": [
+        "0x05...7777B"
+      ],
+      "hrefs": [
+        "https://x.com/Bullpostonpf/status/2084657028098842758",
+        "https://flap.sh/bnb/0x05274cf4b065e8665cec084c4a41608926187777",
+        "https://dex.coinmarketcap.com/token/bsc/0x05274CF4b065E8665CEc084c4A41608926187777",
+        "https://t.me/#0x05274CF4b065E8665CEc084c4A41608926187777",
+        "https://x.com/search?q=0x05274cf4b065e8665cec084c4a41608926187777"
+      ],
+      "labels": [],
+      "childCount": 9,
+      "controls": [
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "z-50",
+            "text-textTertiary",
+            "opacity-0",
+            "transition-opacity",
+            "duration-0"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "contents"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "z-50",
+            "bg-backgroundTertiary",
+            "text-textTertiary",
+            "opacity-0",
+            "transition-opacity"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "contents"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "z-50",
+            "bg-backgroundTertiary",
+            "text-textTertiary",
+            "opacity-0",
+            "transition-opacity"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "contents"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "bg-primaryBlue",
+            "hover:bg-primaryBlueHover",
+            "text-[#090909]",
+            "flex",
+            "flex-row",
+            "gap-[4px]"
+          ],
+          "text": "0 BNB",
+          "isBuy": true,
+          "parentClasses": []
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "bg-primaryBlue",
+            "hover:bg-primaryBlueHover",
+            "text-[#090909]",
+            "flex",
+            "flex-row",
+            "gap-[4px]"
+          ],
+          "text": "0 BNB",
+          "isBuy": true,
+          "parentClasses": []
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "absolute",
+            "inset-0",
+            "flex",
+            "items-center",
+            "justify-center",
+            "bg-black/50"
+          ],
+          "text": "",
+          "isBuy": false,
+          "parentClasses": [
+            "group/image",
+            "relative",
+            "h-full",
+            "w-full"
+          ]
+        },
+        {
+          "tag": "button",
+          "classes": [
+            "group/copy",
+            "flex",
+            "max-w-[74px]",
+            "items-center",
+            "gap-[4px]",
+            "text-center"
+          ],
+          "text": "0x05...7777",
+          "isBuy": false,
+          "parentClasses": [
+            "max-w-[74px]",
+            "text-center",
+            "text-[12px]",
+            "font-medium",
+            "text-textTertiary"
+          ]
+        },
+        {
+          "tag": "div",
+          "classes": [
+            "cursor-pointer"
+          ],
+          "text": "Bullpost",
+          "isBuy": false,
+          "parentClasses": [
+            "min-w-0",
+            "overflow-hidden",
+            "flex-1"
+          ]
+        }
+      ],
+      "outerHTML": "<div class=\"relative z-[1] flex h-full w-full flex-col\"><svg class=\"pointer-events-none absolute inset-y-0 right-0 w-1/3 z-[2] overflow-hidden\" width=\"100%\" height=\"100%\" viewBox=\"0 0 100 40\" preserveAspectRatio=\"none\" aria-hidden=\"true\" style=\"display: none; width: 33.3333%; opacity: 1; mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgb(0, 0, 0) 100%);\"><defs><linearGradient id=\"cc-_r_nl_-up\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0%\" stop-opacity=\"0.43\" style=\"stop-color: rgb(var(--chart-up, 11 153 129));\"></stop><stop offset=\"100%\" stop-opacity=\"0\" style=\"stop-color: rgb(var(--chart-up, 11 153 129));\"></stop></linearGradient><linearGradient id=\"cc-_r_nl_-down\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0%\" stop-opacity=\"0.43\" style=\"stop-color: rgb(var(--chart-down, 242 53 70));\"></stop><stop offset=\"100%\" stop-opacity=\"0\" style=\"stop-color: rgb(var(--chart-down, 242 53 70));\"></stop></linearGradient></defs><path d=\"\" fill=\"url(#cc-_r_nl_-up)\"></path><polyline points=\"\" fill=\"none\" stroke-opacity=\"0.86\" stroke-width=\"2\" stroke-linejoin=\"round\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\" style=\"stroke: rgb(var(--chart-up, 11 153 129));\"></polyline></svg><span class=\"contents\"><button type=\"button\" class=\"absolute z-50 text-textTertiary opacity-0 transition-opacity duration-0 hover:text-primaryBlueHover group-hover:opacity-100 h-[24px] w-[24px] flex items-center justify-center rounded-[4px] border border-secondaryStroke/50 bg-backgroundTertiary\" style=\"top: 6px; left: 6px;\"><i class=\"ri-eye-off-line text-[14px]\"></i></button></span><span class=\"contents\"><button type=\"button\" class=\"absolute z-50 bg-backgroundTertiary text-textTertiary opacity-0 transition-opacity duration-0 hover:text-primaryBlueHover group-hover:opacity-100 h-[24px] w-[24px] flex items-center justify-center rounded-[4px] border border-secondaryStroke/50\" style=\"top: 32px; left: 6px;\"><i class=\"icon-chefhat-off \" style=\"font-size: 12px;\"></i></button></span><span class=\"contents\"><button type=\"button\" class=\"absolute z-50 bg-backgroundTertiary text-textTertiary opacity-0 transition-opacity duration-0 hover:text-primaryBlueHover group-hover:opacity-100 h-[24px] w-[24px] flex items-center justify-center rounded-[4px] border border-secondaryStroke/50\" style=\"top: 58px; left: 6px;\"><i class=\"icon-at-off-line \" style=\"font-size: 12px;\"></i></button></span><div class=\"absolute z-30 block sm:hidden bottom-[10px] right-[12px] sm:bottom-[12px] sm:right-[16px]\"><div class=\"\"><div class=\"  \"><button type=\"button\" class=\"bg-primaryBlue hover:bg-primaryBlueHover text-[#090909] flex flex-row gap-[4px] items-center justify-center rounded-[999px] h-[24px] group/quickBuyButton relative overflow-hidden whitespace-nowrap transition-all duration-0  \" style=\"padding-left: 6px; padding-right: 6px;\"><i class=\"ri-flashlight-fill relative z-10 flex items-center text-[16px]\"></i><span class=\"text-[12px] font-bold  relative z-10\">0 BNB</span></button></div></div></div><div class=\"absolute z-30 hidden sm:block right-[12px] bottom-[16px] sm:right-[16px] sm:bottom-[16px] lg:opacity-0 lg:group-hover:opacity-100 xl:opacity-100 2xl:!opacity-100\"><div class=\"opacity-0 group-hover:opacity-100 2xl:!opacity-100\"><div class=\"  \"><button type=\"button\" class=\"bg-primaryBlue hover:bg-primaryBlueHover text-[#090909] flex flex-row gap-[4px] items-center justify-center rounded-[999px] h-[24px] group/quickBuyButton relative overflow-hidden whitespace-nowrap transition-all duration-0  \" style=\"padding-left: 6px; padding-right: 6px;\"><i class=\"ri-flashlight-fill relative z-10 flex items-center text-[16px]\"></i><span class=\"text-[12px] font-bold  relative z-10\">0 BNB</span></button></div></div></div><div class=\"pointer-events-none absolute right-[16px] top-[16px] block\"><div class=\"flex flex-col items-end gap-[1px]\"><div class=\"flex flex-col gap-[4px] relative items-end\"><div class=\"absolute z-[1]\" style=\"inset: -12px -8px 1px -4px;\"><div class=\" group-hover:bg-primaryStroke/50 absolute inset-0 z-[5]\"></div><div class=\"bg-backgroundSecondary absolute inset-0 z-0\"></div></div><div class=\"relative z-20 flex items-end justify-end\"><span class=\"contents\"><div class=\"flex flex-row h-[18px] gap-[4px] justify-end items-end\"><span class=\"text-textTertiary text-[12px] font-medium pb-[1.6px]\">MC</span><span class=\"text-[16px] font-medium \" style=\"color: rgb(82, 197, 255);\">$3.29K</span></div></span></div><div class=\"relative z-20 flex items-end justify-end\"><span class=\"contents\"><div class=\"flex flex-row h-[18px] flex-1 gap-[4px] justify-end items-end\"><span class=\"text-textTertiary text-[12px] font-medium pb-[1.6px] flex justify-center items-center\">V</span><span class=\"text-[16px] font-medium text-textPrimary\">$0</span></div></span></div></div><div class=\"relative flex flex-row items-end justify-end gap-[8px]\"><div class=\"absolute z-[1]\" style=\"inset: -2px -8px -4px -4px;\"><div class=\" group-hover:bg-primaryStroke/50 absolute inset-0 z-[5]\"></div><div class=\"bg-bac…[truncated]"
+    }
+  ],
+  "chainHints": [
+    {
+      "kind": "img",
+      "src": "https://axiom-assets-v2.axiom-cdn.io/images/eth-robinhood-v2.svg",
+      "alt": "ETH"
+    },
+    {
+      "kind": "img",
+      "src": "https://axiom-assets-v2.axiom-cdn.io/images/robinhood-logo.svg",
+      "alt": "Robinhood"
+    },
+    {
+      "kind": "img",
+      "src": "https://axiom-assets-v2.axiom-cdn.io/images/evm/protocols/uniswap.svg",
+      "alt": "Uniswap v4"
+    },
+    {
+      "kind": "img",
+      "src": "https://axiomtrading-eth-v2.axiom-cdn.io/0x5dbaca8327b0baa57eb6c872a333bf8d6f642ba3.webp",
+      "alt": "Zaibatsu Wagies"
+    },
+    {
+      "kind": "img",
+      "src": "https://axiom-assets-v2.axiom-cdn.io/images/robinhood/usdg.svg",
+      "alt": "USDG"
+    }
+  ],
+  "anchorHints": [
+    {
+      "tag": "button",
+      "classes": [
+        "absolute",
+        "z-50",
+        "text-textTertiary",
+        "opacity-0"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "absolute",
+        "z-50",
+        "bg-backgroundTertiary",
+        "text-textTertiary"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "absolute",
+        "z-50",
+        "bg-backgroundTertiary",
+        "text-textTertiary"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "bg-primaryBlue",
+        "hover:bg-primaryBlueHover",
+        "text-[#090909]",
+        "flex"
+      ],
+      "text": "0.1 ETH"
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "bg-primaryBlue",
+        "hover:bg-primaryBlueHover",
+        "text-[#090909]",
+        "flex"
+      ],
+      "text": "0.1 ETH"
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "absolute",
+        "inset-0",
+        "flex",
+        "items-center"
+      ],
+      "text": ""
+    },
+    {
+      "tag": "button",
+      "classes": [
+        "group/copy",
+        "flex",
+        "max-w-[74px]",
+        "items-center"
+      ],
+      "text": "0x5d...2ba3"
+    }
+  ],
+  "framework": {
+    "react": false,
+    "nextjs": false,
+    "virtualised": false,
+    "reactPropsOnRow": true
+  }
+}
