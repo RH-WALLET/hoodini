@@ -8,7 +8,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Address, Hex } from 'viem';
-import { wallet, positions as positionsApi, type PositionsResult } from './client.js';
+import { wallet, positions as positionsApi, settings as settingsApi, type PositionsResult } from './client.js';
+import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS } from '@hoodini/core';
 import type { WalletStatus } from '../background/protocol.js';
 
 type View = 'loading' | 'setup' | 'locked' | 'unlocked';
@@ -85,6 +86,129 @@ function formatEth(wei: string): string {
   const whole = v / 10n ** 18n;
   const frac = (v % 10n ** 18n).toString().padStart(18, '0').slice(0, 6);
   return `${whole}.${frac}`;
+}
+
+/**
+ * Trade settings.
+ *
+ * Edited as text and validated by the worker, not here. The popup could check
+ * the same rules — but then there would be two copies of what counts as a valid
+ * spend amount, and the one that matters is the one nearest the money. So this
+ * shows what the worker says and gets out of the way.
+ */
+function TradeSettings(): React.JSX.Element {
+  const [presets, setPresets] = useState<string[]>([...DEFAULT_SETTINGS.buyPresets]);
+  const [slippage, setSlippage] = useState(String(DEFAULT_SETTINGS.slippageBps));
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const s = await settingsApi.get();
+        setPresets([...s.buyPresets]);
+        setSlippage(String(s.slippageBps));
+      } catch {
+        // Defaults are already on screen; a failed read should not blank them.
+      }
+    })();
+  }, []);
+
+  const save = async (next: string[], bps: string) => {
+    setError(null);
+    setSaved(false);
+    setBusy(true);
+    try {
+      const applied = await settingsApi.set({
+        buyPresets: next.map((p) => p.trim()).filter((p) => p !== ''),
+        // NaN rather than 0 on a non-numeric input: 0 is a number the
+        // validator would have to special-case, NaN is plainly not a value.
+        slippageBps: /^\d+$/.test(bps.trim()) ? Number(bps.trim()) : Number.NaN,
+      });
+      setPresets([...applied.buyPresets]);
+      setSlippage(String(applied.slippageBps));
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not save');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const setPreset = (i: number, v: string) => {
+    setSaved(false);
+    setPresets((p) => p.map((x, j) => (j === i ? v : x)));
+  };
+
+  return (
+    <div className="panel stack">
+      <strong style={{ fontSize: 12 }}>Trade settings</strong>
+
+      <label htmlFor="preset0">Quick-buy amounts (ETH)</label>
+      <div className="row" style={{ gap: 6 }}>
+        {presets.map((p, i) => (
+          <input
+            key={i}
+            id={i === 0 ? 'preset0' : undefined}
+            className="mono"
+            inputMode="decimal"
+            value={p}
+            style={{ minWidth: 0 }}
+            onChange={(e) => setPreset(i, e.target.value)}
+          />
+        ))}
+      </div>
+      <div className="row" style={{ gap: 6 }}>
+        <button
+          className="ghost"
+          style={{ width: 'auto', padding: '2px 8px' }}
+          disabled={presets.length >= MAX_PRESETS || busy}
+          onClick={() => {
+            setSaved(false);
+            setPresets((p) => [...p, '']);
+          }}
+        >
+          Add
+        </button>
+        <button
+          className="ghost"
+          style={{ width: 'auto', padding: '2px 8px' }}
+          disabled={presets.length <= MIN_PRESETS || busy}
+          onClick={() => {
+            setSaved(false);
+            setPresets((p) => p.slice(0, -1));
+          }}
+        >
+          Remove
+        </button>
+      </div>
+
+      <div>
+        <label htmlFor="slip">Slippage (basis points — 100 = 1%)</label>
+        <input
+          id="slip"
+          className="mono"
+          inputMode="numeric"
+          value={slippage}
+          onChange={(e) => {
+            setSaved(false);
+            setSlippage(e.target.value);
+          }}
+        />
+      </div>
+
+      {error && <div className="error">{error}</div>}
+      {saved && <p className="note">Saved. Open terminals update without a reload.</p>}
+
+      <button disabled={busy} onClick={() => void save(presets, slippage)}>
+        {busy ? '…' : 'Save'}
+      </button>
+      <p className="note">
+        These size a quote, not a trade. Sending stays disabled in this build, and a sell is always the whole balance.
+      </p>
+    </div>
+  );
 }
 
 /**
@@ -282,6 +406,7 @@ function Unlocked({ status, busy, run }: { status: WalletStatus; busy: boolean; 
       </div>
 
       <Positions />
+      <TradeSettings />
 
       <div className="panel stack">
         {!showExport ? (

@@ -14,6 +14,8 @@ import {
   createVault,
   exportPrivateKey,
   DEFAULT_AUTO_LOCK_MS,
+  DEFAULT_SETTINGS,
+  validateSettings,
 } from '@hoodini/core';
 import { loadPositions, planBuy, planSell, summarise, UnsupportedVenueError, type KdfParams, type VenueRouter } from '@hoodini/core';
 
@@ -25,6 +27,7 @@ import { getAddress, type Address } from 'viem';
 import type { VaultStore } from './storage.js';
 import type { TradeEngine } from './engine.js';
 import { isAllowed, type Request, type Response, type Surface, type WalletStatus } from './protocol.js';
+import type { Settings } from '@hoodini/core';
 
 export interface RouterDeps {
   readonly store: VaultStore;
@@ -40,6 +43,8 @@ export interface RouterDeps {
     readonly client: import('viem').PublicClient;
     readonly watchlist: { list(): Promise<Address[]>; add(t: Address): Promise<void> };
   };
+  /** Absent in tests that do not exercise settings; their messages then use defaults. */
+  readonly settings?: { read(): Promise<Settings>; write(s: unknown): Promise<Settings> };
 }
 
 function fail(code: string, message: string): Response<never> {
@@ -53,7 +58,7 @@ function toError(e: unknown): Response<never> {
 }
 
 export function createRouter(deps: RouterDeps) {
-  const { store, session, kdf, trade } = deps;
+  const { store, session, kdf, trade, settings } = deps;
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
 
   async function status(): Promise<WalletStatus> {
@@ -134,6 +139,21 @@ export function createRouter(deps: RouterDeps) {
           session.lock();
           await store.clear();
           return { ok: true, data: {} };
+        }
+
+        case 'settings.get': {
+          if (!settings) return { ok: true, data: DEFAULT_SETTINGS };
+          return { ok: true, data: await settings.read() };
+        }
+
+        case 'settings.set': {
+          if (!settings) return fail('UNAVAILABLE', 'settings are not wired up in this build');
+          // Validated before writing, so a bad edit is reported rather than
+          // silently replaced with a default — someone who typed `0,5` needs
+          // telling, not overruling.
+          const invalid = validateSettings(request.settings);
+          if (invalid) return fail('BAD_REQUEST', invalid.message);
+          return { ok: true, data: await settings.write(request.settings) };
         }
 
         case 'positions.list': {

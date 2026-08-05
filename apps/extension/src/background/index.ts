@@ -12,6 +12,7 @@
 
 import { KeystoreSession } from '@hoodini/core';
 import { VaultStore, chromeLocalArea } from './storage.js';
+import { SettingsStore } from './settingsStore.js';
 import { createRouter } from './router.js';
 import { classifySender, type Request } from './protocol.js';
 
@@ -22,7 +23,11 @@ const session = new KeystoreSession({
   },
 });
 
-const handle = createRouter({ store: new VaultStore(chromeLocalArea()), session });
+const handle = createRouter({
+  store: new VaultStore(chromeLocalArea()),
+  session,
+  settings: new SettingsStore(chromeLocalArea()),
+});
 
 const EXTENSION_ORIGIN = `chrome-extension://${chrome.runtime.id}`;
 

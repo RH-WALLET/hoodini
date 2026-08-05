@@ -64,6 +64,24 @@ export interface AxiomAdapterOptions {
 const MAX_CLIMB = 12;
 
 /**
+ * Where the control sits on the card.
+ *
+ * Measured, not guessed, and revised once after looking. Appending into the
+ * card's flow put a 19px control at offset 110px in a 115px card clipping at
+ * 116px, so it was sliced in half. Positioning it at `right: 104px` then landed
+ * it on top of the percentage badges.
+ *
+ * There is no free space on the card — every edge is a stat row. Axiom accepts
+ * that for its own quick-buy by floating it over the content, visible on hover;
+ * ours takes the same corner and stays visible, which is why the control now
+ * carries its own panel background rather than sitting bare on the page.
+ *
+ * These are the only numbers here that the DOM capture cannot supply: it
+ * records structure, and this depends on rendered geometry.
+ */
+const PLACEMENT = { bottom: '10px', right: '12px' } as const;
+
+/**
  * A quick-buy control as Axiom labels it: `0 BNB`, `0.1 ETH`, `0.15`, `Buy`.
  *
  * The end anchor is load-bearing. It is what excludes the copy-contract button,
@@ -174,6 +192,7 @@ export class AxiomAdapter implements SiteAdapter {
   mount(anchor: Element, tokenRef: TokenRef): void {
     mountOverlay(anchor, tokenRef, {
       onIntent: this.#o.onIntent,
+      placement: PLACEMENT,
       ...(this.#o.amounts ? { amounts: this.#o.amounts } : {}),
       ...(this.#o.probeSell ? { probeSell: this.#o.probeSell } : {}),
     });

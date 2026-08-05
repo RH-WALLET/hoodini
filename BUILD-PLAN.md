@@ -153,8 +153,13 @@ session, so it never fetches Axiom at all. Only recon is blocked.
       concept and would decorate BNB rows
 - [x] 28 Axiom tests, mutation-checked (10 mutations; two survivors — one
       unreachable guard removed, one redundant defence given its own test)
-- [ ] Anchor placement unverified *visually* — the overlay mounts on the correct
-      element, but nobody has seen where it lands on the card
+- [x] **Verified in a browser 2026-08-04** — and it was wrong twice. Appending
+      into the card's flow put the control at offset 110px in a 115px card that
+      clips at 116px, so it was sliced in half; positioning it then landed it on
+      the percentage badges. It now sits in the bottom-right corner on its own
+      panel background (D-052)
+- [x] `scripts/diagnose-overlay.js` and `scripts/diagnose-placement.js` — walk
+      the detection chain and the paint path against a live page
 
 ## [x] P4 — X / Telegram Web / DexScreener adapters + positions panel
 
@@ -191,6 +196,27 @@ two configs rather than two adapters (D-051, following D-045).
       nothing)
 - [ ] **Neither overlay has been seen render.** Same caveat as P4, and Axiom
 - [ ] GMGN's Trenches tab is uncaptured; the adapter is built from its home tab
+
+## [x] P4c — Editable buy presets and slippage
+
+Prompted by a question — "can we edit the amounts?" — which turned up that the
+existing preset buttons were decoration: every one emitted an identical intent,
+so pressing `0.01` quoted the hardcoded 0.001 (D-052).
+
+- [x] `OverlayIntent` carries the preset that was pressed; a sell carries none,
+      because a sell is always the whole balance (D-049)
+- [x] `Settings` in core — pure, total on read, refusing on write (D-053)
+- [x] `settings.get` page-readable so the overlay can draw its buttons;
+      `settings.set` popup-only and in `NEVER_PAGE_ACCESSIBLE`, because a preset
+      is a spend amount
+- [x] `SettingsStore` on `chrome.storage.local`, never `sync`
+- [x] Popup panel: up to four presets, slippage in basis points, errors from the
+      worker rather than a second copy of the rules
+- [x] Content script adopts changes live — remount rather than patch, so a
+      button's label and its amount can never disagree
+- [x] 58 core settings tests + 6 router tests, mutation-checked (13 mutations,
+      all caught)
+- [ ] Not yet seen in a browser — the same gap that made P3 wrong twice
 
 ## [~] P5 — Hardening, open-source release, landing page, CWS submission
 

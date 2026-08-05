@@ -49,6 +49,8 @@ export type Request =
       readonly slippageBps: number;
     }
   | { readonly type: 'positions.list' }
+  | { readonly type: 'settings.get' }
+  | { readonly type: 'settings.set'; readonly settings: unknown }
   | {
       readonly type: 'trade.execute';
       readonly side: 'buy' | 'sell';
@@ -93,6 +95,14 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   // Holdings are the user's business, not a site's. A page that could read
   // them would learn the wallet's contents just by being visited.
   'positions.list': ['popup'],
+  // The overlay needs the presets to draw its buttons, and they are not
+  // sensitive — a site learning that someone's quick-buy is 0.01 ETH tells it
+  // nothing it could not infer from watching a trade.
+  'settings.get': ['popup', 'page'],
+  // Writing is a different matter. A preset is a spend amount and slippage is
+  // how much of a trade the user is willing to lose; a page that could set
+  // either could quietly widen both and wait to be clicked.
+  'settings.set': ['popup'],
 };
 
 /** Capabilities a page may never hold, whatever else changes. */
@@ -106,6 +116,8 @@ export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
   // Spending must never be reachable from a page without a confirm sheet.
   'trade.execute',
   'positions.list',
+  // Changing what a button spends is a spending decision.
+  'settings.set',
 ];
 
 /**

@@ -20,10 +20,45 @@ export const TOKEN_ATTR = 'data-hoodini-token';
 export interface OverlayIntent {
   readonly side: 'buy' | 'sell';
   readonly token: TokenRef;
+  /**
+   * The preset the user actually pressed, in ETH.
+   *
+   * Absent on a sell, which is always the whole balance (D-049).
+   *
+   * This was missing until the control was seen working: the buttons rendered
+   * one per preset, but every one of them emitted the same intent, so a click
+   * on `0.01` quoted the content script's hardcoded 0.001. The amounts were
+   * decoration. Nothing downstream could have caught it, because nothing
+   * downstream was ever told which button was pressed.
+   */
+  readonly amount?: string;
 }
 
 /** Why a sell cannot proceed, in words a user can act on. */
 export type SellUnavailable = { readonly reason: string };
+
+/**
+ * Where the control sits inside its anchor.
+ *
+ * Appending into the flow is right for a tweet or a table row, which grow to
+ * fit. It is wrong for a terminal card: those are fixed-height, lay their
+ * contents out absolutely, and clip the overflow. On Axiom the result was a
+ * 19px control at offset 110px in a 115px card clipping at 116px — visibly
+ * sliced in half, and for the second card cut off entirely.
+ *
+ * An adapter that knows it is decorating such a card passes a placement, and
+ * the host is positioned against the anchor instead. The anchor must establish
+ * a containing block; every terminal card observed so far is `position:
+ * relative` already, and this deliberately does not restyle the page to force
+ * that — mutating a site's layout to fit our button is not a trade this
+ * project makes.
+ */
+export interface OverlayPlacement {
+  readonly top?: string;
+  readonly right?: string;
+  readonly bottom?: string;
+  readonly left?: string;
+}
 
 export interface OverlayOptions {
   /** Preset buy amounts in ETH, shown as quick buttons. */
@@ -44,21 +79,35 @@ export interface OverlayOptions {
    * the probe must price the amount that would really be sold.
    */
   readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  /** Position against the anchor rather than flowing after its content. */
+  readonly placement?: OverlayPlacement;
 }
 
+/**
+ * A terminal card has no free space — every edge is already a stat row. Axiom
+ * solves that for its own quick-buy by floating it over the content on hover.
+ * Ours stays visible, so it needs to read as a distinct layer rather than as
+ * more of the page: hence the panel background and border behind the buttons.
+ */
 const STYLE = `
   :host { all: initial; display: inline-flex; vertical-align: middle; }
-  .bar { display: inline-flex; gap: 4px; align-items: center;
-         font: 500 11px/1 ui-sans-serif, system-ui, sans-serif; }
+  .bar { display: inline-flex; gap: 5px; align-items: center;
+         font: 600 13px/1 ui-sans-serif, system-ui, sans-serif;
+         background: rgba(9, 9, 11, 0.94); padding: 4px; border-radius: 9px;
+         border: 1px solid rgba(255, 255, 255, 0.10);
+         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55); }
   button { all: unset; box-sizing: border-box; cursor: pointer;
-           padding: 3px 7px; border-radius: 5px; border: 1px solid #2b6b46;
-           background: #10371f; color: #7bf1a8; white-space: nowrap; }
-  button:hover { background: #175030; }
+           padding: 6px 11px; border-radius: 6px; border: 1px solid #2b6b46;
+           background: #10371f; color: #7bf1a8; white-space: nowrap;
+           line-height: 1; }
+  button:hover { background: #1d6640; border-color: #3f9c68; }
+  button:active { transform: translateY(1px); }
   button:focus-visible { outline: 2px solid #7bf1a8; outline-offset: 1px; }
   button.sell { border-color: #6b2b2b; background: #371010; color: #ff9a9a; }
+  button.sell:hover { background: #521818; border-color: #a04141; }
   button.unavailable { border-color: #3a3f4a; background: #1a1c21; color: #6f7787; cursor: not-allowed; }
   button:disabled { cursor: default; opacity: 0.75; }
-  .label { color: #8b93a5; font-size: 10px; }
+  .label { color: #8b93a5; font-size: 11px; padding-right: 2px; }
 `;
 
 /**
@@ -83,6 +132,21 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
   host.setAttribute(HOST_ATTR, '');
   host.setAttribute(TOKEN_ATTR, token.address.toLowerCase());
 
+  if (options.placement) {
+    const p = options.placement;
+    // Inline styles, not a `:host` rule — `:host { all: initial }` would reset
+    // position back to static, and inline wins over both that and the page.
+    host.style.position = 'absolute';
+    if (p.top !== undefined) host.style.top = p.top;
+    if (p.right !== undefined) host.style.right = p.right;
+    if (p.bottom !== undefined) host.style.bottom = p.bottom;
+    if (p.left !== undefined) host.style.left = p.left;
+    // Axiom stacks its own controls at z-30 and z-50 within the card, and the
+    // placement diagnostic found ours painted underneath them.
+    host.style.zIndex = '2147483000';
+    host.style.pointerEvents = 'auto';
+  }
+
   const shadow = host.attachShadow({ mode: 'open' });
   const style = doc.createElement('style');
   style.textContent = STYLE;
@@ -100,7 +164,7 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
       // is ours alone.
       e.preventDefault();
       e.stopPropagation();
-      options.onIntent({ side: 'buy', token });
+      options.onIntent({ side: 'buy', token, amount });
     });
     bar.appendChild(b);
   }

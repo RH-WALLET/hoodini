@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { getAddress } from 'viem';
 import { AxiomAdapter, createAxiomAdapter } from '../src/adapters/axiom.js';
-import { HOST_ATTR } from '../src/overlay.js';
+import { HOST_ATTR, mountOverlay, type OverlayIntent } from '../src/overlay.js';
 import { matchesSite } from '../src/runtime.js';
 
 /** Zaibatsu Wagies — Robinhood Chain, from the capture. */
@@ -302,6 +302,73 @@ describe('buy-control recognition', () => {
        </div>`,
     );
     expect(run(createAxiomAdapter(opts)).tokens).toEqual([RH]);
+  });
+});
+
+describe('placement', () => {
+  it('positions the control against the card instead of flowing after it', () => {
+    // Flow placement put a 19px control at offset 110px in a 115px card that
+    // clips at 116px, slicing it in half on the live site. Positioning is the
+    // fix, and this is what stops it silently reverting.
+    render(card(RH, 'robinhood'));
+    run(createAxiomAdapter(opts));
+    const host = document.querySelector(`[${HOST_ATTR}]`) as HTMLElement;
+    expect(host.style.position).toBe('absolute');
+    expect(host.style.bottom).toBe('10px');
+    expect(host.style.right).toBe('12px');
+  });
+
+  it('paints above the card-s own stacked controls', () => {
+    // Axiom layers its buttons at z-30 and z-50 inside the card, and the
+    // placement diagnostic found ours underneath them.
+    render(card(RH, 'robinhood'));
+    run(createAxiomAdapter(opts));
+    const host = document.querySelector(`[${HOST_ATTR}]`) as HTMLElement;
+    expect(Number(host.style.zIndex)).toBeGreaterThan(50);
+  });
+
+  it('leaves adapters that want flow placement alone', () => {
+    // A tweet grows to fit its content; positioning there would be wrong.
+    const anchor = document.createElement('div');
+    document.body.replaceChildren(anchor);
+    mountOverlay(anchor, { address: RH, chainId: CHAIN }, { onIntent: () => {} });
+    const host = anchor.querySelector(`[${HOST_ATTR}]`) as HTMLElement;
+    expect(host.style.position).toBe('');
+  });
+});
+
+describe('preset amounts', () => {
+  it('carries the preset the user pressed, not just the side', () => {
+    // Every buy button used to emit an identical intent, so pressing 0.01
+    // quoted 0.001. Nothing downstream could catch it — nothing downstream was
+    // told which button was pressed.
+    const seen: Array<string | undefined> = [];
+    render(card(RH, 'robinhood'));
+    run(
+      createAxiomAdapter({
+        chainId: CHAIN,
+        onIntent: (i) => seen.push(i.amount),
+        amounts: ['0.005', '0.05', '0.5'],
+      }),
+    );
+
+    const shadow = document.querySelector(`[${HOST_ATTR}]`)!.shadowRoot!;
+    const buys = [...shadow.querySelectorAll('button')].filter((b) => b.textContent !== 'Sell');
+    expect(buys.map((b) => b.textContent)).toEqual(['0.005', '0.05', '0.5']);
+
+    for (const b of buys) b.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(seen).toEqual(['0.005', '0.05', '0.5']);
+  });
+
+  it('emits no amount for a sell, which is always the whole balance', () => {
+    const seen: OverlayIntent[] = [];
+    render(card(RH, 'robinhood'));
+    run(createAxiomAdapter({ chainId: CHAIN, onIntent: (i) => seen.push(i) }));
+
+    const shadow = document.querySelector(`[${HOST_ATTR}]`)!.shadowRoot!;
+    const sell = [...shadow.querySelectorAll('button')].find((b) => b.textContent === 'Sell')!;
+    sell.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(seen).toEqual([{ side: 'sell', token: { address: RH, chainId: CHAIN } }]);
   });
 });
 

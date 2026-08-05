@@ -10,8 +10,9 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { KeystoreSession, TEST_KDF } from '@hoodini/core';
+import { DEFAULT_SETTINGS, KeystoreSession, TEST_KDF } from '@hoodini/core';
 import { createRouter } from '../src/background/router.js';
+import { SettingsStore } from '../src/background/settingsStore.js';
 import { VaultStore, VAULT_KEY, type StorageArea } from '../src/background/storage.js';
 import {
   ALLOWED_SURFACES,
@@ -61,6 +62,69 @@ function makeRouter() {
   return { handle, area, session };
 }
 
+function makeSettingsRouter() {
+  const area = memoryArea();
+  const session = new KeystoreSession();
+  const settings = new SettingsStore(area);
+  const handle = createRouter({ store: new VaultStore(area), session, kdf: TEST_KDF, settings });
+  return { handle, area, settings };
+}
+
+describe('settings', () => {
+  it('serves defaults before anything has been saved', async () => {
+    const { handle } = makeSettingsRouter();
+    const res = await handle({ type: 'settings.get' }, 'popup');
+    expect(res).toEqual({ ok: true, data: DEFAULT_SETTINGS });
+  });
+
+  it('round-trips a valid edit', async () => {
+    const { handle } = makeSettingsRouter();
+    const next = { buyPresets: ['0.02', '0.2'], slippageBps: 250 };
+    expect(await handle({ type: 'settings.set', settings: next }, 'popup')).toEqual({ ok: true, data: next });
+    expect(await handle({ type: 'settings.get' }, 'popup')).toEqual({ ok: true, data: next });
+  });
+
+  it('rejects a bad edit with a reason, and does not save it', async () => {
+    // Saving must report the problem rather than quietly substituting a
+    // default — someone who typed `0,5` needs telling, not overruling.
+    const { handle } = makeSettingsRouter();
+    const res = (await handle({ type: 'settings.set', settings: { buyPresets: ['0,5'], slippageBps: 100 } }, 'popup')) as {
+      ok: false;
+      error: { code: string; message: string };
+    };
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('BAD_REQUEST');
+    expect(res.error.message).toContain('0,5');
+    expect(await handle({ type: 'settings.get' }, 'popup')).toEqual({ ok: true, data: DEFAULT_SETTINGS });
+  });
+
+  it('refuses a write from a page even though it serves a read', async () => {
+    const { handle } = makeSettingsRouter();
+    const write = (await handle(
+      { type: 'settings.set', settings: { buyPresets: ['9'], slippageBps: 5000 } },
+      'page',
+    )) as { ok: false; error: { code: string } };
+    expect(write.ok).toBe(false);
+    expect(write.error.code).toBe('FORBIDDEN');
+    // And the read a page *is* allowed still returns what the user chose.
+    expect(await handle({ type: 'settings.get' }, 'page')).toEqual({ ok: true, data: DEFAULT_SETTINGS });
+  });
+
+  it('survives storage holding something corrupt', async () => {
+    // Hand-edited or half-written storage must degrade to usable buttons, not
+    // to an overlay that throws on every scan.
+    const { handle, area } = makeSettingsRouter();
+    area.data['hoodini.settings.v1'] = { buyPresets: 'not a list', slippageBps: 'lots' };
+    expect(await handle({ type: 'settings.get' }, 'page')).toEqual({ ok: true, data: DEFAULT_SETTINGS });
+  });
+
+  it('stores only normalised values, whatever the writer passed', async () => {
+    const { handle, area } = makeSettingsRouter();
+    await handle({ type: 'settings.set', settings: { buyPresets: [' 0.02 ', '0.2'], slippageBps: 250 } }, 'popup');
+    expect(area.data['hoodini.settings.v1']).toEqual({ buyPresets: ['0.02', '0.2'], slippageBps: 250 });
+  });
+});
+
 describe('classifySender', () => {
   it('treats a sender with a tab as a page, however it is dressed up', () => {
     // A content script can spoof its url but cannot remove `tab`.
@@ -88,7 +152,18 @@ describe('surface policy', () => {
     // and may do nothing else. Widening this must be a deliberate edit here,
     // with the reasoning in D-026.
     const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
-    expect(pageAllowed).toEqual(['trade.quote']);
+    expect(pageAllowed).toEqual(['settings.get', 'trade.quote']);
+  });
+
+  it('lets a page read settings but never write them', () => {
+    // The overlay needs the presets to draw its buttons, and what someone's
+    // quick-buy is set to tells a site nothing it could not see in a trade.
+    // Writing is another matter: a preset is a spend amount and slippage is
+    // how much of a trade the user will tolerate losing, so a page that could
+    // set either could widen both and wait to be clicked.
+    expect(isAllowed('settings.get', 'page')).toBe(true);
+    expect(isAllowed('settings.set', 'page')).toBe(false);
+    expect(NEVER_PAGE_ACCESSIBLE).toContain('settings.set');
   });
 
   it('does not let a page read holdings', () => {

@@ -71,3 +71,18 @@ export {
   type StepKind,
 } from './engine/planner.js';
 export { loadPositions, summarise, type Position, type PositionsOptions } from './positions.js';
+export {
+  DEFAULT_SETTINGS,
+  normaliseSettings,
+  validateSettings,
+  isValidPreset,
+  isValidSlippageBps,
+  MIN_PRESETS,
+  MAX_PRESETS,
+  MIN_PRESET_ETH,
+  MAX_PRESET_ETH,
+  MIN_SLIPPAGE_BPS,
+  MAX_SLIPPAGE_BPS,
+  type Settings,
+  type SettingsError,
+} from './settings.js';

@@ -1214,3 +1214,77 @@ a first Chrome Web Store submission is a product question, and it is Rory's.
 snapshots and tested against fixtures that mirror them. No one has watched
 either overlay render — the same caveat P4's selectors carry, and it applies to
 Axiom too.
+
+---
+
+### D-052 — Loading the extension found two things no test could
+**Decided 2026-08-04.** The first time any of this ran in a browser.
+
+Everything up to here was verified against fixtures built from DOM captures.
+That was worth doing — it caught the chain-marker traps and the `<img>` anchor —
+but the first real load produced two failures that no fixture could have
+surfaced, because both depended on the page actually painting.
+
+**The overlay was sliced in half.** It appended into the card's flow, which is
+right for a tweet and wrong for a terminal: Axiom's cards are fixed-height, lay
+their contents out absolutely, and clip the overflow. Measured on the live page,
+the control landed at offset 110px in a 115px card that clips at 116px, and for
+the second card it was outside the clipping box entirely. The overlay now takes
+a `placement` and is positioned against the anchor instead. Flow remains the
+default, because a tweet grows to fit and positioning there would be wrong.
+
+**The buy presets were decoration.** `OverlayIntent` carried `{side, token}`
+and nothing else, so every preset button emitted an identical intent and the
+content script quoted a hardcoded 0.001 whichever one was pressed. Every test
+passed. They were all asking whether an intent was emitted, and one always was.
+
+Both were invisible to reading the code, and neither is exotic. The lesson is
+narrower than "test more": a fixture proves the DOM you *modelled*, and a
+rendered page is the only thing that proves geometry. Two diagnostic scripts
+now live in `scripts/` for exactly this — one that walks the detection chain
+against a live page, one that reports why a mounted control cannot be seen.
+
+**A note on the debugging.** The first three attempts to find this failed
+because the extension reports scan errors through `console.debug`, which Chrome
+hides unless Verbose is enabled. Being invisible by default is a poor property
+for the only channel that says what went wrong.
+
+---
+
+### D-053 — Settings are read by the page and written only by the popup
+**Decided 2026-08-04.** Buy presets and slippage become editable.
+
+The presets decide how much a button spends and slippage decides how much of a
+trade the user will tolerate losing. Both are therefore spending decisions, and
+they split across the trust boundary accordingly:
+
+- **`settings.get` is page-readable.** The overlay cannot draw its buttons
+  without knowing the presets, and what someone's quick-buy is set to tells a
+  site nothing it could not learn by watching a trade happen.
+- **`settings.set` is popup-only, and joins `NEVER_PAGE_ACCESSIBLE`.** A page
+  that could write settings could widen slippage to 50%, raise a preset, and
+  wait to be clicked. That is the same class of capability as `trade.execute`
+  and gets the same treatment (D-026).
+
+**Validation lives in core, not the form.** A preset arrives as text, survives
+in storage, and is later turned into wei — so it is checked where it enters,
+not where it is used. Putting the check in the popup would mean two copies of
+what counts as a valid spend amount, and the copy that matters is the one
+nearest the money. The popup shows what the worker says and gets out of the way.
+
+**Reading forgives, writing does not.** `normaliseSettings` is total: corrupt
+storage, a hand-edited value, one bad row among four — each degrades to
+something usable, because a settings read failing would break the overlay for a
+reason nobody could diagnose. `validateSettings` refuses, with a message naming
+the offending value, because someone who typed `0,5` needs telling rather than
+silently overruling. Two functions, two moments, and a test asserting they
+disagree on the same input.
+
+**Presets are deduplicated by value, not by spelling.** `0.10` and `0.1` are one
+button; rendering both would give the user two controls that spend the same
+amount and no way to tell them apart.
+
+**The ceiling here is not a safety mechanism.** `MAX_PRESET_ETH` stops a typo
+becoming a button, nothing more. The canary limit and the `LIVE_TRADING` build
+flag are the safety mechanisms, and they sit at the send boundary where they
+cannot be bypassed by anything stored.

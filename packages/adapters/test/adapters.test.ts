@@ -152,7 +152,7 @@ describe('mountOverlay', () => {
     const seen: OverlayIntent[] = [];
     const host = mountOverlay(row, { address: A, chainId: CHAIN }, { onIntent: (i) => seen.push(i) });
     (host.shadowRoot!.querySelector('button') as HTMLButtonElement).click();
-    expect(seen).toEqual([{ side: 'buy', token: { address: A, chainId: CHAIN } }]);
+    expect(seen).toEqual([{ side: 'buy', token: { address: A, chainId: CHAIN }, amount: '0.001' }]);
   });
 
   it.each(['button', 'button.sell'])('stops a %s click reaching the page underneath', (selector) => {
@@ -371,6 +371,6 @@ describe('sell gating', () => {
   it('buying is never gated by the sell probe', async () => {
     const { seen, host } = mount(async () => ({ reason: 'nope' }));
     (host.shadowRoot!.querySelector('button') as HTMLButtonElement).click();
-    expect(seen).toEqual([{ side: 'buy', token: { address: A, chainId: CHAIN } }]);
+    expect(seen).toEqual([{ side: 'buy', token: { address: A, chainId: CHAIN }, amount: '0.001' }]);
   });
 });

@@ -7,6 +7,7 @@
 
 import type { Request, Response, WalletStatus } from '../background/protocol.js';
 import type { Address, Hex } from 'viem';
+import type { Settings } from '@hoodini/core';
 
 async function send<T>(request: Request): Promise<T> {
   const res = (await chrome.runtime.sendMessage(request)) as Response<T> | undefined;
@@ -43,4 +44,19 @@ export interface PositionsResult {
 
 export const positions = {
   list: () => send<PositionsResult>({ type: 'positions.list' }),
+};
+
+export const settings = {
+  get: () => send<Settings>({ type: 'settings.get' }),
+  /**
+   * Broadcasts after a successful save so open tabs redraw their overlays
+   * without a reload. The send is fire-and-forget: with no tab listening,
+   * `sendMessage` rejects, and a settings save must not report failure because
+   * nobody happened to be looking at a terminal.
+   */
+  set: async (next: Settings): Promise<Settings> => {
+    const saved = await send<Settings>({ type: 'settings.set', settings: next });
+    chrome.runtime.sendMessage({ type: 'settings.changed' }).catch(() => {});
+    return saved;
+  },
 };

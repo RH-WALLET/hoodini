@@ -15,13 +15,28 @@ import {
   createSiteAdapters,
   createTerminalAdapter,
   matchesSite,
+  unmountAll,
   type OverlayIntent,
 } from '@hoodini/adapters';
-import type { TokenRef } from '@hoodini/core';
+import { parseEther } from 'viem';
+import { DEFAULT_SETTINGS, normaliseSettings, type Settings, type TokenRef } from '@hoodini/core';
 
 const CHAIN_ID = 4663;
-const DEFAULT_SLIPPAGE_BPS = 100;
 const DEFAULT_BUY_WEI = 10n ** 15n; // 0.001 ETH
+
+/**
+ * Live settings.
+ *
+ * Held in a mutable local rather than read per click: a quote must price what
+ * the button says, and the button was drawn from whatever the settings were at
+ * mount time. Re-reading at click time could quote a slippage the user changed
+ * after the overlay was drawn.
+ *
+ * Starts at the defaults so the overlay works before the worker answers — a
+ * cold service worker takes a moment to spin up, and a card that renders with
+ * no buttons for that moment would look broken.
+ */
+let settings: Settings = DEFAULT_SETTINGS;
 
 /**
  * Ask the worker to price a trade.
@@ -36,8 +51,11 @@ async function quote(intent: OverlayIntent): Promise<void> {
       type: 'trade.quote',
       side: intent.side,
       token: intent.token.address,
-      amount: DEFAULT_BUY_WEI.toString(),
-      slippageBps: DEFAULT_SLIPPAGE_BPS,
+      // The preset the user pressed. Until the control was seen working every
+      // button emitted the same intent, so `0.01` quoted 0.001 — the presets
+      // were decoration. Falls back only when an adapter emits no amount.
+      amount: (intent.amount ? parseEther(intent.amount) : DEFAULT_BUY_WEI).toString(),
+      slippageBps: settings.slippageBps,
     });
     // Nothing is rendered from this yet — the confirm sheet lands with the
     // execute path. Surfacing it in the console keeps the round trip
@@ -64,7 +82,7 @@ async function probeSell(token: TokenRef): Promise<{ reason: string } | null> {
       type: 'trade.quote',
       side: 'sell',
       token: token.address,
-      slippageBps: DEFAULT_SLIPPAGE_BPS,
+      slippageBps: settings.slippageBps,
     })) as { ok: boolean; error?: { code: string; message: string } } | undefined;
 
     if (!res) return { reason: 'the extension did not respond' };
@@ -88,7 +106,17 @@ const onIntent = (intent: OverlayIntent) => void quote(intent);
 // and the generic fallback does not. On a multi-chain terminal the generic
 // adapter would decorate BNB, Ethereum and Solana rows as though they were
 // Robinhood Chain (D-050), so it must never be what handles them.
-const adapterOptions = { chainId: CHAIN_ID, onIntent, probeSell };
+const adapterOptions = {
+  chainId: CHAIN_ID,
+  onIntent,
+  probeSell,
+  // A getter, not a snapshot: the adapter is built once at load, before the
+  // worker has answered, so a copied array would pin the overlay to the
+  // defaults for the life of the page.
+  get amounts(): readonly string[] {
+    return settings.buyPresets;
+  },
+};
 const adapter =
   [
     new AxiomAdapter(adapterOptions),
@@ -102,6 +130,44 @@ const runtime = new AdapterRuntime(adapter, document, {
 });
 
 runtime.start();
+
+/**
+ * Adopt the user's settings once the worker answers, and again whenever they
+ * change.
+ *
+ * `unmountAll` then a rescan, rather than trying to patch each control in
+ * place: the presets decide how many buttons exist and what each one spends, so
+ * a partial update risks a button whose label and amount disagree — which is
+ * the exact class of bug this feature was added to fix.
+ */
+async function adoptSettings(): Promise<void> {
+  try {
+    const res = (await chrome.runtime.sendMessage({ type: 'settings.get' })) as
+      | { ok: boolean; data?: unknown }
+      | undefined;
+    if (!res?.ok) return;
+    const next = normaliseSettings(res.data);
+    if (next.buyPresets.join() === settings.buyPresets.join() && next.slippageBps === settings.slippageBps) {
+      return;
+    }
+    settings = next;
+    unmountAll(document);
+    runtime.scan();
+  } catch {
+    // The worker being asleep or gone is not a reason to tear down the overlay.
+  }
+}
+
+void adoptSettings();
+
+// The popup broadcasts after a save; storage is the fallback for a save made
+// while this tab was in another window.
+chrome.runtime.onMessage.addListener((m: { type?: string }) => {
+  if (m?.type === 'settings.changed') void adoptSettings();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes['hoodini.settings.v1']) void adoptSettings();
+});
 
 // The page owns its lifecycle; leave it exactly as found on the way out.
 addEventListener('pagehide', () => runtime.stop(), { once: true });
