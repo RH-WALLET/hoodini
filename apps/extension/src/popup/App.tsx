@@ -17,6 +17,16 @@ import {
   type PositionsResult,
 } from './client.js';
 import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS } from '@hoodini/core';
+import { LIVE_TRADING } from '../background/config.js';
+import { CANARY_MAX_WEI } from '../background/engine.js';
+import { confirmNotice } from './notice.js';
+
+/**
+ * Read once at module load, from the build constant. Not state, not a setting,
+ * not something a message can change — which is the whole point of it being a
+ * build constant (invariant 5).
+ */
+const notice = confirmNotice(LIVE_TRADING, CANARY_MAX_WEI);
 import type { WalletStatus } from '../background/protocol.js';
 
 type View = 'loading' | 'setup' | 'locked' | 'unlocked';
@@ -197,29 +207,17 @@ function ConfirmSheet({ unlocked }: { unlocked: boolean }): React.JSX.Element | 
       {quoteError && <p className="note warn">Could not price this: {quoteError}</p>}
       {error && <div className="error">{error}</div>}
 
-      {DRY_RUN_NOTE}
+      <p className={notice.tone === 'danger' ? 'note warn' : 'note'}>{notice.text}</p>
 
       <button className="ghost" disabled={busy} onClick={() => void act(() => trades.reject())}>
         Reject
       </button>
       <button disabled={busy || !unlocked} onClick={() => void act(() => trades.approve(req.id))}>
-        {busy ? '…' : unlocked ? 'Approve' : 'Unlock to approve'}
+        {busy ? '…' : !unlocked ? 'Unlock to approve' : LIVE_TRADING ? 'Approve — spends real funds' : 'Approve'}
       </button>
     </div>
   );
 }
-
-/**
- * Said plainly, every time. A confirmation that does not distinguish "this will
- * spend" from "this will simulate" is a confirmation that teaches the user to
- * click through it.
- */
-const DRY_RUN_NOTE = (
-  <p className="note">
-    This build cannot broadcast — <span className="mono">LIVE_TRADING</span> is off, so approving simulates the trade
-    and reports what would have happened.
-  </p>
-);
 
 /**
  * Trade settings.
