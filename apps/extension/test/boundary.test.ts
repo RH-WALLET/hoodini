@@ -583,3 +583,30 @@ describe('toolbar icon', () => {
     }
   });
 });
+
+describe('the shipped build must be dry-run', () => {
+  const distDir2 = resolve(fileURLToPath(import.meta.url), '../../dist');
+  const built2 = existsSync(resolve(distDir2, 'manifest.json'));
+  const ifBuilt2 = built2 ? it : it.skip;
+
+  ifBuilt2('contains no live-trading build in dist', () => {
+    // The engine tests prove the gate works when the flag is false. This
+    // proves the flag *is* false in what would actually be uploaded — a
+    // different claim, and the one that protects a release.
+    //
+    // If this fails after `VITE_LIVE_TRADING=true pnpm build`, it is doing its
+    // job: that artifact is a deliberate, temporary thing for a canary and
+    // must never be the one that ships. Rebuild without the flag.
+    for (const file of readdirSync(resolve(distDir2, 'assets')).filter((f) => f.endsWith('.js'))) {
+      const src = readFileSync(resolve(distDir2, 'assets', file), 'utf8');
+      expect(
+        /LIVE_TRADING\s*=\s*true/.test(src),
+        `${file} was built with LIVE_TRADING=true — rebuild without the flag before shipping`,
+      ).toBe(false);
+      expect(
+        /VITE_LIVE_TRADING["']?\s*:\s*["']true["']/.test(src),
+        `${file} bakes VITE_LIVE_TRADING="true" into its env — rebuild without the flag`,
+      ).toBe(false);
+    }
+  });
+});
