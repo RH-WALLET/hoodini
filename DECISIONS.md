@@ -1783,3 +1783,62 @@ rather than a switch and a hidden default that can disagree with it.
 **The armed flag itself is still memory-only.** Only the preference persists. A
 worker returning from eviction is disarmed until something unlocks the wallet
 again, which is what keeps the lock the real boundary rather than the switch.
+
+---
+
+### D-064 — Price, gas, site status, history and approvals
+
+Five surfaces, prompted by reading Rabby. Each is here because it answers a
+question a trader actually asks, and each is built without a backend, which
+invariant 4 requires and which shaped every one of them.
+
+**A price at last.** Blockscout's `/api/v2/stats` returns `coin_price`, and the
+figure checks out: the wallet's 0.010178 ETH at the $1,909 shown there is the
+$19.44 Rabby displays for the same address, to the cent. The alternative — an
+on-chain stablecoin pool — was investigated and rejected: a token search returns
+44 things called "USDC" on this chain, most of them launchpad impostors with 18
+decimals and vanity `7777` addresses. Picking one by name would have fabricated
+a dollar figure for real money.
+
+Everything from the explorer is parsed rather than trusted. `coin_price` arrives
+as a string, and a `NaN` rendered into a balance reads as a real figure of zero,
+which is worse than an em dash by a long way. Null propagates to the UI and the
+UI shows a dash.
+
+**The two explorer requests are not equally private, and are not treated alike.**
+`/stats` carries no address and discloses nothing, so the popup fetches it on
+open. A history lookup necessarily names the wallet, which is a genuine
+disclosure to a third party even though no key is involved and nothing of ours
+is sent. So history loads only when asked, says on screen what the request
+reveals, and a test asserts a locked wallet never makes it at all.
+
+**Site status exists because "no buttons" cost two debugging sessions in one
+day.** The chain gate refusing a non-Robinhood row and the content script not
+having injected look identical from outside. One line — the host, a dot, and
+"Hoodini is active" or "not a supported site" — distinguishes them. It reads the
+active tab under `activeTab` rather than `tabs`: `activeTab` is granted on the
+toolbar click and covers only the tab in front of the user, where `tabs` would
+hand over every tab's URL at all times.
+
+The host list moved to `src/hosts.ts`, a leaf module with no imports, because
+the popup importing it from the manifest pulled the CRXJS *build* plugin and
+Vite's internals into the browser bundle and failed the build outright.
+
+**Approvals are honest about being partial.** Without an indexer the only
+truthful scan is the spenders Hoodini can itself cause an approval to — Permit2
+and the two routers — against tokens the watchlist has seen. An allowance
+granted in another app will not appear, and the card says so rather than
+implying the list is complete. Revoking re-dispatches through the engine rather
+than signing locally, so the `LIVE_TRADING` gate, the journal and the value
+ceiling all apply exactly as they do to a trade.
+
+**A defect worth recording.** `SiteStatus` called `chrome.tabs.query` and caught
+rejections, but the call itself throws synchronously when the API is absent —
+and an uncaught throw inside a `useEffect` unmounts the whole tree. The entire
+popup went blank because a status line could not be drawn. It is wrapped now.
+Found by the preview harness having no `tabs.query` stub, which is exactly the
+missing-API case the real world produces.
+
+Two origins are now in `host_permissions` where there was one. Both are public
+and read-only, both are pinned by an exact-list test, and the Chrome Web Store
+submission names the new one and explains what each request discloses.

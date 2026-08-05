@@ -349,15 +349,30 @@ describe('wallet lifecycle', () => {
 });
 
 describe('manifest — invariant 3 is checkable from the shipped file', () => {
-  it('requests only the storage permission', () => {
-    expect(manifest.permissions).toEqual(['storage']);
+  it('requests only storage and activeTab', () => {
+    // activeTab is granted on the toolbar click and covers only the tab in
+    // front of the user. The broad `tabs` permission would hand over every
+    // tab's URL at all times and must never appear here.
+    expect(manifest.permissions).toEqual(['storage', 'activeTab']);
+    expect(manifest.permissions).not.toContain('tabs');
   });
 
   it('requests no broad host access', () => {
     for (const host of manifest.host_permissions ?? []) {
       expect(host).not.toMatch(/<all_urls>|\*:\/\/\*\//);
     }
-    expect(manifest.host_permissions).toEqual(['https://rpc.mainnet.chain.robinhood.com/*']);
+    // Pinned as an exact list, like the page capabilities, so widening it is
+    // always a deliberate edit here. Each origin is public and read-only:
+    //
+    //   rpc.…robinhood.com   every on-chain read. Nothing works without it.
+    //   …blockscout.com      the block explorer, for the coin price and for
+    //                        transaction history (D-064). `/stats` carries no
+    //                        address; a history lookup necessarily discloses
+    //                        one, which is why the popup only asks when told to.
+    expect(manifest.host_permissions).toEqual([
+      'https://rpc.mainnet.chain.robinhood.com/*',
+      'https://robinhoodchain.blockscout.com/*',
+    ]);
   });
 
   it('is described accurately in the Chrome Web Store submission', () => {
@@ -466,8 +481,11 @@ describe('hardening — the built artifact, not just the source', () => {
     };
     // The build step could in principle rewrite these; assert on what actually
     // ships, since that is what a user installs.
-    expect(shipped.permissions).toEqual(['storage']);
-    expect(shipped.host_permissions).toEqual(['https://rpc.mainnet.chain.robinhood.com/*']);
+    expect(shipped.permissions).toEqual(['storage', 'activeTab']);
+    expect(shipped.host_permissions).toEqual([
+      'https://rpc.mainnet.chain.robinhood.com/*',
+      'https://robinhoodchain.blockscout.com/*',
+    ]);
     expect(shipped.content_security_policy.extension_pages).not.toContain('unsafe-eval');
   });
 });

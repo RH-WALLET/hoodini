@@ -81,6 +81,23 @@ export type Request =
    * wallet's contents just by being visited.
    */
   | { readonly type: 'wallet.balance' }
+  /**
+   * Chain-wide figures: the coin price and current gas. Read from the public
+   * explorer, which carries no address, so this discloses nothing about who
+   * asked (D-064).
+   */
+  | { readonly type: 'chain.stats' }
+  /**
+   * This wallet's sent transactions.
+   *
+   * Popup-only, and it names the address to a third party by construction —
+   * which is why the popup asks for it on demand rather than on open.
+   */
+  | { readonly type: 'history.list' }
+  /** Outstanding ERC-20 allowances this wallet has granted. */
+  | { readonly type: 'approvals.list' }
+  /** Set one allowance back to zero. A send: it signs and broadcasts. */
+  | { readonly type: 'approvals.revoke'; readonly token: Address; readonly spender: Address }
   | { readonly type: 'positions.list' }
   | { readonly type: 'settings.get' }
   | { readonly type: 'settings.set'; readonly settings: unknown }
@@ -167,6 +184,11 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   // them would learn the wallet's contents just by being visited.
   'positions.list': ['popup'],
   'wallet.balance': ['popup'],
+  // All four are the user's own business, and the last one spends gas.
+  'chain.stats': ['popup'],
+  'history.list': ['popup'],
+  'approvals.list': ['popup'],
+  'approvals.revoke': ['popup'],
   // The overlay needs the presets to draw its buttons, and they are not
   // sensitive — a site learning that someone's quick-buy is 0.01 ETH tells it
   // nothing it could not infer from watching a trade.
@@ -198,6 +220,9 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
 
 /** Capabilities a page may never hold, whatever else changes. */
 export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
+  // Revoking signs and broadcasts. A page holding it could burn gas at will and
+  // strip the allowances a user's other tools depend on.
+  'approvals.revoke',
   // Arming approves future spends with no sheet, so a page holding it could
   // spend without the user ever seeing a prompt. Same class as unlock.
   'consent.arm',

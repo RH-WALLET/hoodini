@@ -1,4 +1,5 @@
 import { defineManifest } from '@crxjs/vite-plugin';
+import { SUPPORTED_MATCHES } from './hosts.js';
 
 /**
  * MV3 manifest.
@@ -14,11 +15,34 @@ export default defineManifest({
   description: '0% non-custodial trading overlay for Robinhood Chain.',
 
   // `storage` only. No `tabs`, no `<all_urls>`, no `webRequest`, no `cookies`.
-  permissions: ['storage'],
+  /**
+   * `activeTab` rather than `tabs`.
+   *
+   * The popup shows whether the overlay is running on the tab you are looking
+   * at, which needs that tab's URL. The broad `tabs` permission would grant the
+   * URL of every tab, always; `activeTab` grants only the active one and only
+   * after the user clicks the toolbar icon — which is exactly and only when the
+   * popup is open (D-064).
+   */
+  permissions: ['storage', 'activeTab'],
 
-  // The public RPC, and nothing else. Site adapters add their own narrow hosts
-  // in P3/P4; until then the extension can reach exactly one origin.
-  host_permissions: ['https://rpc.mainnet.chain.robinhood.com/*'],
+  /**
+   * Two origins, both public and both read-only.
+   *
+   * The RPC is how everything on chain is read. Blockscout is the block
+   * explorer, added for the coin price and for transaction history (D-064) —
+   * invariant 4 allows public APIs directly from the extension precisely so
+   * neither of those needs a backend.
+   *
+   * Worth being honest about the cost: `/stats` carries no address and
+   * discloses nothing, but a history lookup necessarily tells the explorer which
+   * address you are, so the popup only makes that request when asked and says
+   * so on screen.
+   */
+  host_permissions: [
+    'https://rpc.mainnet.chain.robinhood.com/*',
+    'https://robinhoodchain.blockscout.com/*',
+  ],
 
   background: { service_worker: 'src/background/index.ts', type: 'module' },
 
@@ -50,15 +74,7 @@ export default defineManifest({
       // Each host listed explicitly. No wildcards across TLDs, no <all_urls>:
       // the match list is the clearest statement of where this extension can
       // read, and a user should be able to check it at a glance.
-      matches: [
-        'https://axiom.trade/*',
-        'https://gmgn.ai/*',
-        'https://trade.padre.gg/*',
-        'https://x.com/*',
-        'https://www.x.com/*',
-        'https://web.telegram.org/*',
-        'https://dexscreener.com/*',
-      ],
+      matches: [...SUPPORTED_MATCHES],
       js: ['src/content/index.ts'],
       run_at: 'document_idle',
     },
@@ -67,6 +83,7 @@ export default defineManifest({
   // No 'unsafe-eval', no 'wasm-unsafe-eval', no remote script origins.
   // This is what makes "no remote code" enforceable rather than aspirational.
   content_security_policy: {
-    extension_pages: "script-src 'self'; object-src 'self'; connect-src 'self' https://rpc.mainnet.chain.robinhood.com",
+    extension_pages:
+      "script-src 'self'; object-src 'self'; connect-src 'self' https://rpc.mainnet.chain.robinhood.com https://robinhoodchain.blockscout.com",
   },
 });

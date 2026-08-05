@@ -24,7 +24,7 @@ import { loadPositions, planBuy, planSell, summarise, UnsupportedVenueError, typ
 const ERC20_BALANCE_ABI = [
   { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'a', type: 'address' }], outputs: [{ type: 'uint256' }] },
 ] as const;
-import { getAddress, type Address } from 'viem';
+import { encodeFunctionData, getAddress, type Address } from 'viem';
 import type { VaultStore } from './storage.js';
 import type { TradeEngine } from './engine.js';
 import { isAllowed, type Request, type Response, type Surface, type WalletStatus } from './protocol.js';
@@ -32,6 +32,38 @@ import type { Settings } from '@hoodini/core';
 import type { PendingTrades, TradeRequest } from './pending.js';
 import { WithdrawRefused, type Withdrawer } from './withdrawer.js';
 import type { StandingConsent } from './consent.js';
+import { fetchStats, fetchHistory } from './explorer.js';
+import { PERMIT2, UNIVERSAL_ROUTER, SWAP_ROUTER_02 } from '@hoodini/core';
+
+/**
+ * The contracts this extension ever asks a user to approve.
+ *
+ * A general allowance scanner would need an indexer. This is the honest
+ * alternative: the spenders Hoodini itself can cause an approval to, checked
+ * against the tokens it knows the user has touched. It will not surface an
+ * allowance granted in some other app, and the UI says so rather than implying
+ * the list is exhaustive.
+ */
+const KNOWN_SPENDERS: readonly { readonly address: Address; readonly label: string }[] = [
+  { address: PERMIT2, label: 'Permit2' },
+  { address: UNIVERSAL_ROUTER, label: 'Uniswap UniversalRouter' },
+  { address: SWAP_ROUTER_02, label: 'Uniswap SwapRouter02' },
+];
+
+const ERC20_ALLOWANCE_ABI = [
+  {
+    type: 'function', name: 'allowance', stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  { type: 'function', name: 'symbol', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+  { type: 'function', name: 'decimals', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
+  {
+    type: 'function', name: 'approve', stateMutability: 'nonpayable',
+    inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    outputs: [{ type: 'bool' }],
+  },
+] as const;
 
 export interface RouterDeps {
   readonly store: VaultStore;
@@ -322,6 +354,95 @@ export function createRouter(deps: RouterDeps) {
             return { ok: true, data: { wei: wei.toString() } };
           } catch {
             return fail('UNAVAILABLE', 'could not reach the network');
+          }
+        }
+
+        case 'chain.stats':
+          return { ok: true, data: await fetchStats() };
+
+        case 'history.list': {
+          const owner = session.address;
+          if (!owner) return fail('LOCKED', 'unlock to see your transactions');
+          const rows = await fetchHistory(owner);
+          if (rows === null) return fail('UNAVAILABLE', 'the block explorer did not answer');
+          return { ok: true, data: { rows } };
+        }
+
+        case 'approvals.list': {
+          if (!trade) return fail('UNAVAILABLE', 'chain access is not wired up in this build');
+          const owner = session.address;
+          if (!owner) return fail('LOCKED', 'unlock to see your approvals');
+
+          const tokens = await trade.watchlist.list();
+          // Every token against every known spender, all at once. Serially this
+          // would be tokens x spenders round trips and the screen would crawl.
+          const checks = tokens.flatMap((token) =>
+            KNOWN_SPENDERS.map(async (spender) => {
+              try {
+                const amount = await trade.client.readContract({
+                  address: token, abi: ERC20_ALLOWANCE_ABI, functionName: 'allowance',
+                  args: [owner, spender.address],
+                });
+                if (amount <= 0n) return null;
+                const symbol = await trade.client
+                  .readContract({ address: token, abi: ERC20_ALLOWANCE_ABI, functionName: 'symbol' })
+                  .catch(() => null);
+                return {
+                  token, symbol, spender: spender.address, spenderLabel: spender.label,
+                  amount: amount.toString(),
+                  // 2^256-1 is the "forever, any amount" approval, and it is
+                  // worth naming as such rather than printing 78 digits.
+                  unlimited: amount > 2n ** 255n,
+                };
+              } catch {
+                // Not a readable ERC-20 at that address; nothing to revoke.
+                return null;
+              }
+            }),
+          );
+          const rows = (await Promise.all(checks)).filter((r) => r !== null);
+          return { ok: true, data: { rows, scanned: tokens.length } };
+        }
+
+        case 'approvals.revoke': {
+          if (!trade) return fail('UNAVAILABLE', 'trading is not wired up in this build');
+          const owner = session.address;
+          if (!owner) return fail('LOCKED', 'unlock to revoke');
+          let token: Address, spender: Address;
+          try {
+            token = getAddress(request.token);
+            spender = getAddress(request.spender);
+          } catch {
+            return fail('BAD_REQUEST', 'not a valid address');
+          }
+          // Re-dispatched through the engine rather than signed here, so the
+          // LIVE_TRADING gate, the journal and the value ceiling all apply
+          // exactly as they do to a trade. Setting an allowance to zero sends
+          // no ETH, so the ceiling is never the thing that refuses it.
+          const data = encodeFunctionData({
+            abi: ERC20_ALLOWANCE_ABI, functionName: 'approve', args: [spender, 0n],
+          });
+          try {
+            const outcome = await trade.engine.execute({
+              side: 'sell',
+              token: { address: token, chainId: trade.chainId },
+              venueId: 'revoke',
+              via: 'registry',
+              state: 'open',
+              quote: {
+                venueId: 'revoke', state: 'open', amountIn: 0n, amountOut: 0n,
+                quoteAsset: null, feeBps: 0, priceImpactBps: null,
+              },
+              minOut: 0n,
+              steps: [{ kind: 'approve', tx: { to: token, data, value: 0n, description: 'revoke allowance' } }],
+              mayNeedMoreApprovals: false,
+            } as never);
+            return { ok: true, data: outcome };
+          } catch (e) {
+            if (e instanceof Error && e.name === 'TradeRefused') {
+              return fail((e as Error & { code: string }).code, e.message);
+            }
+            return toError(e);
           }
         }
 

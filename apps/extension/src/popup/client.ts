@@ -42,6 +42,47 @@ export interface PositionsResult {
   readonly unvalued: number;
 }
 
+export interface ChainStats {
+  readonly coinPriceUsd: number | null;
+  readonly gasGwei: number | null;
+}
+
+export interface HistoryRow {
+  readonly hash: string;
+  readonly method: string | null;
+  readonly to: string | null;
+  readonly toName: string | null;
+  readonly valueWei: string;
+  readonly feeWei: string;
+  readonly success: boolean;
+  readonly blockNumber: number | null;
+  readonly timestamp: string | null;
+}
+
+export interface ApprovalRow {
+  readonly token: Address;
+  readonly symbol: string | null;
+  readonly spender: Address;
+  readonly spenderLabel: string;
+  readonly amount: string;
+  readonly unlimited: boolean;
+}
+
+export const chainApi = {
+  stats: () => send<ChainStats>({ type: 'chain.stats' }),
+};
+
+export const historyApi = {
+  /** Names your address to the explorer. Called on demand, never on open. */
+  list: () => send<{ rows: HistoryRow[] }>({ type: 'history.list' }),
+};
+
+export const approvalsApi = {
+  list: () => send<{ rows: ApprovalRow[]; scanned: number }>({ type: 'approvals.list' }),
+  revoke: (token: Address, spender: Address) =>
+    send<{ status: string }>({ type: 'approvals.revoke', token, spender }),
+};
+
 export const balanceApi = {
   /** Native ETH, wei as a decimal string. Popup-only. */
   read: () => send<{ wei: string }>({ type: 'wallet.balance' }),

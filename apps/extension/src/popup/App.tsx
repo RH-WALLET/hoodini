@@ -17,6 +17,12 @@ import {
   withdrawApi,
   consentApi,
   balanceApi,
+  chainApi,
+  historyApi,
+  approvalsApi,
+  type ChainStats,
+  type HistoryRow,
+  type ApprovalRow,
   type ConsentState,
   type PendingTradeRow,
   type WithdrawOutcome,
@@ -24,6 +30,7 @@ import {
 } from './client.js';
 import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS } from '@hoodini/core';
 import { TopHat, Icon } from './icons.js';
+import { SUPPORTED_HOSTS } from '../hosts.js';
 import { LIVE_TRADING } from '../background/config.js';
 import { CANARY_MAX_WEI } from '../background/engine.js';
 import { confirmNotice } from './notice.js';
@@ -179,9 +186,13 @@ function Home({ status, busy, run }: { status: WalletStatus; busy: boolean; run:
   const [pos, setPos] = useState<PositionsResult | null>(null);
   const [open, setOpen] = useState<'receive' | 'withdraw' | null>(null);
 
+  const [stats, setStats] = useState<ChainStats | null>(null);
+
   useEffect(() => {
     void balanceApi.read().then((b) => setWei(b.wei)).catch(() => setWei(null));
     void positionsApi.list().then(setPos).catch(() => setPos(null));
+    // Carries no address, so this one is free to ask for on open (D-064).
+    void chainApi.stats().then(setStats).catch(() => setStats(null));
   }, []);
 
   // Everything is denominated in ETH rather than a currency, because pricing it
@@ -199,6 +210,11 @@ function Home({ status, busy, run }: { status: WalletStatus; busy: boolean; run:
           {wei === null ? '—' : fmt(total)}
           <span className="unit">ETH</span>
         </div>
+        {/* Shown only when the explorer actually answered with a number. A
+            dash is honest; a $0.00 derived from a failed fetch is not. */}
+        {stats?.coinPriceUsd != null && (
+          <div className="fiat">≈ ${usd(total, stats.coinPriceUsd)}</div>
+        )}
         <div className="split">
           <b>{fmt(liquid)}</b> liquid · <b>{fmt(inTokens)}</b> in tokens
         </div>
@@ -224,7 +240,64 @@ function Home({ status, busy, run }: { status: WalletStatus; busy: boolean; run:
       {open === 'withdraw' && <Withdraw from={status.address} />}
 
       <Positions />
+      <ChainStrip stats={stats} />
+      <SiteStatus />
     </>
+  );
+}
+
+/** ETH price and gas, the two numbers a trader glances at constantly. */
+function ChainStrip({ stats }: { stats: ChainStats | null }): React.JSX.Element {
+  return (
+    <div className="strip">
+      <span>
+        <b>ETH</b> {stats?.coinPriceUsd != null ? `$${stats.coinPriceUsd.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '—'}
+      </span>
+      <span className="gas">
+        {stats?.gasGwei != null ? `${stats.gasGwei} Gwei` : '— Gwei'}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Whether the overlay is running on the tab you are looking at.
+ *
+ * Twice now, "no buttons" has cost a debugging session that a single line here
+ * would have ended: the adapter refusing a non-Robinhood row and the extension
+ * genuinely not injecting look identical from the outside. This says which.
+ */
+function SiteStatus(): React.JSX.Element {
+  const [host, setHost] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    // Wrapped, not just `.catch`-ed. If `chrome.tabs.query` is missing the call
+    // throws synchronously, and an uncaught throw inside an effect unmounts the
+    // whole tree — the entire popup would go blank because a status line could
+    // not be drawn. Nothing on this screen is worth that.
+    try {
+      const q = chrome.tabs?.query?.({ active: true, currentWindow: true });
+      if (!q) return setHost(null);
+      void q
+        .then(([tab]) => {
+          const url = tab?.url;
+          setHost(url && /^https?:/.test(url) ? new URL(url).hostname : null);
+        })
+        .catch(() => setHost(null));
+    } catch {
+      setHost(null);
+    }
+  }, []);
+
+  if (host === undefined) return <div className="site" />;
+  const supported = host !== null && SUPPORTED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+
+  return (
+    <div className="site">
+      <span className={supported ? 'dot on' : 'dot off'} />
+      <span className="site-host">{host ?? 'no page open'}</span>
+      <span className="site-state">{supported ? 'Hoodini is active' : 'not a supported site'}</span>
+    </div>
   );
 }
 
@@ -279,6 +352,157 @@ function ActivityTab(): React.JSX.Element {
           </div>
         )}
       </div>
+
+      <History />
+      <Approvals />
+    </div>
+  );
+}
+
+/**
+ * Sent transactions, fetched on demand.
+ *
+ * On demand rather than on open because the request necessarily names this
+ * wallet to the block explorer. That is a genuine disclosure even though it
+ * carries no key and sends nothing of ours, so it is a thing the user asks for
+ * and is told about, not one that happens quietly every time the popup opens
+ * (D-064).
+ */
+function History(): React.JSX.Element {
+  const [rows, setRows] = useState<HistoryRow[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      setRows((await historyApi.list()).rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not reach the explorer');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <div className="card-title">Transactions</div>
+      {rows === null ? (
+        <>
+          <p className="note" style={{ marginBottom: 10 }}>
+            Loading these asks Blockscout about your address, so it will know which wallet you are. Nothing else is
+            sent, and nothing is stored.
+          </p>
+          <button className="small" disabled={busy} onClick={() => void load()}>
+            {busy ? 'Loading…' : 'Load from the explorer'}
+          </button>
+        </>
+      ) : rows.length === 0 ? (
+        <div className="empty">
+          <div className="big">🕳️</div>
+          <p>This wallet has never sent anything.</p>
+        </div>
+      ) : (
+        <>
+          {rows.map((r) => (
+            <a
+              key={r.hash}
+              className="tx"
+              href={`https://robinhoodchain.blockscout.com/tx/${r.hash}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <span className={r.success ? 'dot on' : 'dot off'} />
+              <span className="tx-id">
+                <span className="tx-m">{r.method ?? 'transfer'}</span>
+                <span className="tx-to">{r.toName ?? (r.to ? short(r.to as Address) : '—')}</span>
+              </span>
+              <span className="tx-v">
+                {BigInt(r.valueWei) > 0n ? `${fmt(BigInt(r.valueWei))} ETH` : '—'}
+              </span>
+            </a>
+          ))}
+          <p className="note" style={{ paddingTop: 8 }}>Sent transactions only. Tap one to open the explorer.</p>
+        </>
+      )}
+      {error && <div className="error" style={{ margin: '10px 0 0' }}>{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * Allowances this wallet has granted, and a way to take them back.
+ *
+ * Not exhaustive, and it says so: without an indexer the only honest scan is
+ * the spenders Hoodini itself can cause an approval to, against the tokens it
+ * has seen. An allowance granted in another app will not appear here, and
+ * implying otherwise would be worse than showing nothing.
+ */
+function Approvals(): React.JSX.Element {
+  const [rows, setRows] = useState<ApprovalRow[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setRows((await approvalsApi.list()).rows);
+    } catch {
+      setRows([]);
+    }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const revoke = async (r: ApprovalRow) => {
+    setBusy(r.token + r.spender);
+    setError(null);
+    try {
+      await approvalsApi.revoke(r.token, r.spender);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not revoke');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <div className="card-title">Approvals</div>
+      {rows === null ? (
+        <p className="note">Checking…</p>
+      ) : rows.length === 0 ? (
+        <div className="empty">
+          <div className="big">🔒</div>
+          <p>No outstanding allowances to the contracts Hoodini uses.</p>
+        </div>
+      ) : (
+        rows.map((r) => (
+          <div key={r.token + r.spender} className="appr">
+            <div className="appr-id">
+              <div className="appr-t">
+                {r.symbol ?? short(r.token)} → {r.spenderLabel}
+              </div>
+              <div className={r.unlimited ? 'appr-a bad' : 'appr-a'}>
+                {r.unlimited ? 'unlimited — can spend all of it' : 'limited amount'}
+              </div>
+            </div>
+            <button
+              className="danger small"
+              style={{ width: 'auto' }}
+              disabled={busy !== null}
+              onClick={() => void revoke(r)}
+            >
+              {busy === r.token + r.spender ? '…' : 'Revoke'}
+            </button>
+          </div>
+        ))
+      )}
+      {error && <div className="error" style={{ margin: '10px 0 0' }}>{error}</div>}
+      <p className="note" style={{ paddingTop: 8 }}>
+        Only the contracts Hoodini uses, against tokens it has seen. Allowances granted in other apps are not
+        listed — there is no indexer to ask.
+      </p>
     </div>
   );
 }
@@ -342,6 +566,18 @@ function SettingsTab({ status, busy, run }: { status: WalletStatus; busy: boolea
       </div>
     </div>
   );
+}
+
+/**
+ * Wei priced in dollars.
+ *
+ * The division happens in floating point, which is fine here and would not be
+ * anywhere else: this figure is a rough second opinion beside an exact ETH
+ * amount, never the number anything is signed against.
+ */
+function usd(wei: bigint, price: number): string {
+  const eth = Number(wei) / 1e18;
+  return (eth * price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** Six significant figures of ETH: enough to see a canary, short enough to read. */
