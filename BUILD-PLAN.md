@@ -318,4 +318,4 @@ The step D-026 deferred: a page proposes, extension UI approves, and
       successfully and showed nothing. **Rory replaces before submitting**
 - [ ] **Rory:** a 1280×800 screenshot, hosted privacy URL
 - [ ] **Rory:** submit to the Chrome Web Store (publishing is his call)
-- [ ] **Rory:** token CA into `docs/landing/index.html` once launched
+- [ ] **Rory:** token CA into `docs/index.html` once launched (the page moved to the docs root so GitHub Pages serves it)
