@@ -46,6 +46,16 @@ export type Request =
        * that would actually be sold, not a nominal one (D-049).
        */
       readonly amount?: string;
+      /**
+       * Fraction of the balance to sell, 1–100. Sells only.
+       *
+       * Sent instead of an amount because the page cannot know the balance and
+       * must not be told it: `positions.list` is popup-only so a site never
+       * learns what someone holds (D-053). A percentage is meaningful without
+       * that disclosure, and the worker resolves it against the real balance at
+       * the moment it prices the trade (D-065).
+       */
+      readonly percent?: number;
       readonly slippageBps: number;
     }
   /**
@@ -111,6 +121,8 @@ export type Request =
       readonly side: 'buy' | 'sell';
       readonly token: Address;
       readonly amount?: string;
+      /** Fraction of the balance to sell, 1–100. Sells only. */
+      readonly percent?: number;
       readonly slippageBps: number;
     }
   | { readonly type: 'trade.pending' }
@@ -140,6 +152,8 @@ export type Request =
        * the bug (D-061).
        */
       readonly amount?: string;
+      /** Fraction of the balance to sell, 1–100. Sells only. See `trade.quote`. */
+      readonly percent?: number;
       readonly slippageBps: number;
     };
 

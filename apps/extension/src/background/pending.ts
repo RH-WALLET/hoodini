@@ -31,8 +31,15 @@ export interface TradeRequest {
   readonly id: string;
   readonly side: 'buy' | 'sell';
   readonly token: Address;
-  /** Wei, as a string. Absent on a sell — that is the whole balance (D-049). */
+  /** Wei, as a string. Absent on a sell, which is sized by `percent` instead. */
   readonly amount?: string;
+  /**
+   * Fraction of the balance to sell, 1–100.
+   *
+   * Recorded so the confirmation can say "sell 25%" rather than a bare number,
+   * and so approval re-dispatches the fraction the user actually saw (D-065).
+   */
+  readonly percent?: number;
   readonly slippageBps: number;
   /** Where it came from, shown in the confirmation. Never taken from the message. */
   readonly origin: string;

@@ -53,9 +53,11 @@ export interface AxiomAdapterOptions {
   readonly onIntent: (intent: OverlayIntent) => void;
   readonly amounts?: readonly string[];
   /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
-  readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  readonly probeSell?: (token: TokenRef, percent?: number) => Promise<SellUnavailable | null>;
   /** Warm the venue cache on hover — see OverlayOptions.onWarm. */
   readonly onWarm?: (token: TokenRef) => void;
+  /** Shown under the buttons: what a click will submit with (D-065). */
+  readonly config?: { readonly slippageBps: number };
 }
 
 /**
@@ -198,6 +200,7 @@ export class AxiomAdapter implements SiteAdapter {
       ...(this.#o.amounts ? { amounts: this.#o.amounts } : {}),
       ...(this.#o.probeSell ? { probeSell: this.#o.probeSell } : {}),
       ...(this.#o.onWarm ? { onWarm: this.#o.onWarm } : {}),
+      ...(this.#o.config ? { config: this.#o.config } : {}),
     });
   }
 

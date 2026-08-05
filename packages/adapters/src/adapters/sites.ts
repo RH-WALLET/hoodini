@@ -35,9 +35,11 @@ export interface SiteAdapterConfig {
   readonly onIntent: (intent: OverlayIntent) => void;
   readonly amounts?: readonly string[];
   /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
-  readonly probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
+  readonly probeSell?: (token: TokenRef, percent?: number) => Promise<{ reason: string } | null>;
   /** Warm the venue cache on hover — see OverlayOptions.onWarm. */
   readonly onWarm?: (token: TokenRef) => void;
+  /** Shown under the buttons: what a click will submit with (D-065). */
+  readonly config?: { readonly slippageBps: number };
 }
 
 export class ConfigurableSiteAdapter implements SiteAdapter {
@@ -91,6 +93,7 @@ export class ConfigurableSiteAdapter implements SiteAdapter {
       ...(this.#c.amounts ? { amounts: this.#c.amounts } : {}),
       ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
       ...(this.#c.onWarm ? { onWarm: this.#c.onWarm } : {}),
+      ...(this.#c.config ? { config: this.#c.config } : {}),
     });
   }
 }
@@ -99,8 +102,9 @@ type Common = {
   chainId: number;
   onIntent: (i: OverlayIntent) => void;
   amounts?: readonly string[];
-  probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
+  probeSell?: (token: TokenRef, percent?: number) => Promise<{ reason: string } | null>;
   onWarm?: (token: TokenRef) => void;
+  config?: { readonly slippageBps: number };
 };
 
 /**

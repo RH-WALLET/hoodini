@@ -79,12 +79,16 @@ async function quote(intent: OverlayIntent): Promise<void> {
  *
  * Returns null when the sell can proceed, or a reason when it cannot.
  */
-async function probeSell(token: TokenRef): Promise<{ reason: string } | null> {
+async function probeSell(token: TokenRef, percent?: number): Promise<{ reason: string } | null> {
   try {
     const res = (await chrome.runtime.sendMessage({
       type: 'trade.quote',
       side: 'sell',
       token: token.address,
+      // Prices the exact fraction this button would sell. A venue that pays out
+      // a quarter can still revert on the whole balance (D-049), so probing a
+      // nominal size would gate the button on a question nobody asked.
+      ...(percent !== undefined ? { percent } : {}),
       slippageBps: settings.slippageBps,
     })) as { ok: boolean; error?: { code: string; message: string } } | undefined;
 
@@ -124,9 +128,10 @@ async function propose(intent: OverlayIntent): Promise<IntentResult> {
       side: intent.side,
       token: intent.token.address,
       // Omitted entirely on a sell. The worker reads the balance itself and
-      // sells all of it (D-049); sending `0` would be an explicit amount, and
-      // an explicit zero is refused rather than treated as "everything".
+      // takes the requested fraction of it; sending `0` would be an explicit
+      // amount, and an explicit zero is refused rather than meaning everything.
       ...(isBuy ? { amount: parseEther(intent.amount!).toString() } : {}),
+      ...(!isBuy && intent.percent !== undefined ? { percent: intent.percent } : {}),
       slippageBps: settings.slippageBps,
     })) as
       | { ok: boolean; data?: { autoApproved?: boolean }; error?: { code: string; message: string } }
@@ -188,6 +193,11 @@ const adapterOptions = {
   // defaults for the life of the page.
   get amounts(): readonly string[] {
     return settings.buyPresets;
+  },
+  // Also a getter: the slippage shown under the buttons has to be the slippage
+  // that will actually be submitted, including after the user edits it.
+  get config(): { slippageBps: number } {
+    return { slippageBps: settings.slippageBps };
   },
 };
 const adapter =

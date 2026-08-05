@@ -353,22 +353,28 @@ describe('preset amounts', () => {
     );
 
     const shadow = document.querySelector(`[${HOST_ATTR}]`)!.shadowRoot!;
-    const buys = [...shadow.querySelectorAll('button')].filter((b) => b.textContent !== 'Sell');
+    const buys = [...shadow.querySelectorAll('button')].filter((b) => !b.classList.contains('sell'));
     expect(buys.map((b) => b.textContent)).toEqual(['0.005', '0.05', '0.5']);
 
     for (const b of buys) b.dispatchEvent(new Event('click', { bubbles: true }));
     expect(seen).toEqual(['0.005', '0.05', '0.5']);
   });
 
-  it('emits no amount for a sell, which is always the whole balance', () => {
+  it('emits a fraction for a sell, never an amount', () => {
+    // The amount is deliberately absent: this control runs in the page's world
+    // and telling it the balance would tell the site the balance (D-065). The
+    // worker resolves the fraction against the real holding.
     const seen: OverlayIntent[] = [];
     render(card(RH, 'robinhood'));
     run(createAxiomAdapter({ chainId: CHAIN, onIntent: (i) => seen.push(i) }));
 
     const shadow = document.querySelector(`[${HOST_ATTR}]`)!.shadowRoot!;
-    const sell = [...shadow.querySelectorAll('button')].find((b) => b.textContent === 'Sell')!;
-    sell.dispatchEvent(new Event('click', { bubbles: true }));
-    expect(seen).toEqual([{ side: 'sell', token: { address: RH, chainId: CHAIN } }]);
+    const sells = [...shadow.querySelectorAll('button.sell')];
+    expect(sells.map((b) => b.textContent)).toEqual(['25%', '50%', '100%']);
+
+    sells[1]!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(seen).toEqual([{ side: 'sell', token: { address: RH, chainId: CHAIN }, percent: 50 }]);
+    expect(seen[0]).not.toHaveProperty('amount');
   });
 });
 

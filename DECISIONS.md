@@ -1842,3 +1842,50 @@ missing-API case the real world produces.
 Two origins are now in `host_permissions` where there was one. Both are public
 and read-only, both are pinned by an exact-list test, and the Chrome Web Store
 submission names the new one and explains what each request discloses.
+
+---
+
+### D-065 — Sells are fractions, and the config is visible where you click
+
+From the trade widget Rory pinned as a reference. Two of its ideas transfer
+cleanly; a third does not, and the reason is worth writing down.
+
+**Sells are 25 / 50 / 100% of the holding**, replacing one whole-balance
+button. That is how people actually sell, and it gives a sell a bounded amount
+for the first time — D-059 refuses to auto-approve sells precisely because "the
+whole balance" is not a bound.
+
+**The fraction, not the amount, crosses the boundary.** The control lives in the
+page's world with an open shadow root, so anything it is told, a hostile site can
+read. `positions.list` is popup-only exactly so a site never learns what someone
+holds (D-053), and computing the amount in the content script would have handed
+that over on every render. "Sell half" is actionable without anyone in the page
+knowing half of what; the worker resolves it against the real balance at the
+moment it prices the trade.
+
+**Each fraction probes its own size.** Availability is size-dependent (D-049) —
+a venue that pays out a quarter can revert on the whole balance — so one probe
+standing for all four would be a button that is sometimes lying. A refused size
+disables only itself and the others stay live.
+
+**The arithmetic is integer, and 100 short-circuits.** `balance * pct / 100n`
+is exact for every fraction, but only because it never leaves bigint; going via
+a float would drop the low digits of an 18-decimal balance. 100% returns the
+balance itself rather than multiplying and dividing it, so "sell everything"
+means every last wei rather than very nearly all of them.
+
+**An amount and a percentage together is refused**, not reconciled. They are two
+different instructions for one trade, and guessing which was meant is not a
+thing to do with money.
+
+**Slippage now shows under the buttons.** The reference displays its slippage,
+priority fee and tip at the point of action, and it is right to: a number living
+in a settings screen means nobody can see what they are about to agree to at the
+moment they agree to it. Ours reads from the same getter the buttons do, so an
+edit is reflected without a reload.
+
+**What was not taken: the holdings readout.** The reference prints
+`0 CASHCAT · $0` beside its sell buttons. In our overlay that is a balance
+disclosure to the site, for the same shadow-root reason as above, and the
+percentages do not need it — the confirm sheet shows the exact amount before
+anything is signed. It is not a small omission and it is not an oversight.

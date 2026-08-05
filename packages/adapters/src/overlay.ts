@@ -21,6 +21,15 @@ export interface OverlayIntent {
   readonly side: 'buy' | 'sell';
   readonly token: TokenRef;
   /**
+   * Fraction of the holding to sell, 1–100. Sells only.
+   *
+   * A percentage rather than an amount because this control lives in the page's
+   * world, and telling it the balance would tell the site the balance — the
+   * exact disclosure `positions.list` is popup-only to prevent. "Sell half" is
+   * actionable without anyone here knowing half of what (D-065).
+   */
+  readonly percent?: number;
+  /**
    * The preset the user actually pressed, in ETH.
    *
    * Absent on a sell, which is always the whole balance (D-049).
@@ -108,6 +117,21 @@ export interface OverlayOptions {
   /** Preset buy amounts in ETH, shown as quick buttons. */
   readonly amounts?: readonly string[];
   /**
+   * Sell fractions, shown as a second row. Defaults to quarters.
+   *
+   * Empty disables them and restores the single whole-balance Sell button, so
+   * an adapter with no room for two rows is not forced into one.
+   */
+  readonly sellPercents?: readonly number[];
+  /**
+   * Shown small beneath the buttons: what this click will actually submit with.
+   *
+   * The reference terminals all do this, and the reason is good — slippage
+   * living in a settings screen means nobody can see what they are about to
+   * agree to at the moment they agree to it.
+   */
+  readonly config?: { readonly slippageBps: number };
+  /**
    * Handle a click. May answer with an outcome to show on the button; a
    * `void` return keeps the original fire-and-forget behaviour.
    */
@@ -126,7 +150,7 @@ export interface OverlayOptions {
    * fire fifty quotes nobody asked for. And availability is size-dependent, so
    * the probe must price the amount that would really be sold.
    */
-  readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  readonly probeSell?: (token: TokenRef, percent?: number) => Promise<SellUnavailable | null>;
   /** Position against the anchor rather than flowing after its content. */
   readonly placement?: OverlayPlacement;
   /**
@@ -170,6 +194,8 @@ const STYLE = `
   button.unavailable { border-color: #3a3f4a; background: #1a1c21; color: #6f7787; cursor: not-allowed; }
   button:disabled { cursor: default; opacity: 0.75; }
   .label { color: #8b93a5; font-size: 11px; padding-right: 2px; }
+  .cfg { color: #6f7787; font-size: 10px; padding: 0 2px; border-left: 1px solid rgba(255,255,255,.09);
+         margin-left: 2px; padding-left: 6px; }
 `;
 
 /**
@@ -237,53 +263,72 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
     bar.appendChild(b);
   }
 
-  const sell = doc.createElement('button');
-  sell.className = 'sell';
-  sell.textContent = 'Sell';
-  sell.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  /**
+   * Sells, as fractions of the holding.
+   *
+   * Each carries its own probe: availability is size-dependent (D-049), so a
+   * venue that pays out 25% may still revert on 100%, and one button standing
+   * for all four would be a button that is sometimes lying.
+   */
+  const percents = options.sellPercents ?? [25, 50, 100];
+  for (const percent of percents) {
+    const b = doc.createElement('button');
+    b.className = 'sell';
+    b.textContent = `${percent}%`;
+    const label = b.textContent;
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    // No probe supplied: emit as before. Callers that can check are expected
-    // to, and the content script does.
-    if (!options.probeSell) {
-      options.onIntent({ side: 'sell', token });
-      return;
-    }
-    if (sell.disabled) return;
+      // No probe supplied: emit as before. Callers that can check are expected
+      // to, and the content script does.
+      if (!options.probeSell) {
+        options.onIntent({ side: 'sell', token, percent });
+        return;
+      }
+      if (b.disabled) return;
 
-    sell.disabled = true;
-    const previous = sell.textContent;
-    sell.textContent = '…';
-    void options
-      .probeSell(token)
-      .then((unavailable) => {
-        if (!unavailable) {
-          sell.disabled = false;
-          sell.textContent = previous;
-          options.onIntent({ side: 'sell', token });
-          return;
-        }
-        // Stays disabled and says why. Re-enabling would invite a second click
-        // that fails identically.
-        sell.textContent = "can't sell";
-        sell.title = unavailable.reason;
-        sell.classList.add('unavailable');
-      })
-      .catch(() => {
-        // A probe that itself fails is not proof a sell would fail, so the
-        // button goes back to normal rather than accusing the venue.
-        sell.disabled = false;
-        sell.textContent = previous;
-      });
-  });
-  bar.appendChild(sell);
+      b.disabled = true;
+      b.textContent = '…';
+      void options
+        .probeSell(token, percent)
+        .then((unavailable) => {
+          if (!unavailable) {
+            b.disabled = false;
+            b.textContent = label;
+            options.onIntent({ side: 'sell', token, percent });
+            return;
+          }
+          // Stays disabled and says why. Re-enabling would invite a second
+          // click that fails identically — and only this size is refused, so
+          // the other fractions stay live.
+          b.textContent = '×';
+          b.title = unavailable.reason;
+          b.classList.add('unavailable');
+        })
+        .catch(() => {
+          // A probe that itself fails is not proof a sell would fail, so the
+          // button goes back to normal rather than accusing the venue.
+          b.disabled = false;
+          b.textContent = label;
+        });
+    });
+    bar.appendChild(b);
+  }
 
   if (options.label) {
     const label = doc.createElement('span');
     label.className = 'label';
     label.textContent = options.label;
     bar.appendChild(label);
+  }
+
+  if (options.config) {
+    const cfg = doc.createElement('span');
+    cfg.className = 'cfg';
+    cfg.textContent = `${(options.config.slippageBps / 100).toFixed(2).replace(/\.00$/, '')}%`;
+    cfg.title = 'Max slippage on this trade';
+    bar.appendChild(cfg);
   }
 
   if (options.onWarm) {

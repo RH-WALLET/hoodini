@@ -334,6 +334,80 @@ describe('turning it off', () => {
   });
 });
 
+describe('selling a fraction (D-065)', () => {
+  // The fake client answers 10^21 for balanceOf, so that is the holding every
+  // percentage below is taken from.
+  const HELD = 10n ** 21n;
+  const sell = (percent?: number) =>
+    ({ type: 'trade.request', side: 'sell', token: TOKEN, slippageBps: 100,
+       ...(percent !== undefined ? { percent } : {}) }) as never;
+
+  it('takes the fraction of the real balance, computed in integers', async () => {
+    const { handle, executed } = build();
+    const p = (await handle(sell(25), 'page')) as { ok: true; data: { id: string } };
+    await handle({ type: 'trade.approve', id: p.data.id }, 'popup');
+    expect(executed[0]?.amount).toBe((HELD / 4n).toString());
+  });
+
+  it('100% means every last wei, not very nearly all of it', async () => {
+    // Routing this through the same multiply-and-divide would be correct here
+    // and wrong on a balance that is not a round number, so 100 short-circuits.
+    const { handle, executed } = build();
+    const p = (await handle(sell(100), 'page')) as { ok: true; data: { id: string } };
+    await handle({ type: 'trade.approve', id: p.data.id }, 'popup');
+    expect(executed[0]?.amount).toBe(HELD.toString());
+  });
+
+  it('omitting the fraction still means the whole balance', async () => {
+    const { handle, executed } = build();
+    const p = (await handle(sell(), 'page')) as { ok: true; data: { id: string } };
+    await handle({ type: 'trade.approve', id: p.data.id }, 'popup');
+    expect(executed[0]?.amount).toBe(HELD.toString());
+  });
+
+  it('carries the fraction through approval, so 25% cannot become 100%', async () => {
+    // Exactly the shape of D-061: a field dropped between propose and execute
+    // silently changes the trade the user agreed to.
+    const { handle, executed } = build();
+    const p = (await handle(sell(25), 'page')) as { ok: true; data: { id: string } };
+    const pending = (await handle({ type: 'trade.pending' }, 'popup')) as { ok: true; data: { request: { percent?: number } } };
+    expect(pending.data.request.percent).toBe(25);
+    await handle({ type: 'trade.approve', id: p.data.id }, 'popup');
+    expect(executed[0]?.amount).toBe((HELD / 4n).toString());
+  });
+
+  it('refuses a percentage outside 1–100, and a fractional one', async () => {
+    const { handle, executed } = build();
+    for (const bad of [0, 101, -5, 12.5, Number.NaN]) {
+      const res = (await handle(sell(bad), 'page')) as { ok: false; error: { code: string } };
+      expect(res.ok, `percent ${bad}`).toBe(false);
+      expect(res.error.code).toBe('BAD_REQUEST');
+    }
+    expect(executed).toHaveLength(0);
+  });
+
+  it('refuses a percentage on a buy', async () => {
+    const { handle } = build();
+    const res = (await handle(
+      { type: 'trade.request', side: 'buy', token: TOKEN, amount: ONE_ETH, percent: 50, slippageBps: 100 } as never,
+      'page',
+    )) as { ok: false; error: { code: string } };
+    expect(res.ok).toBe(false);
+  });
+
+  it('refuses an amount and a percentage together rather than picking one', async () => {
+    // Two different instructions for one trade. Guessing which was meant is not
+    // a thing to do with someone's money.
+    const { handle } = build();
+    const res = (await handle(
+      { type: 'trade.execute', side: 'sell', token: TOKEN, amount: ONE_ETH, percent: 50, slippageBps: 100 } as never,
+      'popup',
+    )) as { ok: false; error: { code: string; message: string } };
+    expect(res.ok).toBe(false);
+    expect(res.error.message).toMatch(/either an amount or a percent/);
+  });
+});
+
 describe('unlocking is the authorisation (D-063)', () => {
   it('arms itself on unlock, with nothing ever having been set', async () => {
     // The instructed default: a wallet that has never been told otherwise

@@ -62,9 +62,11 @@ export interface ChainTaggedConfig {
   readonly chainId: number;
   readonly onIntent: (intent: OverlayIntent) => void;
   readonly amounts?: readonly string[];
-  readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  readonly probeSell?: (token: TokenRef, percent?: number) => Promise<SellUnavailable | null>;
   /** Warm the venue cache on hover — see OverlayOptions.onWarm. */
   readonly onWarm?: (token: TokenRef) => void;
+  /** Shown under the buttons: what a click will submit with (D-065). */
+  readonly config?: { readonly slippageBps: number };
   /** Position against the row rather than flowing after it — see PLACEMENT. */
   readonly placement?: OverlayPlacement;
 }
@@ -161,6 +163,7 @@ export class ChainTaggedSiteAdapter implements SiteAdapter {
       ...(this.#c.amounts ? { amounts: this.#c.amounts } : {}),
       ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
       ...(this.#c.onWarm ? { onWarm: this.#c.onWarm } : {}),
+      ...(this.#c.config ? { config: this.#c.config } : {}),
     });
   }
 
@@ -236,8 +239,9 @@ type Common = {
   chainId: number;
   onIntent: (i: OverlayIntent) => void;
   amounts?: readonly string[];
-  probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  probeSell?: (token: TokenRef, percent?: number) => Promise<SellUnavailable | null>;
   onWarm?: (token: TokenRef) => void;
+  config?: { readonly slippageBps: number };
 };
 
 /**

@@ -20,9 +20,11 @@ export interface GenericAdapterOptions {
   readonly chainId: number;
   readonly onIntent: (intent: OverlayIntent) => void;
   /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
-  readonly probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
+  readonly probeSell?: (token: TokenRef, percent?: number) => Promise<{ reason: string } | null>;
   /** Warm the venue cache on hover — see OverlayOptions.onWarm. */
   readonly onWarm?: (token: TokenRef) => void;
+  /** Shown under the buttons: what a click will submit with (D-065). */
+  readonly config?: { readonly slippageBps: number };
   /** Defaults to every https page; narrowed by the manifest in practice. */
   readonly pattern?: URLPattern;
   readonly amounts?: readonly string[];
@@ -66,6 +68,7 @@ export class GenericAddressAdapter implements SiteAdapter {
       ...(this.#o.amounts ? { amounts: this.#o.amounts } : {}),
       ...(this.#o.probeSell ? { probeSell: this.#o.probeSell } : {}),
       ...(this.#o.onWarm ? { onWarm: this.#o.onWarm } : {}),
+      ...(this.#o.config ? { config: this.#o.config } : {}),
     });
   }
 }

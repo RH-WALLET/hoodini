@@ -341,7 +341,9 @@ describe('hover warming', () => {
 describe('sell gating', () => {
   const noop = () => {};
   const sellButton = (host: HTMLElement) => host.shadowRoot!.querySelector('button.sell') as HTMLButtonElement;
-  const mount = (probeSell?: (t: TokenRef) => Promise<{ reason: string } | null>) => {
+  const sellButtons = (host: HTMLElement) =>
+    [...host.shadowRoot!.querySelectorAll('button.sell')] as HTMLButtonElement[];
+  const mount = (probeSell?: (t: TokenRef, percent?: number) => Promise<{ reason: string } | null>) => {
     const doc = listPage();
     const row = doc.querySelector('.row')!;
     const seen: OverlayIntent[] = [];
@@ -370,10 +372,29 @@ describe('sell gating', () => {
     // button that always fires is a button that sometimes cannot work.
     const { seen, btn } = mount(async () => ({ reason: 'arithmetic underflow' }));
     btn.click();
-    await vi.waitFor(() => expect(btn.textContent).toBe("can't sell"));
+    await vi.waitFor(() => expect(btn.textContent).toBe('×'));
     expect(seen).toEqual([]);
     expect(btn.disabled).toBe(true);
     expect(btn.title).toBe('arithmetic underflow');
+  });
+
+  it('refuses only the size that was refused, leaving the other fractions live', async () => {
+    // Availability is size-dependent (D-049): a venue that reverts on the whole
+    // balance may pay out a quarter of it happily. Disabling every fraction
+    // because one failed would hide a sell that works.
+    const { host } = mount(async (_t, percent) => (percent === 100 ? { reason: 'too big' } : null));
+    const [quarter, , whole] = sellButtons(host);
+    whole!.click();
+    await vi.waitFor(() => expect(whole!.disabled).toBe(true));
+    expect(quarter!.disabled).toBe(false);
+  });
+
+  it('probes the exact fraction the pressed button would sell', async () => {
+    const asked: (number | undefined)[] = [];
+    const { host } = mount(async (_t, percent) => { asked.push(percent); return null; });
+    for (const b of sellButtons(host)) b.click();
+    await vi.waitFor(() => expect(asked).toHaveLength(3));
+    expect(asked).toEqual([25, 50, 100]);
   });
 
   it('stays disabled after refusing, so a second click cannot fire it', async () => {
@@ -394,7 +415,8 @@ describe('sell gating', () => {
     btn.click();
     await vi.waitFor(() => expect(btn.disabled).toBe(false));
     expect(seen).toEqual([]);
-    expect(btn.textContent).toBe('Sell');
+    // Restored to its own label, not to a generic one.
+    expect(btn.textContent).toBe('25%');
   });
 
   it('ignores clicks while a probe is in flight', async () => {

@@ -295,10 +295,17 @@ export function createRouter(deps: RouterDeps) {
             // Wei as a decimal string. Anything else is a page trying its luck.
             return fail('BAD_REQUEST', 'amount must be a whole number of wei');
           }
+          if (request.percent !== undefined) {
+            if (request.side !== 'sell') return fail('BAD_REQUEST', 'percent applies to a sell');
+            if (!Number.isInteger(request.percent) || request.percent < 1 || request.percent > 100) {
+              return fail('BAD_REQUEST', 'percent must be a whole number from 1 to 100');
+            }
+          }
           const proposed = pending.propose({
             side: request.side,
             token,
             ...(request.amount !== undefined ? { amount: request.amount } : {}),
+            ...(request.percent !== undefined ? { percent: request.percent } : {}),
             slippageBps: request.slippageBps,
             // From the sender, never the message.
             origin: origin ?? 'unknown',
@@ -529,6 +536,9 @@ export function createRouter(deps: RouterDeps) {
                   type: 'trade.execute',
                   side: approved.side,
                   token: approved.token,
+                  // Carried through for the same reason the amount is: dropping
+                  // it would silently turn an approved 25% sell into a 100% one.
+                  ...(approved.percent !== undefined ? { percent: approved.percent } : {}),
                   slippageBps: approved.slippageBps,
                 };
           return handle(execute, 'popup');
@@ -567,14 +577,31 @@ export function createRouter(deps: RouterDeps) {
             return fail('BAD_REQUEST', 'token is not a valid address');
           }
           const owner = session.address;
+          // A percentage is only meaningful on a sell, and only against a real
+          // balance. Validated before anything is read so a nonsense value from
+          // a page never reaches arithmetic (D-065).
+          const percent = request.percent;
+          if (percent !== undefined) {
+            if (request.side !== 'sell') return fail('BAD_REQUEST', 'percent applies to a sell');
+            if (!Number.isInteger(percent) || percent < 1 || percent > 100) {
+              return fail('BAD_REQUEST', 'percent must be a whole number from 1 to 100');
+            }
+            if (request.amount !== undefined) {
+              // Both would be two different instructions for one trade, and
+              // guessing which the user meant is not a thing to do with money.
+              return fail('BAD_REQUEST', 'send either an amount or a percent, not both');
+            }
+          }
+
           let amount: bigint;
           if (request.amount === undefined) {
-            // Sell-the-whole-balance probe. Needs the account, so it is the one
-            // quote that requires an unlocked wallet.
+            // Sell some fraction of the balance. Needs the account, so it is the
+            // one quote that requires an unlocked wallet.
             if (request.side !== 'sell') return fail('BAD_REQUEST', 'amount is required for a buy');
             if (!owner) return fail('LOCKED', 'unlock to check whether this can be sold');
+            let balance: bigint;
             try {
-              amount = await trade.client.readContract({
+              balance = await trade.client.readContract({
                 address: token,
                 abi: ERC20_BALANCE_ABI,
                 functionName: 'balanceOf',
@@ -583,7 +610,14 @@ export function createRouter(deps: RouterDeps) {
             } catch {
               return fail('BAD_REQUEST', 'could not read the token balance');
             }
-            if (amount <= 0n) return fail('NO_BALANCE', 'you hold none of this token');
+            if (balance <= 0n) return fail('NO_BALANCE', 'you hold none of this token');
+            // Integer maths on the balance itself. Going via a float would lose
+            // the low digits of an 18-decimal balance, and 100% must mean every
+            // last wei of it rather than very nearly all.
+            amount = percent === undefined || percent === 100
+              ? balance
+              : (balance * BigInt(percent)) / 100n;
+            if (amount <= 0n) return fail('NO_BALANCE', 'that percentage rounds to nothing');
           } else {
             try {
               amount = BigInt(request.amount);
