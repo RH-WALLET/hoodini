@@ -86,6 +86,6 @@ Privacy policy URL: point at the hosted copy of `PRIVACY.md`.
 
 ## Assets still needed
 
-- [ ] Icon 128×128 (plus 48 and 16)
+- [ ] Icon 128×128 (plus 48 and 16) — **placeholders exist** (`scripts/make-icons.mjs`); replace with real artwork
 - [ ] At least one 1280×800 screenshot
 - [ ] Hosted privacy policy URL

@@ -546,3 +546,40 @@ describe('trade.quote — the sell-availability probe', () => {
     expect(res).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
   });
 });
+
+describe('toolbar icon', () => {
+  it('declares icons, without which a badge has nowhere to render', () => {
+    // Not a cosmetic assertion. The pending-trade badge set successfully and
+    // showed nothing, because an action with no icon has no surface to draw on.
+    const m = manifestExport as unknown as {
+      icons?: Record<string, string>;
+      action?: { default_icon?: Record<string, string> };
+    };
+    for (const size of ['16', '48', '128']) {
+      expect(m.icons?.[size], `manifest icons is missing ${size}`).toBeDefined();
+      expect(m.action?.default_icon?.[size], `action.default_icon is missing ${size}`).toBeDefined();
+    }
+  });
+
+  // `dist` and `whenBuilt` live inside the hardening block, so this one keeps
+  // its own — the assertions are about the shipped artifact either way.
+  const distDir = resolve(fileURLToPath(import.meta.url), '../../dist');
+  const isBuilt = existsSync(resolve(distDir, 'manifest.json'));
+  const ifBuilt = isBuilt ? it : it.skip;
+
+  ifBuilt('ships every icon the manifest promises, at the size it claims', () => {
+    const shipped = JSON.parse(readFileSync(resolve(distDir, 'manifest.json'), 'utf8')) as {
+      icons: Record<string, string>;
+    };
+    for (const [size, path] of Object.entries(shipped.icons)) {
+      const file = resolve(distDir, path);
+      expect(existsSync(file), `${path} is declared but not in the build`).toBe(true);
+      // PNG signature, then width and height at fixed offsets in IHDR. A
+      // manifest promising 128 and shipping 16 is a broken listing.
+      const buf = readFileSync(file);
+      expect(buf.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+      expect(buf.readUInt32BE(16)).toBe(Number(size));
+      expect(buf.readUInt32BE(20)).toBe(Number(size));
+    }
+  });
+});
