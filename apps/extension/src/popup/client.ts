@@ -84,3 +84,15 @@ export const trades = {
       slippageBps,
     }),
 };
+
+export interface WithdrawOutcome {
+  readonly status: 'sent' | 'simulated';
+  readonly to: Address;
+  readonly valueWei: string;
+  readonly hash?: string;
+}
+
+export const withdrawApi = {
+  /** `amount` is wei as a decimal string, or 'max' to sweep. */
+  send: (to: string, amount: string) => send<WithdrawOutcome>({ type: 'wallet.withdraw', to, amount }),
+};

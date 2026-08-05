@@ -232,6 +232,22 @@ so pressing `0.01` quoted the hardcoded 0.001 (D-052).
       all caught)
 - [x] Seen in the popup 2026-08-05 — presets and slippage render and save
 
+## [x] P7 — Withdraw
+
+Prompted by the obvious question, asked before funding anything: how do the
+funds come back out? They did not. Export-the-key was the only exit (D-056).
+
+- [x] `planWithdrawal` in core — pure arithmetic, sweeps reserve the fee at the
+      cap that will be signed, refuses sending exactly the balance with a
+      sentence rather than a revert. 24 tests, 9 mutations, all caught
+- [x] `Withdrawer` — `LIVE_TRADING` checked immediately before broadcast,
+      journalled first, account re-checked inside `withKey`. 8 tests
+- [x] `wallet.withdraw` popup-only and in `NEVER_PAGE_ACCESSIBLE` — the most
+      direct theft the extension could expose
+- [x] Popup panel: type an address, review it checksummed beside the amount,
+      then send. Two presses, because a wrong address is unrecoverable
+- [ ] Not yet exercised in a browser
+
 ## [x] P6 — Trade requests and the confirm sheet
 
 The step D-026 deferred: a page proposes, extension UI approves, and

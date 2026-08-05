@@ -17,7 +17,12 @@ export const JOURNAL_KEY = 'hoodini.inflight.v1';
 
 export interface JournalEntry {
   readonly id: string;
-  readonly kind: 'approve' | 'swap';
+  /**
+   * `withdraw` is a plain ETH transfer, not part of a trade. It is journalled
+   * for the same reason the others are: anything that broadcasts must leave a
+   * record before it does, or a worker dying mid-send becomes a mystery.
+   */
+  readonly kind: 'approve' | 'swap' | 'withdraw';
   readonly to: string;
   readonly value: string;
   readonly nonce: number;

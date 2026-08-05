@@ -17,6 +17,7 @@ import { TradeJournal } from './journal.js';
 import { TradeEngine } from './engine.js';
 import { Watchlist } from './watchlist.js';
 import { PendingTrades } from './pending.js';
+import { Withdrawer } from './withdrawer.js';
 import { createVenueStack } from './venues.js';
 import { LIVE_TRADING } from './config.js';
 import { createRouter } from './router.js';
@@ -81,6 +82,13 @@ const handle = createRouter({
     // No listener is a normal state — the popup is usually shut.
     chrome.runtime.sendMessage({ type: 'trade.pendingChanged' }).catch(() => {});
   },
+  withdrawer: new Withdrawer({
+    client,
+    session,
+    journal: new TradeJournal(area),
+    chainId,
+    liveTrading: LIVE_TRADING,
+  }),
   trade: {
     venues,
     client,

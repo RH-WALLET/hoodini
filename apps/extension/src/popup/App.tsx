@@ -7,13 +7,16 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { parseEther } from 'viem';
 import type { Address, Hex } from 'viem';
 import {
   wallet,
   positions as positionsApi,
   settings as settingsApi,
   trades,
+  withdrawApi,
   type PendingTradeRow,
+  type WithdrawOutcome,
   type PositionsResult,
 } from './client.js';
 import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS } from '@hoodini/core';
@@ -215,6 +218,137 @@ function ConfirmSheet({ unlocked }: { unlocked: boolean }): React.JSX.Element | 
       <button disabled={busy || !unlocked} onClick={() => void act(() => trades.approve(req.id))}>
         {busy ? '…' : !unlocked ? 'Unlock to approve' : LIVE_TRADING ? 'Approve — spends real funds' : 'Approve'}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Withdraw.
+ *
+ * The way funds get back out. Until this existed you could put ETH into this
+ * wallet and only retrieve it by exporting the private key into another one,
+ * which is a trap rather than a design.
+ *
+ * Two-step on purpose: the address is typed, then shown back checksummed
+ * alongside the exact amount, and only the second press sends. A wrong address
+ * is the failure this cannot recover from, and it is the one no validation
+ * catches — `0xabc…` is a perfectly valid address that simply is not yours.
+ */
+function Withdraw({ from }: { from: Address | null }): React.JSX.Element {
+  const [to, setTo] = useState('');
+  const [amount, setAmount] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<WithdrawOutcome | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const sweep = amount.trim().toLowerCase() === 'max';
+  const wei = (() => {
+    if (sweep) return 'max';
+    const t = amount.trim();
+    if (!/^\d*\.?\d+$/.test(t)) return null;
+    try {
+      return parseEther(t).toString();
+    } catch {
+      return null;
+    }
+  })();
+
+  const reset = () => {
+    setConfirming(false);
+    setError(null);
+  };
+
+  const submit = async () => {
+    if (!wei) {
+      setError('amount must be a number of ETH, or "max"');
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      setResult(await withdrawApi.send(to.trim(), wei));
+      setTo('');
+      setAmount('');
+      setConfirming(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'the withdrawal failed');
+      setConfirming(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="panel stack">
+      <strong style={{ fontSize: 12 }}>Withdraw</strong>
+
+      <div>
+        <label htmlFor="wto">Send to</label>
+        <input
+          id="wto"
+          className="mono"
+          placeholder="0x…"
+          value={to}
+          onChange={(e) => {
+            setTo(e.target.value);
+            reset();
+          }}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="wamt">Amount in ETH, or “max”</label>
+        <input
+          id="wamt"
+          className="mono"
+          inputMode="decimal"
+          placeholder="0.01"
+          value={amount}
+          onChange={(e) => {
+            setAmount(e.target.value);
+            reset();
+          }}
+        />
+      </div>
+
+      {error && <div className="error">{error}</div>}
+
+      {result && (
+        <p className="note">
+          {result.status === 'sent' ? 'Sent' : 'Simulated'} {formatEth(result.valueWei)} ETH to{' '}
+          <span className="mono">{short(result.to)}</span>
+          {result.hash ? <> · <span className="mono">{result.hash.slice(0, 10)}…</span></> : null}
+        </p>
+      )}
+
+      {!confirming ? (
+        <button
+          className="ghost"
+          disabled={busy || !to.trim() || !amount.trim() || !from}
+          onClick={() => {
+            setResult(null);
+            setConfirming(true);
+          }}
+        >
+          Review
+        </button>
+      ) : (
+        <>
+          <p className="note warn">
+            Sending {sweep ? 'the entire balance, less the network fee,' : `${amount.trim()} ETH`} to{' '}
+            <span className="mono">{to.trim()}</span>. Check the address character by character — a transfer to the
+            wrong one cannot be reversed by anybody.
+          </p>
+          {!LIVE_TRADING && <p className="note">This build cannot broadcast; this will simulate.</p>}
+          <button className="ghost" disabled={busy} onClick={reset}>
+            Back
+          </button>
+          <button className="danger" disabled={busy} onClick={() => void submit()}>
+            {busy ? '…' : LIVE_TRADING ? 'Send for real' : 'Simulate'}
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -537,6 +671,7 @@ function Unlocked({ status, busy, run }: { status: WalletStatus; busy: boolean; 
       </div>
 
       <Positions />
+      <Withdraw from={status.address} />
       <TradeSettings />
 
       <div className="panel stack">

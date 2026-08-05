@@ -66,6 +66,14 @@ export type Request =
   | { readonly type: 'trade.pending' }
   | { readonly type: 'trade.approve'; readonly id: string }
   | { readonly type: 'trade.reject' }
+  /**
+   * Move plain ETH out of the wallet. `amount` is wei, or `'max'` to sweep.
+   *
+   * The second thing in this extension that can spend, and like the first it
+   * is popup-only — a page that could move ETH would not need a trade path at
+   * all, it would just empty the wallet.
+   */
+  | { readonly type: 'wallet.withdraw'; readonly to: string; readonly amount: string }
   | {
       readonly type: 'trade.execute';
       readonly side: 'buy' | 'sell';
@@ -130,6 +138,7 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   'trade.pending': ['popup'],
   'trade.approve': ['popup'],
   'trade.reject': ['popup'],
+  'wallet.withdraw': ['popup'],
 };
 
 /** Capabilities a page may never hold, whatever else changes. */
@@ -151,6 +160,8 @@ export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
   'trade.approve',
   'trade.reject',
   'trade.pending',
+  // The most direct way to steal from this wallet, if it were ever reachable.
+  'wallet.withdraw',
 ];
 
 /**

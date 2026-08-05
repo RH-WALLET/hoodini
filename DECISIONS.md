@@ -1392,3 +1392,47 @@ tested that approval consumes. Both are now covered — the first because a
 forgeable site name makes the whole confirmation worthless, the second because
 consuming after a send rather than before is exactly how something gets paid for
 twice.
+
+---
+
+### D-056 — Withdraw exists, is popup-only, and is not capped by the canary limit
+**Decided 2026-08-05.** Found by asking how funds come back out, before putting
+any in.
+
+Until now you could put ETH into this wallet and get it out only by exporting
+the private key into a different wallet. That is a trap, not a design: it makes
+the recovery path require copying the one secret the whole architecture exists
+to keep in one place.
+
+**Popup-only, and in `NEVER_PAGE_ACCESSIBLE`.** A page that could move ETH would
+not bother with the trade path — it would empty the wallet. This is the most
+direct theft the extension could possibly expose, so it sits with `wallet.unlock`
+and `wallet.export`.
+
+**Not subject to the canary ceiling.** The 0.005 ETH limit exists because a
+*trade* amount is computed — by a planner, from a quote, across steps — and a
+bug in that computation could produce a number nobody typed. A withdrawal amount
+is typed by a human and shown back before they confirm. Its real risk is a wrong
+**address**, which no ceiling addresses. Capping it would also defeat the
+purpose: a recovery path that cannot move more than 0.005 ETH is not one.
+
+**It is gated by `LIVE_TRADING` all the same**, checked immediately before
+`sendRawTransaction`, and journalled before broadcast like every other send
+(D-027, D-028). A dry-run build plans and validates in full and skips only the
+broadcast, so the rehearsal is real.
+
+**The arithmetic lives in core, pure.** Two failure modes, both quiet: reserve
+too little and the transaction cannot pay its own gas; reserve too much and a
+"sweep" strands funds the user believes they moved. A sweep therefore reserves
+the fee at `maxFeePerGas` — the cap that will actually be signed — rather than
+an estimate, because a sweep computed from anything lower fails the moment the
+base fee ticks up. Nine mutations, all caught.
+
+**Two presses, not one.** The address is typed, then shown back checksummed
+beside the exact amount, and only the second press sends. Sending to the wrong
+address is the failure nothing can recover from, and the one validation cannot
+catch: `0xabc…` is a perfectly valid address that simply is not yours.
+
+**Refusing to send exactly the balance.** The most natural way to try to empty a
+wallet, and the one that always fails. It is refused here with a sentence
+pointing at Max, rather than by the node with a revert.

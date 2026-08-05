@@ -165,6 +165,14 @@ describe('surface policy', () => {
     expect(pageAllowed).toEqual(['settings.get', 'trade.quote', 'trade.request']);
   });
 
+  it('never lets a page move ETH out of the wallet', () => {
+    // The most direct theft available if it were ever reachable: no venue, no
+    // quote, no approval step — just an address and an amount.
+    expect(isAllowed('wallet.withdraw', 'page')).toBe(false);
+    expect(NEVER_PAGE_ACCESSIBLE).toContain('wallet.withdraw');
+    expect(ALLOWED_SURFACES['wallet.withdraw']).toEqual(['popup']);
+  });
+
   it('lets a page read settings but never write them', () => {
     // The overlay needs the presets to draw its buttons, and what someone's
     // quick-buy is set to tells a site nothing it could not see in a trade.

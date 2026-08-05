@@ -86,3 +86,10 @@ export {
   type Settings,
   type SettingsError,
 } from './settings.js';
+export {
+  planWithdrawal,
+  WithdrawalRefused,
+  type WithdrawalRequest,
+  type WithdrawalContext,
+  type WithdrawalPlan,
+} from './withdraw.js';

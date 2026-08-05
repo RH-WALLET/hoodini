@@ -16,6 +16,7 @@ import {
   DEFAULT_AUTO_LOCK_MS,
   DEFAULT_SETTINGS,
   validateSettings,
+  WithdrawalRefused,
 } from '@hoodini/core';
 import { loadPositions, planBuy, planSell, summarise, UnsupportedVenueError, type KdfParams, type VenueRouter } from '@hoodini/core';
 
@@ -29,6 +30,7 @@ import type { TradeEngine } from './engine.js';
 import { isAllowed, type Request, type Response, type Surface, type WalletStatus } from './protocol.js';
 import type { Settings } from '@hoodini/core';
 import type { PendingTrades, TradeRequest } from './pending.js';
+import { WithdrawRefused, type Withdrawer } from './withdrawer.js';
 
 export interface RouterDeps {
   readonly store: VaultStore;
@@ -48,6 +50,8 @@ export interface RouterDeps {
   readonly settings?: { read(): Promise<Settings>; write(s: unknown): Promise<Settings> };
   /** Holds the one trade awaiting the user's confirmation (D-026). */
   readonly pending?: PendingTrades;
+  /** Moves plain ETH out. Absent in tests that do not exercise it. */
+  readonly withdrawer?: Withdrawer;
   /**
    * Told whenever the pending request appears or clears, so the worker can
    * badge the toolbar icon. Injected rather than called directly because the
@@ -68,7 +72,7 @@ function toError(e: unknown): Response<never> {
 }
 
 export function createRouter(deps: RouterDeps) {
-  const { store, session, kdf, trade, settings, pending, onPendingChange } = deps;
+  const { store, session, kdf, trade, settings, pending, withdrawer, onPendingChange } = deps;
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
 
   async function status(): Promise<WalletStatus> {
@@ -200,6 +204,22 @@ export function createRouter(deps: RouterDeps) {
               unvalued: totals.unvalued,
             },
           };
+        }
+
+        case 'wallet.withdraw': {
+          if (!withdrawer) return fail('UNAVAILABLE', 'withdrawals are not wired up in this build');
+          if (!session.address) return fail('LOCKED', 'unlock to withdraw');
+          try {
+            const outcome = await withdrawer.withdraw({ to: request.to, amount: request.amount });
+            return { ok: true, data: outcome };
+          } catch (e) {
+            // Refusals carry a code and a message naming the field to fix;
+            // anything else stays generic, since it may quote an input.
+            if (e instanceof WithdrawalRefused || e instanceof WithdrawRefused) {
+              return fail(e.code, e.message);
+            }
+            throw e;
+          }
         }
 
         case 'trade.request': {
