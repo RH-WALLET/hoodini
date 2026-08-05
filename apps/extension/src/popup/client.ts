@@ -85,6 +85,19 @@ export const trades = {
     }),
 };
 
+export interface ConsentState {
+  readonly armed: boolean;
+  readonly armedAt: number | null;
+  /** False until a live send has happened by hand — invariant 5 (D-059). */
+  readonly liveUnlocked: boolean;
+}
+
+export const consentApi = {
+  status: () => send<ConsentState>({ type: 'consent.status' }),
+  arm: () => send<ConsentState>({ type: 'consent.arm' }),
+  disarm: () => send<ConsentState>({ type: 'consent.disarm' }),
+};
+
 export interface WithdrawOutcome {
   readonly status: 'sent' | 'simulated';
   readonly to: Address;

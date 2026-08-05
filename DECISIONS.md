@@ -1486,7 +1486,7 @@ rather than an optimisation:
   of D-054's guarantee that every trade meets a human, and it should only ever
   be entered deliberately, bounded by both amount and time.
 
-The first is now built (D-058). The second is Rory's call.
+The first is built in D-058. The second is built in D-059.
 
 ---
 
@@ -1543,4 +1543,62 @@ user never approves against a stale price, and that has not changed — warming
 makes that fetch land in ~210ms instead of ~2s rather than replacing it. The
 price shown is still fetched when the sheet opens.
 
-Standing consent remains unbuilt and remains Rory's call (D-057).
+Standing consent is built in D-059, uncapped and unexpiring at Rory's instruction.
+
+---
+
+### D-059 — Standing consent: uncapped, unexpiring, armed until disarmed
+
+D-057 left this as Rory's call and D-058 left it unbuilt. The instruction came
+back in three parts: build it, **no cap at all**, and **until I disarm**.
+
+**The concern was raised twice and is recorded rather than re-argued.** The
+amount in a `trade.request` comes from the page, not from the user's presets:
+the content script runs in the site's world, so a hostile or compromised matched
+site is not limited to what the buttons say. While every trade meets a human
+that is harmless, and it is the whole reason D-026 judged proposing to be safe —
+the worst outcome is a prompt nobody asked for. With consent armed and no cap,
+the ceiling on one auto-approved buy is the wallet balance. That was stated
+plainly, twice, and the instruction did not change. It is the user's call.
+
+**What still refuses, and why none of these is a cap in disguise:**
+
+- **A locked wallet signs nothing.** Not a policy; there is no key in memory.
+  Arming is refused while locked too, rather than becoming a switch that
+  silently does nothing until the next unlock.
+- **Buys only.** A sell is the whole balance (D-049), so it is not a bounded
+  amount and "no cap" cannot describe it. Sells keep the sheet.
+- **The first live broadcast is always manual.** CLAUDE.md invariant 5 fixes the
+  first live test as a canary explicitly approved in-session, and an invariant
+  marked permanent is not something a session preference edits. Auto-approval
+  refuses until a real broadcast has happened once by hand. The flag is set only
+  on `status === 'sent'`, so a simulated run cannot satisfy it.
+- **Memory only.** Arming never touches storage. It dies with the worker, the
+  browser, or a lock — and MV3 evicts the worker constantly, so "until I
+  disarm" means "until I disarm this session". The canary record *does* persist,
+  because invariant 5 is about the first live trade ever.
+- **Validity is not a limit.** A malformed amount is still refused. Uncapped is
+  not unvalidated.
+
+**Arming is popup-only and on the never-page-accessible list**, beside
+`wallet.unlock`. A page that could arm this would hold `trade.execute` by a
+longer route, which is precisely what D-026 exists to prevent.
+
+**It still goes through `pending`.** The proposal is recorded and then
+immediately consumed rather than shortcutting past it, because one-at-a-time,
+the origin capture, and the single-use `take()` are properties worth keeping
+even when nobody is going to read the sheet.
+
+**The armed state is on the badge**, amber and a dot, distinct from the mint
+count that means "answer me". A condition under which money moves with nothing
+on screen must not itself be invisible; that is the failure mode this feature
+invites. Locking repaints it, so the badge cannot claim armed after auto-lock,
+and `consent.status` composes the flag with the live session for the same reason.
+
+**One defect found by writing the tests rather than by running it.** The first
+version handed the execute outcome back to the page on auto-approval. A `sent`
+outcome carries transaction receipts, and a receipt carries `from` — the user's
+address. `positions.list` is popup-only specifically to keep that from a site
+(D-053), and auto-approval had quietly become the route around it. The page now
+gets `{ id, autoApproved: true }` and nothing else, asserted by a test that
+greps the whole response.

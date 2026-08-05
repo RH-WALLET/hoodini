@@ -31,6 +31,7 @@ import { isAllowed, type Request, type Response, type Surface, type WalletStatus
 import type { Settings } from '@hoodini/core';
 import type { PendingTrades, TradeRequest } from './pending.js';
 import { WithdrawRefused, type Withdrawer } from './withdrawer.js';
+import type { StandingConsent } from './consent.js';
 
 export interface RouterDeps {
   readonly store: VaultStore;
@@ -53,12 +54,25 @@ export interface RouterDeps {
   /** Moves plain ETH out. Absent in tests that do not exercise it. */
   readonly withdrawer?: Withdrawer;
   /**
+   * Standing consent. Absent in tests and builds that do not use it, in which
+   * case every proposal keeps its confirmation sheet — the pre-D-059 behaviour.
+   */
+  readonly consent?: StandingConsent;
+  /**
    * Told whenever the pending request appears or clears, so the worker can
    * badge the toolbar icon. Injected rather than called directly because the
    * router is tested without a browser, and because a message handler reaching
    * for `chrome.action` is a handler that cannot be run offline.
    */
   readonly onPendingChange?: (request: TradeRequest | null) => void;
+  /**
+   * Told whenever standing consent is armed or disarmed.
+   *
+   * Armed means money can move without anything appearing on screen, so the
+   * state has to be visible somewhere the user does not have to go looking:
+   * an invisible armed switch is the failure mode this whole feature invites.
+   */
+  readonly onConsentChange?: (armed: boolean) => void;
 }
 
 function fail(code: string, message: string): Response<never> {
@@ -72,7 +86,8 @@ function toError(e: unknown): Response<never> {
 }
 
 export function createRouter(deps: RouterDeps) {
-  const { store, session, kdf, trade, settings, pending, withdrawer, onPendingChange } = deps;
+  const { store, session, kdf, trade, settings, pending, withdrawer, consent, onPendingChange, onConsentChange } =
+    deps;
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
 
   async function status(): Promise<WalletStatus> {
@@ -128,6 +143,12 @@ export function createRouter(deps: RouterDeps) {
 
         case 'wallet.lock':
           session.lock();
+          // Locking is the user stepping away, which is exactly when a standing
+          // approval should stop standing. Disarmed here rather than left for
+          // `permits()` to refuse, so the popup shows the truth instead of an
+          // armed switch that quietly does nothing.
+          consent?.disarm();
+          onConsentChange?.(false);
           return { ok: true, data: {} };
 
         case 'wallet.export': {
@@ -248,8 +269,72 @@ export function createRouter(deps: RouterDeps) {
           if (!proposed) {
             return fail('PENDING_EXISTS', 'another trade is already awaiting confirmation');
           }
+
+          // Standing consent (D-059). The proposal is recorded first and then
+          // immediately consumed, rather than shortcutting past `pending`: the
+          // one-at-a-time rule, the origin capture and the single-use take()
+          // are exactly the properties that should not be bypassed just
+          // because nobody is going to read the sheet.
+          if (consent && (await consent.permits(proposed, session.address !== null))) {
+            const taken = pending.take(proposed.id);
+            if (taken) {
+              onPendingChange?.(null);
+              const outcome = await handle(
+                {
+                  type: 'trade.execute',
+                  side: taken.side,
+                  token: taken.token,
+                  amount: taken.amount ?? '0',
+                  slippageBps: taken.slippageBps,
+                },
+                'popup',
+              );
+              // Reported as an auto-approval so the page's button can say so,
+              // and so this is never mistaken for a queued confirmation.
+              //
+              // The outcome itself is deliberately NOT handed back. A `sent`
+              // result carries transaction receipts, and a receipt carries
+              // `from` — the user's address. `positions.list` is popup-only
+              // precisely so a site cannot learn that (D-053), and auto-approval
+              // must not become the hole that leaks it. The page proposed the
+              // trade; it does not get to read the wallet off the answer.
+              return outcome.ok
+                ? { ok: true, data: { id: proposed.id, autoApproved: true } }
+                : { ok: false, error: outcome.error };
+            }
+          }
+
           onPendingChange?.(proposed);
           return { ok: true, data: { id: proposed.id } };
+        }
+
+        case 'consent.arm': {
+          if (!consent) return fail('UNAVAILABLE', 'standing consent is not wired up in this build');
+          // Arming while locked would be a switch that silently does nothing
+          // until the next unlock, which is the worst kind of security control.
+          if (!session.address) return fail('LOCKED', 'unlock before arming auto-approve');
+          consent.arm();
+          onConsentChange?.(true);
+          return { ok: true, data: await consent.state() };
+        }
+
+        case 'consent.disarm': {
+          if (!consent) return fail('UNAVAILABLE', 'standing consent is not wired up in this build');
+          // Never refused, for any reason. A user reaching for the off switch
+          // must always find it working, including while locked.
+          consent.disarm();
+          onConsentChange?.(false);
+          return { ok: true, data: await consent.state() };
+        }
+
+        case 'consent.status': {
+          if (!consent) return { ok: true, data: { armed: false, armedAt: null, liveUnlocked: false } };
+          const state = await consent.state();
+          // Auto-lock expires a session without any message reaching this
+          // router, so the stored flag alone could outlive the unlock it
+          // depends on. Composed here, the answer can never claim armed while
+          // nothing is able to sign.
+          return { ok: true, data: { ...state, armed: state.armed && session.address !== null } };
         }
 
         case 'trade.pending': {
@@ -400,6 +485,11 @@ export function createRouter(deps: RouterDeps) {
                 : await planSell(trade.venues, ref, amount, request.slippageBps, owner);
 
             const outcome = await trade.engine.execute(plan);
+            // The canary has now happened by hand, so standing consent may
+            // approve live sends from here on (invariant 5, D-059). Recorded
+            // only on a real broadcast: a simulated run proves nothing about
+            // whether a human ever watched money leave.
+            if (outcome.status === 'sent') await consent?.recordLiveSend().catch(() => {});
             return { ok: true, data: outcome };
           } catch (e) {
             if (e instanceof UnsupportedVenueError) return fail('UNSUPPORTED_VENUE', e.message);

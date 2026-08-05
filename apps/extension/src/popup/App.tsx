@@ -15,6 +15,8 @@ import {
   settings as settingsApi,
   trades,
   withdrawApi,
+  consentApi,
+  type ConsentState,
   type PendingTradeRow,
   type WithdrawOutcome,
   type PositionsResult,
@@ -361,6 +363,103 @@ function Withdraw({ from }: { from: Address | null }): React.JSX.Element {
  * spend amount, and the one that matters is the one nearest the money. So this
  * shows what the worker says and gets out of the way.
  */
+/**
+ * Arming standing consent (D-059).
+ *
+ * The copy here is blunt on purpose. This is the one control in the extension
+ * that lets funds move with nothing appearing on screen, and it is uncapped and
+ * has no expiry by explicit instruction, so the surface that arms it should say
+ * so rather than describe it as a convenience. Two presses to arm, one to
+ * disarm: an off switch must never be harder to reach than the on switch.
+ */
+function AutoApprove(): React.JSX.Element {
+  const [state, setState] = useState<ConsentState | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      setState(await consentApi.status());
+    } catch {
+      setState(null);
+    }
+  };
+  useEffect(() => {
+    void load();
+    // The worker disarms on lock and on its own eviction, so the popup cannot
+    // assume what it last rendered is still true.
+    const onMsg = (m: { type?: string }) => {
+      if (m?.type === 'consent.changed') void load();
+    };
+    chrome.runtime.onMessage.addListener(onMsg);
+    return () => chrome.runtime.onMessage.removeListener(onMsg);
+  }, []);
+
+  const act = async (fn: () => Promise<ConsentState>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      setState(await fn());
+      setConfirming(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'that did not work');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (state?.armed) {
+    return (
+      <div className="panel stack">
+        <div>
+          <span className="warn">● Auto-approve is ARMED</span>
+        </div>
+        <p className="note warn">
+          Buys from a supported site are being signed and sent without a confirmation. There is no amount limit
+          and no expiry. It stays on until you disarm it, lock the wallet, or the browser restarts.
+        </p>
+        <button className="danger" disabled={busy} onClick={() => void act(() => consentApi.disarm())}>
+          Disarm now
+        </button>
+        {error && <p className="note warn">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel stack">
+      <div className="muted">Auto-approve · off</div>
+      {!confirming ? (
+        <button className="ghost" onClick={() => setConfirming(true)}>
+          Arm auto-approve
+        </button>
+      ) : (
+        <>
+          <p className="note warn">
+            This approves buys without showing you anything. The amount is chosen by the website, not by your
+            presets, so a compromised site could propose far more than you would click. With no limit set, the
+            ceiling on a single buy is your balance.
+          </p>
+          <p className="note">
+            Sells always ask. A locked wallet still signs nothing.
+            {state && !state.liveUnlocked
+              ? ' Your first live trade must be approved by hand before this can send anything.'
+              : ''}
+          </p>
+          <button className="danger" disabled={busy} onClick={() => void act(() => consentApi.arm())}>
+            I understand — arm it
+          </button>
+          <button className="ghost" disabled={busy} onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+        </>
+      )}
+      {error && <p className="note warn">{error}</p>}
+    </div>
+  );
+}
+
 function TradeSettings(): React.JSX.Element {
   const [presets, setPresets] = useState<string[]>([...DEFAULT_SETTINGS.buyPresets]);
   const [slippage, setSlippage] = useState(String(DEFAULT_SETTINGS.slippageBps));
@@ -671,6 +770,7 @@ function Unlocked({ status, busy, run }: { status: WalletStatus; busy: boolean; 
       </div>
 
       <Positions />
+      <AutoApprove />
       <Withdraw from={status.address} />
       <TradeSettings />
 

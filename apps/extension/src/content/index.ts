@@ -123,9 +123,15 @@ async function propose(intent: OverlayIntent): Promise<IntentResult> {
       token: intent.token.address,
       amount: parseEther(intent.amount).toString(),
       slippageBps: settings.slippageBps,
-    })) as { ok: boolean; error?: { code: string; message: string } } | undefined;
+    })) as
+      | { ok: boolean; data?: { autoApproved?: boolean }; error?: { code: string; message: string } }
+      | undefined;
 
     if (!res) return { ok: false, message: 'no reply' };
+    // Standing consent is armed, so this already ran (D-059). Saying "confirm"
+    // would send the user to a popup with nothing in it, and worse, would hide
+    // the fact that money just moved.
+    if (res.ok && res.data?.autoApproved) return { ok: true, message: 'sent ✓' };
     if (res.ok) return { ok: true, message: 'confirm ↗' };
     // The one refusal worth naming: it means a proposal is already waiting and
     // the user has to answer that one first (D-054).

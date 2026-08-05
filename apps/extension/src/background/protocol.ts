@@ -63,6 +63,16 @@ export type Request =
    * oracle for anything the page could not already ask outright.
    */
   | { readonly type: 'trade.warm'; readonly token: Address }
+  /**
+   * Standing consent: approve buys without a sheet until disarmed.
+   *
+   * Popup-only, all three. A page that could arm this could approve its own
+   * proposals, which is the entire thing D-026 exists to prevent — it would be
+   * `trade.execute` reached by a longer route.
+   */
+  | { readonly type: 'consent.arm' }
+  | { readonly type: 'consent.disarm' }
+  | { readonly type: 'consent.status' }
   | { readonly type: 'positions.list' }
   | { readonly type: 'settings.get' }
   | { readonly type: 'settings.set'; readonly settings: unknown }
@@ -154,6 +164,12 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   // and stay entirely out of a page's reach. A page that could read the pending
   // request would learn what the user is about to do; one that could approve
   // would not need the user at all.
+  // Arming is the most consequential switch in the extension: it is the one
+  // that lets money move without a human reading anything. A page that could
+  // reach it would hold `trade.execute` under another name.
+  'consent.arm': ['popup'],
+  'consent.disarm': ['popup'],
+  'consent.status': ['popup'],
   'trade.pending': ['popup'],
   'trade.approve': ['popup'],
   'trade.reject': ['popup'],
@@ -162,6 +178,9 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
 
 /** Capabilities a page may never hold, whatever else changes. */
 export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
+  // Arming approves future spends with no sheet, so a page holding it could
+  // spend without the user ever seeing a prompt. Same class as unlock.
+  'consent.arm',
   'wallet.unlock',
   'wallet.export',
   'wallet.create',
