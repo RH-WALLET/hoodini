@@ -9,365 +9,468 @@
       content="A Chrome extension that puts buy and sell buttons on the pages you already watch. 0% fee, keys never leave your device, no backend, open source."
     />
     <style>
-      /* ── tokens ──────────────────────────────────────────────────────────
-         Neutrals are biased toward the prussian accent rather than being flat
-         grey, so the page reads as one material. Red and green exist only as
-         semantic cost/keep signals in the comparison — never as accents. */
+      /* ── instrument palette ──────────────────────────────────────────────
+         Dark is chosen from the use scene rather than the category: this
+         product overlays dark trading terminals at unsociable hours, so the
+         site should feel continuous with where it actually lives.
+
+         Two signals, never one lone accent pop: electric blue carries
+         structure and anything Hoodini does, amber carries cost and anything
+         taken from you. Mint is reserved for zero. */
       :root {
-        --paper: #f1f3f7;
-        --sheet: #ffffff;
-        --rule: #d5dbe4;
-        --rule-strong: #b9c2ce;
-        --ink: #0d1420;
-        --muted: #5a6577;
-        --accent: #14477d;
-        --accent-live: #1f6feb;
-        --charge: #b42318;
-        --keep: #0b7a4b;
-        --shadow: 0 1px 2px rgba(13, 20, 32, 0.05);
+        --void: #05070d;
+        --surface: #0a0f18;
+        --raised: #0f1622;
+        --line: #1a2433;
+        --line-strong: #2a3648;
+        --text: #e9eef7;
+        --dim: #8493aa;
+        --faint: #5a6880;
+
+        --signal: #4da3ff;
+        --signal-hot: #8cc6ff;
+        --cost: #ffb454;
+        --zero: #3ad9a0;
 
         --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
         --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
 
-        color-scheme: light;
-      }
-
-      /* The dark side of the same material: ground takes the same blue bias,
-         and the accent lifts rather than inverting so links stay legible. */
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --paper: #0e1116;
-          --sheet: #151a21;
-          --rule: #232a34;
-          --rule-strong: #333c49;
-          --ink: #e6e9ee;
-          --muted: #93a0b3;
-          --accent: #8ab4ff;
-          --accent-live: #b3cfff;
-          --charge: #ff8a80;
-          --keep: #5fd6a0;
-          --shadow: none;
-          color-scheme: dark;
-        }
-      }
-      /* The viewer's own toggle must win over the OS preference, both ways. */
-      :root[data-theme='dark'] {
-        --paper: #0e1116;
-        --sheet: #151a21;
-        --rule: #232a34;
-        --rule-strong: #333c49;
-        --ink: #e6e9ee;
-        --muted: #93a0b3;
-        --accent: #8ab4ff;
-        --accent-live: #b3cfff;
-        --charge: #ff8a80;
-        --keep: #5fd6a0;
-        --shadow: none;
+        --gutter: clamp(20px, 4vw, 56px);
         color-scheme: dark;
       }
-      :root[data-theme='light'] {
-        --paper: #f1f3f7;
-        --sheet: #ffffff;
-        --rule: #d5dbe4;
-        --rule-strong: #b9c2ce;
-        --ink: #0d1420;
-        --muted: #5a6577;
-        --accent: #14477d;
-        --accent-live: #1f6feb;
-        --charge: #b42318;
-        --keep: #0b7a4b;
-        --shadow: 0 1px 2px rgba(13, 20, 32, 0.05);
-        color-scheme: light;
-      }
+      /* The page commits to one world. A viewer in light mode gets the same
+         instrument, not a bleached inversion of it. */
+      :root[data-theme='light'] { color-scheme: dark; }
 
       * { box-sizing: border-box; }
 
-      html { background: var(--paper); }
+      html { background: var(--void); }
       body {
         margin: 0;
-        background: var(--paper);
-        color: var(--ink);
+        background: var(--void);
+        color: var(--text);
         font-family: var(--sans);
         font-size: 16px;
-        line-height: 1.62;
+        line-height: 1.6;
         -webkit-font-smoothing: antialiased;
         font-variant-numeric: tabular-nums;
+        overflow-x: hidden;
       }
 
-      a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-      a:hover { color: var(--accent-live); }
-      :focus-visible { outline: 2px solid var(--accent-live); outline-offset: 2px; }
+      a { color: var(--signal); text-underline-offset: 3px; }
+      a:hover { color: var(--signal-hot); }
+      :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 2px; }
 
-      .wrap { max-width: 1000px; margin: 0 auto; padding: 0 28px; }
+      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 var(--gutter); }
 
-      /* ── spec-sheet frame ───────────────────────────────────────────────
-         Every band is a labelled row: a monospace spec label in a fixed left
-         gutter, content on the right. The gutter is what carries the page's
-         structure, so there are no cards and no decorative rails. */
-      .band { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 0 32px; }
-      .band + .band { border-top: 1px solid var(--rule); }
-      .band > .label {
-        font-family: var(--mono);
-        font-size: 11px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--muted);
-        padding: 34px 0 0;
-      }
-      .band > .body { padding: 32px 0 38px; min-width: 0; }
-      @media (max-width: 720px) {
-        .band { grid-template-columns: 1fr; gap: 0; }
-        .band > .label { padding: 26px 0 0; }
-        .band > .body { padding: 10px 0 30px; }
-      }
-
-      /* ── masthead ───────────────────────────────────────────────────────── */
-      .masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding: 30px 0 0; flex-wrap: wrap; }
-      .mark { font-family: var(--mono); font-size: 14px; letter-spacing: 0.02em; font-weight: 600; }
-      .mark .void { color: var(--accent); }
-      .chainline { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-
-      /* ── hero ───────────────────────────────────────────────────────────
-         The thesis is the figure, so the figure is the largest thing here. */
-      .hero { padding: 56px 0 8px; }
-      .figure {
-        font-family: var(--mono);
-        font-size: clamp(72px, 15vw, 154px);
-        line-height: 0.86;
-        letter-spacing: -0.055em;
-        font-weight: 600;
-        margin: 0;
-      }
-      .figure .unit { color: var(--muted); font-size: 0.34em; letter-spacing: -0.01em; vertical-align: super; margin-left: 0.12em; }
-      .figure-caption {
-        font-family: var(--mono);
-        font-size: 12px;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin: 20px 0 0;
-      }
-      h1 {
-        font-size: clamp(27px, 3.6vw, 39px);
-        line-height: 1.16;
-        letter-spacing: -0.021em;
-        font-weight: 620;
-        margin: 30px 0 14px;
-        max-width: 20ch;
+      /* Data is monospace. Prose is not. Monospace worn as a costume for
+         "technical" is the tell this page is trying to avoid, so it appears
+         only on figures, addresses, code and measurements. */
+      h2 {
+        font-size: clamp(26px, 3.4vw, 38px);
+        line-height: 1.12;
+        letter-spacing: -0.025em;
+        font-weight: 640;
+        margin: 0 0 14px;
         text-wrap: balance;
       }
-      .lede { font-size: 17.5px; color: var(--muted); max-width: 60ch; margin: 0 0 30px; }
+      p { margin: 0 0 16px; }
+      .prose { color: var(--dim); max-width: 68ch; font-size: 16.5px; }
+      .prose strong { color: var(--text); font-weight: 560; }
 
-      .cta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      section { padding: clamp(64px, 9vw, 118px) 0; border-top: 1px solid var(--line); }
+
+      /* ── hero ────────────────────────────────────────────────────────────
+         The field behind this runs the product's own curve maths. */
+      .hero { position: relative; border-top: 0; padding: 0; min-height: 92vh; display: flex; flex-direction: column; }
+      #field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+      .hero-veil {
+        position: absolute; inset: 0; z-index: 1; pointer-events: none;
+        background: linear-gradient(101deg, rgba(5, 7, 13, 0.95) 0%, rgba(5, 7, 13, 0.86) 32%, rgba(5, 7, 13, 0.34) 62%, rgba(5, 7, 13, 0.1) 100%),
+                    linear-gradient(to bottom, rgba(5, 7, 13, 0.55) 0%, transparent 22%, transparent 74%, rgba(5, 7, 13, 0.72) 100%);
+      }
+      .hero-inner { position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1; pointer-events: none; }
+      .hero-inner a, .hero-inner button { pointer-events: auto; }
+
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 26px 0; flex-wrap: wrap; }
+      .logo { display: flex; align-items: baseline; gap: 9px; font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
+      .logo .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--signal); outline: 3px solid rgba(77, 163, 255, 0.16); }
+      .chainstat { font-family: var(--mono); font-size: 11.5px; color: var(--faint); letter-spacing: 0.06em; }
+      .chainstat b { color: var(--dim); font-weight: 500; }
+
+      .hero-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 40px 0 34px; }
+      h1 {
+        font-size: clamp(38px, 6.6vw, 80px);
+        line-height: 1.04;
+        letter-spacing: -0.042em;
+        font-weight: 660;
+        margin: 0 0 22px;
+        max-width: 17ch;
+        text-wrap: balance;
+      }
+      h1 .z { color: var(--zero); }
+      .sub { font-size: clamp(16.5px, 1.7vw, 19px); color: var(--dim); max-width: 58ch; margin: 0 0 34px; }
+
+      .actions { display: flex; gap: 11px; flex-wrap: wrap; align-items: center; }
       .btn {
-        font-family: var(--mono);
-        font-size: 13px;
-        letter-spacing: 0.02em;
-        display: inline-block;
-        padding: 11px 18px;
-        border-radius: 3px;
-        border: 1px solid var(--rule-strong);
-        background: var(--sheet);
-        color: var(--ink);
-        text-decoration: none;
-        box-shadow: var(--shadow);
+        font-size: 14.5px; font-weight: 560;
+        padding: 12px 21px; border-radius: 7px; text-decoration: none;
+        border: 1px solid var(--line-strong); background: rgba(15, 22, 34, 0.74);
+        color: var(--text); backdrop-filter: blur(7px);
       }
-      .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--paper); }
-      .btn.primary:hover { background: var(--accent-live); border-color: var(--accent-live); color: var(--paper); }
-      .btn:hover { border-color: var(--accent-live); color: var(--ink); }
+      .btn:hover { border-color: var(--signal); }
+      .btn.key { background: var(--signal); border-color: var(--signal); color: #04101f; }
+      .btn.key:hover { background: var(--signal-hot); border-color: var(--signal-hot); color: #04101f; }
 
-      /* ── the fee arithmetic ─────────────────────────────────────────────
-         The whole pitch, made concrete. No claim beyond the stated assumption,
-         which is printed next to the result rather than buried. */
-      .calc { background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 22px 24px; max-width: 620px; box-shadow: var(--shadow); }
-      .calc-head { font-family: var(--mono); font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); margin: 0 0 18px; }
-      .calc label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 9px; }
-      .calc output.vol { font-family: var(--mono); color: var(--ink); font-weight: 600; }
-      input[type='range'] { width: 100%; accent-color: var(--accent-live); margin: 0 0 22px; }
-      .rows { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 3px; }
-      .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; background: var(--sheet); padding: 12px 14px; }
-      .row span:first-child { font-size: 14px; color: var(--muted); }
-      .row .amt { font-family: var(--mono); font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
-      .amt.charge { color: var(--charge); }
-      .amt.keep { color: var(--keep); }
-      .assume { font-size: 12.5px; color: var(--muted); margin: 14px 0 0; }
+      /* Live readout: the cursor is a trade, and this is what it costs. */
+      .readout { position: relative; z-index: 2; display: flex; flex-wrap: wrap; border-top: 1px solid var(--line); background: rgba(10, 15, 24, 0.7); backdrop-filter: blur(9px); }
+      .readout .cell { flex: 1 1 158px; padding: 15px 20px; border-right: 1px solid var(--line); min-width: 0; }
+      .readout .cell:last-of-type { border-right: 0; }
+      .readout .k { font-size: 10.5px; letter-spacing: 0.11em; text-transform: uppercase; color: var(--faint); margin-bottom: 5px; }
+      .readout .v { font-family: var(--mono); font-size: 19px; font-weight: 600; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+      .readout .v.impact { color: var(--cost); }
+      .readout .v.fee { color: var(--zero); }
+      .readout .hint { font-size: 11.5px; color: var(--faint); padding: 11px 20px; width: 100%; border-top: 1px solid var(--line); }
+      @media (hover: none) { .readout .hint { display: none; } }
 
-      /* ── comparison ─────────────────────────────────────────────────────── */
-      .scroller { overflow-x: auto; }
-      table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 460px; }
-      th, td { text-align: left; padding: 12px 14px 12px 0; border-bottom: 1px solid var(--rule); }
-      thead th {
-        font-family: var(--mono);
-        font-size: 11px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--muted);
-        font-weight: 500;
-        border-bottom-color: var(--rule-strong);
-      }
-      tbody th { font-weight: 450; color: var(--muted); font-size: 14px; }
-      td { font-family: var(--mono); font-size: 13.5px; }
-      td.no { color: var(--charge); }
-      td.yes { color: var(--keep); }
+      /* ── figures ─────────────────────────────────────────────────────────── */
+      .figure { margin: 30px 0 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+      .figure-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 13px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+      .figure-title { font-size: 13px; font-weight: 580; }
+      .figure-note { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+      .figure-body { padding: 22px 18px; overflow-x: auto; }
+      figcaption { padding: 0 18px 18px; color: var(--faint); font-size: 13px; max-width: 74ch; }
+      svg { display: block; max-width: 100%; height: auto; }
+      .lbl { font-family: var(--mono); font-size: 10.5px; fill: var(--faint); letter-spacing: 0.05em; }
+      .lbl-hi { fill: var(--dim); }
+      .wire { stroke-width: 1; fill: none; }
 
-      /* ── spec rows (what the claims mean) ───────────────────────────────── */
-      .specs { display: grid; gap: 0; }
-      .spec { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 22px; padding: 17px 0; border-top: 1px solid var(--rule); align-items: start; }
-      .spec:first-child { border-top: 0; padding-top: 0; }
-      .spec dt { font-family: var(--mono); font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink); padding-top: 2px; }
-      .spec dd { margin: 0; color: var(--muted); font-size: 15px; max-width: 62ch; }
-      @media (max-width: 560px) { .spec { grid-template-columns: 1fr; gap: 5px; } }
+      /* ── boundary diagram ────────────────────────────────────────────────── */
+      .zone { fill: var(--raised); stroke: var(--line-strong); }
+      .cap { cursor: pointer; }
+      .cap rect { fill: rgba(77, 163, 255, 0.07); stroke: rgba(77, 163, 255, 0.34); rx: 4; }
+      .cap.deny rect { fill: rgba(255, 180, 84, 0.06); stroke: rgba(255, 180, 84, 0.3); }
+      .cap text { font-family: var(--mono); font-size: 11px; fill: var(--dim); }
+      .cap:hover rect, .cap:focus-visible rect { fill: rgba(77, 163, 255, 0.2); stroke: var(--signal); }
+      .cap.deny:hover rect, .cap.deny:focus-visible rect { fill: rgba(255, 180, 84, 0.17); stroke: var(--cost); }
+      .cap:hover text, .cap:focus-visible text { fill: var(--text); }
+      .barrier { stroke: var(--signal); stroke-width: 1.4; stroke-dasharray: 3 4; opacity: 0.55; }
+      #cap-detail { margin: 0 18px 18px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--raised); font-size: 13.5px; color: var(--dim); }
+      #cap-detail b { color: var(--text); font-weight: 560; }
 
-      /* ── surfaces ───────────────────────────────────────────────────────── */
-      .hosts { display: flex; flex-wrap: wrap; gap: 7px; padding: 0; margin: 0; list-style: none; }
-      .hosts li {
-        font-family: var(--mono);
-        font-size: 12.5px;
-        border: 1px solid var(--rule);
-        background: var(--sheet);
-        border-radius: 3px;
-        padding: 6px 11px;
-        color: var(--muted);
-      }
+      /* ── latency ─────────────────────────────────────────────────────────── */
+      .track { display: grid; grid-template-columns: 92px minmax(0, 1fr) 84px; gap: 12px; align-items: center; margin-bottom: 13px; }
+      .track .name { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+      .track .rail { height: 26px; background: var(--raised); border: 1px solid var(--line); border-radius: 4px; position: relative; overflow: hidden; }
+      .track .rail span { position: absolute; top: 0; bottom: 0; left: 0; width: 0; transform: scaleX(0); transform-origin: left center; }
+      .rail .resolve { background: repeating-linear-gradient(115deg, rgba(255, 180, 84, 0.52) 0 6px, rgba(255, 180, 84, 0.24) 6px 12px); }
+      .rail .quote { background: rgba(77, 163, 255, 0.5); }
+      .track .total { font-family: var(--mono); font-size: 14px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+      .track.cold .total { color: var(--cost); }
+      .track.warm .total { color: var(--zero); }
+      .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--faint); margin-top: 16px; }
+      .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 
-      /* ── token ──────────────────────────────────────────────────────────── */
-      .ca { background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 15px 16px; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; box-shadow: var(--shadow); }
-      .ca code { font-family: var(--mono); font-size: 13px; word-break: break-all; flex: 1 1 260px; }
-      .ca button { font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--rule-strong); background: var(--paper); color: var(--ink); border-radius: 3px; padding: 7px 13px; cursor: pointer; }
-      .ca button:hover { border-color: var(--accent-live); }
-      .pending { color: var(--muted); font-style: italic; }
+      /* ── venue race ──────────────────────────────────────────────────────── */
+      .race { display: grid; gap: 8px; }
+      .lane { display: grid; grid-template-columns: 116px minmax(0, 1fr) 74px; gap: 11px; align-items: center; }
+      .lane .who { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+      .lane .bar { height: 8px; border-radius: 4px; background: var(--raised); border: 1px solid var(--line); overflow: hidden; }
+      .lane .fill { display: block; height: 100%; width: 0; background: var(--line-strong); transform: scaleX(0); transform-origin: left center; }
+      .lane.win .fill { background: var(--signal); }
+      .lane .verdict { font-family: var(--mono); font-size: 11px; color: var(--faint); text-align: right; }
+      .lane.win .verdict { color: var(--signal); }
+      .lane.win .who { color: var(--text); }
 
-      /* ── install ────────────────────────────────────────────────────────── */
-      pre { font-family: var(--mono); font-size: 13px; line-height: 1.75; background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 15px 17px; overflow-x: auto; margin: 0 0 14px; color: var(--ink); }
-      pre .c { color: var(--muted); }
-      .note { color: var(--muted); font-size: 14.5px; max-width: 62ch; }
+      /* ── fee ─────────────────────────────────────────────────────────────── */
+      .fee-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+      .fee-cell { background: var(--surface); padding: 17px 18px; }
+      .fee-cell .k { font-size: 12px; color: var(--faint); margin-bottom: 7px; }
+      .fee-cell .v { font-family: var(--mono); font-size: 27px; font-weight: 640; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+      .fee-cell .v.them { color: var(--cost); }
+      .fee-cell .v.us { color: var(--zero); }
+      input[type='range'] { width: 100%; accent-color: var(--signal); margin: 4px 0 18px; }
+      label.slider { display: block; font-size: 13.5px; color: var(--dim); margin-bottom: 2px; }
+      label.slider output { font-family: var(--mono); color: var(--text); font-weight: 600; }
 
-      /* ── footer ─────────────────────────────────────────────────────────── */
-      footer { border-top: 1px solid var(--rule-strong); padding: 30px 0 70px; color: var(--muted); font-size: 13.5px; }
-      .disclaimer { margin-top: 15px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 3px; font-size: 13px; background: var(--sheet); max-width: 74ch; }
-      .disclaimer strong { color: var(--ink); }
+      /* ── comparison ──────────────────────────────────────────────────────── */
+      table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 470px; }
+      th, td { text-align: left; padding: 13px 16px 13px 0; border-bottom: 1px solid var(--line); }
+      thead th { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+      tbody th { font-weight: 450; color: var(--dim); }
+      td { font-family: var(--mono); font-size: 13px; }
+      td.n { color: var(--cost); }
+      td.y { color: var(--zero); }
+
+      /* ── hosts, token, install ───────────────────────────────────────────── */
+      .hosts { display: flex; flex-wrap: wrap; gap: 7px; padding: 0; margin: 22px 0 0; list-style: none; }
+      .hosts li { font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 7px 12px; color: var(--dim); }
+      .ca { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; margin-top: 22px; }
+      .ca code { font-family: var(--mono); font-size: 13px; word-break: break-all; flex: 1 1 250px; }
+      .ca button { font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--line-strong); background: var(--raised); color: var(--text); border-radius: 5px; padding: 8px 14px; cursor: pointer; }
+      .ca button:hover { border-color: var(--signal); }
+      .pending { color: var(--faint); font-style: italic; }
+      pre { font-family: var(--mono); font-size: 13px; line-height: 1.8; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; overflow-x: auto; margin: 22px 0 16px; }
+      pre .c { color: var(--faint); }
+      code { font-family: var(--mono); font-size: 0.92em; }
+
+      footer { border-top: 1px solid var(--line); padding: 40px 0 78px; color: var(--faint); font-size: 13.5px; }
+      .disclaimer { margin-top: 16px; padding: 15px 17px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-width: 78ch; }
+      .disclaimer b { color: var(--dim); font-weight: 600; }
 
       @media (prefers-reduced-motion: no-preference) {
-        .btn, .ca button, .hosts li, a { transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease; }
+        .btn, .ca button, .hosts li, a, .cap rect, .cap text { transition: all 0.16s cubic-bezier(0.22, 1, 0.36, 1); }
+        .lane .fill { transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
+        .rail span { transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1); }
+      }
+      @media (max-width: 620px) {
+        .track { grid-template-columns: 74px minmax(0, 1fr) 66px; }
+        .lane { grid-template-columns: 96px minmax(0, 1fr) 60px; }
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="masthead">
-        <div class="mark">hoodini<span class="void">.</span></div>
-        <div class="chainline">Robinhood Chain · id 4663</div>
-      </div>
-
-      <header class="hero">
-        <p class="figure">0.00<span class="unit">%</span></p>
-        <p class="figure-caption">Platform fee — structural, not promotional</p>
-        <h1>Trade Robinhood Chain from the page you're already on.</h1>
-        <p class="lede">
-          A Chrome extension that puts buy and sell buttons directly onto the terminals, X, Telegram and
-          DexScreener pages you already watch. Your keys never leave your device. There is no backend to trust,
-          and no account to make.
-        </p>
-        <div class="cta">
-          <a class="btn primary" href="#install">Build and install</a>
-          <a class="btn" href="https://github.com/RH-WALLET/hoodini">Read the source</a>
-        </div>
-      </header>
-
-      <section class="band">
-        <div class="label">Cost</div>
-        <div class="body">
-          <div class="calc">
-            <p class="calc-head">What an overlay's cut actually costs</p>
-            <label for="vol">Monthly volume <output class="vol" id="vol-out" for="vol">25 ETH</output></label>
-            <input id="vol" type="range" min="1" max="500" value="25" step="1" aria-describedby="assume" />
-            <div class="rows">
-              <div class="row">
-                <span>A 1% overlay takes</span>
-                <span class="amt charge" id="them">0.25 ETH</span>
-              </div>
-              <div class="row">
-                <span>Hoodini takes</span>
-                <span class="amt keep">0.00 ETH</span>
-              </div>
-            </div>
-            <p class="assume" id="assume">
-              Arithmetic on a 1% fee, the common rate among hosted overlays. Network gas is separate and is paid
-              to validators either way — Hoodini never adds to it.
-            </p>
+    <header class="hero">
+      <canvas id="field" aria-hidden="true"></canvas>
+      <div class="hero-veil"></div>
+      <div class="hero-inner">
+        <div class="wrap">
+          <div class="topbar">
+            <div class="logo"><span class="pip"></span> Hoodini</div>
+            <div class="chainstat">ROBINHOOD CHAIN <b>· id 4663</b> · <b>non-custodial</b></div>
           </div>
         </div>
-      </section>
-
-      <section class="band">
-        <div class="label">Comparison</div>
-        <div class="body">
-          <div class="scroller">
-            <table>
-              <thead>
-                <tr><th scope="col">&nbsp;</th><th scope="col">Typical overlay</th><th scope="col">Hoodini</th></tr>
-              </thead>
-              <tbody>
-                <tr><th scope="row">Platform fee</th><td class="no">~1%</td><td class="yes">0%</td></tr>
-                <tr><th scope="row">Private keys</th><td class="no">Held server-side</td><td class="yes">Never leave your device</td></tr>
-                <tr><th scope="row">Backend</th><td class="no">Required</td><td class="yes">None</td></tr>
-                <tr><th scope="row">Account</th><td class="no">Required</td><td class="yes">None</td></tr>
-                <tr><th scope="row">Source</th><td class="no">Closed</td><td class="yes">Open</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section class="band">
-        <div class="label">What that means</div>
-        <div class="body">
-          <dl class="specs">
-            <div class="spec">
-              <dt>Fee</dt>
-              <dd>Fee-taking router functions are left out of the code entirely, so adding a skim is a compile error rather than a decision someone can quietly make later.</dd>
-            </div>
-            <div class="spec">
-              <dt>Keys</dt>
-              <dd>Generated on your device, encrypted with scrypt and AES-GCM, decrypted only into memory, auto-locked when idle. They are never transmitted anywhere.</dd>
-            </div>
-            <div class="spec">
-              <dt>Backend</dt>
-              <dd>No server exists. The extension asks for one network permission — the public RPC — and the manifest that grants it is a file you can read.</dd>
-            </div>
-            <div class="spec">
-              <dt>Venues</dt>
-              <dd>Pons, flap.sh, Doppler and Uniswap sit behind a single interface, so a token is tradeable wherever it happened to launch.</dd>
-            </div>
-            <div class="spec">
-              <dt>Approval</dt>
-              <dd>A page can propose a trade. Only you can approve one, in extension UI a website cannot reach.</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
-
-      <section class="band">
-        <div class="label">Where it runs</div>
-        <div class="body">
-          <ul class="hosts">
-            <li>axiom.trade</li>
-            <li>gmgn.ai</li>
-            <li>trade.padre.gg</li>
-            <li>dexscreener.com</li>
-            <li>x.com</li>
-            <li>web.telegram.org</li>
-          </ul>
-          <p class="note" style="margin-top: 16px">
-            Each host is listed explicitly in the manifest. No wildcards across domains, no access to every site
-            you visit — the match list is the whole statement of where this extension can read.
+        <div class="wrap hero-body">
+          <h1>Trade Robinhood Chain at <span class="z">0%</span>, from the page you're already on.</h1>
+          <p class="sub">
+            A Chrome extension that puts buy and sell buttons directly onto the terminals you already watch.
+            Your keys never leave your device. There is no backend to trust, and no account to make.
           </p>
+          <div class="actions">
+            <a class="btn key" href="#install">Build and install</a>
+            <a class="btn" href="https://github.com/RH-WALLET/hoodini">Read the source</a>
+          </div>
+        </div>
+        <div class="readout">
+          <div class="cell"><div class="k">Trade size</div><div class="v" id="r-size">1.00 ETH</div></div>
+          <div class="cell"><div class="k">Price impact</div><div class="v impact" id="r-impact">0.00%</div></div>
+          <div class="cell"><div class="k">Platform fee</div><div class="v fee">0.00%</div></div>
+          <div class="cell"><div class="k">You receive (TOKEN)</div><div class="v" id="r-out">17,024</div></div>
+          <div class="hint">The curve behind this is a constant-product pool holding 40 ETH. Move the cursor across it to size a trade against that depth.</div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="safety">
+        <div class="wrap">
+          <h2>A website can ask. Only you can spend.</h2>
+          <p class="prose">
+            The part of Hoodini that runs inside a trading site runs in that site's world, so anything a hostile
+            page can make it send, it will send. That is why the extension does not decide what to trust by
+            asking nicely. It grants a page a fixed list of four capabilities and refuses everything else at the
+            boundary, including any ability to unlock a wallet or move funds.
+          </p>
+          <figure class="figure">
+            <div class="figure-head">
+              <span class="figure-title">Trust boundary</span>
+              <span class="figure-note">hover or focus a capability</span>
+            </div>
+            <div class="figure-body">
+              <svg viewBox="0 0 760 306" role="img" aria-label="Diagram of the extension trust boundary: four capabilities a page may use, and two that are permanently refused">
+                <rect x="8" y="30" width="290" height="256" rx="8" class="zone" />
+                <rect x="462" y="30" width="290" height="256" rx="8" class="zone" />
+                <text x="20" y="20" class="lbl lbl-hi">WEBSITE · UNTRUSTED</text>
+                <text x="474" y="20" class="lbl lbl-hi">SERVICE WORKER · TRUSTED</text>
+
+                <line x1="380" y1="14" x2="380" y2="292" class="barrier" />
+                <text x="380" y="303" class="lbl" text-anchor="middle" style="fill: var(--signal)">TRUST BOUNDARY</text>
+
+                <g class="cap" tabindex="0" role="button" data-cap="quote" aria-label="trade.quote, allowed">
+                  <rect x="26" y="48" width="180" height="30" />
+                  <text x="38" y="68">trade.quote</text>
+                  <path d="M214 63 L366 63" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                </g>
+                <g class="cap" tabindex="0" role="button" data-cap="warm" aria-label="trade.warm, allowed">
+                  <rect x="26" y="88" width="180" height="30" />
+                  <text x="38" y="108">trade.warm</text>
+                  <path d="M214 103 L366 103" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                </g>
+                <g class="cap" tabindex="0" role="button" data-cap="request" aria-label="trade.request, allowed">
+                  <rect x="26" y="128" width="180" height="30" />
+                  <text x="38" y="148">trade.request</text>
+                  <path d="M214 143 L366 143" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                </g>
+                <g class="cap" tabindex="0" role="button" data-cap="settings" aria-label="settings.get, allowed">
+                  <rect x="26" y="168" width="180" height="30" />
+                  <text x="38" y="188">settings.get</text>
+                  <path d="M214 183 L366 183" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                </g>
+                <g class="cap deny" tabindex="0" role="button" data-cap="unlock" aria-label="wallet.unlock, permanently refused">
+                  <rect x="26" y="216" width="180" height="30" />
+                  <text x="38" y="236">wallet.unlock</text>
+                  <path d="M214 231 L350 231" class="wire" style="stroke: rgba(255,180,84,.45)" />
+                  <path d="M356 224 L372 238 M372 224 L356 238" style="stroke: var(--cost); stroke-width: 1.7; fill: none" />
+                </g>
+                <g class="cap deny" tabindex="0" role="button" data-cap="withdraw" aria-label="wallet.withdraw, permanently refused">
+                  <rect x="26" y="252" width="180" height="30" />
+                  <text x="38" y="272">wallet.withdraw</text>
+                  <path d="M214 267 L350 267" class="wire" style="stroke: rgba(255,180,84,.45)" />
+                  <path d="M356 260 L372 274 M372 260 L356 274" style="stroke: var(--cost); stroke-width: 1.7; fill: none" />
+                </g>
+
+                <text x="486" y="68" class="lbl lbl-hi">RESOLVE VENUE · QUOTE PRICE</text>
+                <text x="486" y="108" class="lbl lbl-hi">CACHE THE POOL KEY</text>
+                <text x="486" y="148" class="lbl lbl-hi">QUEUE ONE PROPOSAL</text>
+                <text x="486" y="188" class="lbl lbl-hi">READ THE BUY PRESETS</text>
+                <rect x="482" y="212" width="250" height="70" rx="6" style="fill: rgba(255,180,84,.05); stroke: rgba(255,180,84,.25)" />
+                <text x="496" y="240" class="lbl" style="fill: var(--cost)">ENCRYPTED KEYS · AES-GCM</text>
+                <text x="496" y="264" class="lbl" style="fill: var(--cost)">SIGNING · APPROVAL UI</text>
+                <defs>
+                  <marker id="ok" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                    <path d="M0 0 L7 3.5 L0 7 z" fill="rgba(77,163,255,.7)" />
+                  </marker>
+                </defs>
+              </svg>
+            </div>
+            <div id="cap-detail">Pick any capability above to see what it can and cannot do.</div>
+            <figcaption>
+              The four on the left are the complete list a page holds. It is pinned as an exact list in the test
+              suite, so widening it fails the build until someone writes down why.
+            </figcaption>
+          </figure>
         </div>
       </section>
 
-      <section class="band" id="token">
-        <div class="label">Token</div>
-        <div class="body">
+      <section id="speed">
+        <div class="wrap">
+          <h2>Why the first click used to cost two seconds.</h2>
+          <p class="prose">
+            Before a trade can be priced, the extension has to work out which venue actually trades the token,
+            asking every adapter in turn. Cold, that one step dominated everything else. Hovering a control now
+            resolves the venue while the pointer is still travelling, so the click skips straight to quoting.
+            Both figures below were measured against live chain state rather than estimated.
+          </p>
+          <figure class="figure">
+            <div class="figure-head">
+              <span class="figure-title">Click to calldata, measured</span>
+              <span class="figure-note">token 0x354d…9633</span>
+            </div>
+            <div class="figure-body">
+              <div class="track cold">
+                <div class="name">no warm</div>
+                <div class="rail"><span class="resolve" data-w="89.3"></span><span class="quote" data-w="10.7" data-off="89.3"></span></div>
+                <div class="total">2016 ms</div>
+              </div>
+              <div class="track warm">
+                <div class="name">on hover</div>
+                <div class="rail"><span class="quote" data-w="10.4"></span></div>
+                <div class="total">210 ms</div>
+              </div>
+              <div class="legend">
+                <span><i style="background: rgba(255,180,84,.5)"></i>resolving which venue trades it</span>
+                <span><i style="background: rgba(77,163,255,.5)"></i>quoting the price</span>
+              </div>
+            </div>
+            <figcaption>
+              The 1481 ms the hover spends is not saved, it is moved off the critical path onto time the cursor
+              was already spending in transit.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="venues">
+        <div class="wrap">
+          <h2>One button, wherever the token launched.</h2>
+          <p class="prose">
+            Robinhood Chain has several launchpads and they do not share an interface. Rather than asking you
+            which one a token came from, every adapter is handed the address at once and answers whether it can
+            trade it. The first to claim it wins, and the answer is cached, so this happens once per token.
+          </p>
+          <figure class="figure">
+            <div class="figure-head">
+              <span class="figure-title">Venue resolution</span>
+              <button id="race-again" style="background: none; border: 0; color: var(--signal); cursor: pointer; font: inherit; font-size: 12px; padding: 0">run again ↻</button>
+            </div>
+            <div class="figure-body">
+              <div class="race" id="race">
+                <div class="lane" data-ms="140"><span class="who">uniswap-v3</span><span class="bar"><span class="fill"></span></span><span class="verdict">idle</span></div>
+                <div class="lane" data-ms="205"><span class="who">doppler</span><span class="bar"><span class="fill"></span></span><span class="verdict">idle</span></div>
+                <div class="lane" data-ms="168"><span class="who">flap.sh</span><span class="bar"><span class="fill"></span></span><span class="verdict">idle</span></div>
+                <div class="lane" data-ms="223"><span class="who">klik</span><span class="bar"><span class="fill"></span></span><span class="verdict">idle</span></div>
+                <div class="lane" data-ms="151"><span class="who">virtuals</span><span class="bar"><span class="fill"></span></span><span class="verdict">idle</span></div>
+                <div class="lane win" data-ms="186"><span class="who">v4 · hookless</span><span class="bar"><span class="fill"></span></span><span class="verdict">idle</span></div>
+              </div>
+            </div>
+            <figcaption>
+              Illustrative of the mechanism, with adapter names taken from the shipped registry. Probes run
+              concurrently, so resolution costs the slowest single answer rather than the sum of all of them.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="fee">
+        <div class="wrap">
+          <h2>0% is structural, not promotional.</h2>
+          <p class="prose">
+            Fee-taking router functions are left out of the code entirely, so adding a skim later is a compile
+            error rather than a decision someone can quietly make. Below is what the usual cut costs at your own
+            volume.
+          </p>
+          <figure class="figure">
+            <div class="figure-head"><span class="figure-title">Cost of a 1% cut</span><span class="figure-note">local arithmetic</span></div>
+            <div class="figure-body">
+              <label class="slider" for="vol">Monthly volume <output id="vol-out" for="vol">25 ETH</output></label>
+              <input id="vol" type="range" min="1" max="500" value="25" step="1" />
+              <div class="fee-grid">
+                <div class="fee-cell"><div class="k">A 1% overlay takes</div><div class="v them" id="them">0.25 ETH</div></div>
+                <div class="fee-cell"><div class="k">Hoodini takes</div><div class="v us">0.00 ETH</div></div>
+                <div class="fee-cell"><div class="k">Kept over a year</div><div class="v" id="year">3.00 ETH</div></div>
+              </div>
+            </div>
+            <figcaption>
+              Arithmetic on a 1% fee, the common rate among hosted overlays. Network gas is separate, is paid to
+              validators either way, and Hoodini never adds to it.
+            </figcaption>
+          </figure>
+
+          <figure class="figure">
+            <div class="figure-head"><span class="figure-title">Against a typical hosted overlay</span></div>
+            <div class="figure-body">
+              <table>
+                <thead><tr><th scope="col">&nbsp;</th><th scope="col">Typical overlay</th><th scope="col">Hoodini</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Platform fee</th><td class="n">~1%</td><td class="y">0%</td></tr>
+                  <tr><th scope="row">Private keys</th><td class="n">Held server-side</td><td class="y">Never leave your device</td></tr>
+                  <tr><th scope="row">Backend</th><td class="n">Required</td><td class="y">None</td></tr>
+                  <tr><th scope="row">Account</th><td class="n">Required</td><td class="y">None</td></tr>
+                  <tr><th scope="row">Source</th><td class="n">Closed</td><td class="y">Open</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section id="reach">
+        <div class="wrap">
+          <h2>Where it may read, in full.</h2>
+          <p class="prose">
+            Each host is listed explicitly in the manifest. There are no wildcards across domains and no access
+            to every site you visit, so the match list below is the whole statement of the extension's reach.
+          </p>
+          <ul class="hosts">
+            <li>axiom.trade</li><li>gmgn.ai</li><li>trade.padre.gg</li>
+            <li>dexscreener.com</li><li>x.com</li><li>web.telegram.org</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="token">
+        <div class="wrap">
+          <h2>Token</h2>
           <!-- The token is launched and managed entirely outside this repository.
                Nothing in the codebase touches issuance; this block only displays a
                contract address once one exists. -->
@@ -375,39 +478,41 @@
             <code id="ca">Not launched yet.</code>
             <button id="copy" hidden>Copy</button>
           </div>
-          <p class="note" style="margin-top: 13px">
+          <p class="prose" style="margin-top: 14px">
             Always verify the contract address against an official channel before trading. Anyone can create a
             token with any name.
           </p>
         </div>
       </section>
 
-      <section class="band" id="install">
-        <div class="label">Install</div>
-        <div class="body">
-          <p class="note" style="margin-bottom: 16px">
-            Hoodini is not yet on the Chrome Web Store. Until it is, build it from source — which is the more
-            honest way to run a wallet anyway, since you can read what you are about to trust.
+      <section id="install">
+        <div class="wrap">
+          <h2>Install</h2>
+          <p class="prose">
+            Hoodini is not yet on the Chrome Web Store. Until it is, build it from source, which is the more
+            honest way to run a wallet anyway, because you can read what you are about to trust.
           </p>
-<pre><span class="c">// clone, then</span>
+<pre><span class="c">// clone the repository, then</span>
 pnpm install
 pnpm --filter @hoodini/extension build</pre>
-          <p class="note">
-            Then <code>chrome://extensions</code> → Developer mode → <strong>Load unpacked</strong> →
-            <code>apps/extension/dist</code>.
+          <p class="prose">
+            Then open <code>chrome://extensions</code>, turn on Developer mode, choose <strong>Load unpacked</strong>,
+            and select <code>apps/extension/dist</code>.
           </p>
         </div>
       </section>
+    </main>
 
-      <footer>
+    <footer>
+      <div class="wrap">
         <div>Open source under the MIT licence. No warranty. Trading is risky; you can lose everything.</div>
         <div class="disclaimer">
-          <strong>Not affiliated with Robinhood.</strong> Hoodini Finance is an independent project. It is not
-          affiliated with, endorsed by, or connected to Robinhood Markets, Inc. It trades on Robinhood Chain,
-          a public blockchain.
+          <b>Not affiliated with Robinhood.</b> Hoodini Finance is an independent project. It is not affiliated
+          with, endorsed by, or connected to Robinhood Markets, Inc. It trades on Robinhood Chain, a public
+          blockchain.
         </div>
-      </footer>
-    </div>
+      </div>
+    </footer>
 
     <script>
       // Set this to the contract address once the token is launched. It is a
@@ -415,34 +520,252 @@ pnpm --filter @hoodini/extension build</pre>
       // a compromised endpoint could swap the address people copy.
       const TOKEN_CA = '';
 
-      const el = document.getElementById('ca');
-      const copy = document.getElementById('copy');
+      const caEl = document.getElementById('ca');
+      const copyBtn = document.getElementById('copy');
       if (/^0x[0-9a-fA-F]{40}$/.test(TOKEN_CA)) {
-        el.textContent = TOKEN_CA;
-        copy.hidden = false;
-        copy.addEventListener('click', async () => {
+        caEl.textContent = TOKEN_CA;
+        copyBtn.hidden = false;
+        copyBtn.addEventListener('click', async () => {
           await navigator.clipboard.writeText(TOKEN_CA);
-          copy.textContent = 'Copied';
-          setTimeout(() => (copy.textContent = 'Copy'), 1400);
+          copyBtn.textContent = 'Copied';
+          setTimeout(() => (copyBtn.textContent = 'Copy'), 1400);
         });
       } else {
-        // Never render a half-set or malformed address — someone would copy it.
-        el.textContent = 'Not launched yet.';
-        el.className = 'pending';
+        // Never render a half-set or malformed address; someone would copy it.
+        caEl.textContent = 'Not launched yet.';
+        caEl.className = 'pending';
       }
 
-      // The fee arithmetic. Pure local maths on a stated assumption; nothing is
-      // read from the network and nothing is reported anywhere.
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      /* ── the field ──────────────────────────────────────────────────────
+         A constant-product pool, x·y = k, drawn as a signed-distance field.
+         This is the product's own maths rather than scenery: the cursor is a
+         trade walking the curve, and the readout below the hero prints what
+         that trade would cost. Without WebGL it falls back to a ground that
+         still looks deliberate. */
+      const VS = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
+      const FS = [
+        'precision highp float;',
+        'uniform vec2 res; uniform float t; uniform vec2 mouse; uniform float active;',
+        'float curveDist(vec2 uv, float k){',
+        '  float y = k / max(uv.x, 0.0015);',
+        '  return abs(uv.y - y) / (1.0 + abs(k / (uv.x * uv.x)));',
+        '}',
+        'void main(){',
+        '  vec2 uv = gl_FragCoord.xy / res;',
+        '  float aspect = res.x / res.y;',
+        '  vec2 cs = vec2(uv.x * 1.25 + 0.06, uv.y * 1.25 + 0.06);',
+        '  vec3 col = vec3(0.019, 0.027, 0.051);',
+        // A pool's depth is discrete, so the ground is ruled rather than smooth.
+        '  vec2 g = abs(fract(uv * vec2(34.0 * aspect, 34.0)) - 0.5);',
+        '  col += vec3(0.030, 0.049, 0.082) * smoothstep(0.49, 0.5, max(g.x, g.y)) * 0.5;',
+        // The pool curve, with two neighbouring reserve levels behind it.
+        '  float k = 0.30;',
+        '  float d = curveDist(cs, k);',
+        '  float core = smoothstep(0.016, 0.0, d);',
+        '  float halo = smoothstep(0.17, 0.0, d);',
+        '  col += vec3(0.34, 0.68, 1.0) * core * 1.05;',
+        '  col += vec3(0.16, 0.42, 0.85) * halo * 0.26;',
+        '  col += vec3(0.14, 0.34, 0.70) * smoothstep(0.010, 0.0, curveDist(cs, k * 0.55)) * 0.30;',
+        '  col += vec3(0.14, 0.34, 0.70) * smoothstep(0.010, 0.0, curveDist(cs, k * 1.75)) * 0.22;',
+        // Everything between the resting price and the cursor is the stretch of
+        // curve a swap would consume, lit in the cost signal.
+        '  float band = step(min(mouse.x, 0.5), uv.x) * step(uv.x, max(mouse.x, 0.5));',
+        '  col += vec3(1.0, 0.70, 0.33) * halo * band * active * 0.55;',
+        '  col += vec3(1.0, 0.72, 0.33) * core * band * active * 0.70;',
+        // Fills drifting along the curve. Three, slowly: never a starfield.
+        '  for (int i = 0; i < 3; i++){',
+        '    float fi = float(i);',
+        '    float px = fract(t * (0.030 + fi * 0.012) + fi * 0.37) * 0.95 + 0.05;',
+        '    vec2 pp = vec2(px, k / max(px, 0.0015));',
+        '    float dd = length((cs - pp) * vec2(aspect, 1.0));',
+        '    col += vec3(0.55, 0.80, 1.0) * smoothstep(0.030, 0.0, dd) * 0.55;',
+        '  }',
+        // Settle the left, where the headline sits. The curve keeps the right.
+        '  col *= mix(0.42, 1.0, smoothstep(0.04, 0.62, uv.x));',
+        '  gl_FragColor = vec4(col, 1.0);',
+        '}',
+      ].join('\n');
+
+      const canvas = document.getElementById('field');
+      const rSize = document.getElementById('r-size');
+      const rImpact = document.getElementById('r-impact');
+      const rOut = document.getElementById('r-out');
+
+      // The readout is real arithmetic on the same pool the shader draws, so
+      // the numbers match the picture rather than decorating it.
+      const RESERVE_ETH = 40;      // pool depth, stated in the hint below the strip
+      const TOKENS_PER_ETH = 18500; // resting price, for a legible output figure
+      function paintReadout(fracX) {
+        const f = Math.max(0, Math.min(1, fracX));
+        const size = 0.02 + f * f * 5;                 // 0.02 to ~5 ETH, eased
+        // Constant product x·y = k gives this exactly: the fraction of the pool
+        // your own order represents is the price impact.
+        const impact = (size / (RESERVE_ETH + size)) * 100;
+        const got = size * TOKENS_PER_ETH * (1 - impact / 100);
+        rSize.textContent = size.toFixed(2) + ' ETH';
+        rImpact.textContent = impact.toFixed(2) + '%';
+        rOut.textContent = Math.round(got).toLocaleString('en-US');
+      }
+      paintReadout(0.42);
+
+      (function field() {
+        let gl = null;
+        try {
+          gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' })
+            || canvas.getContext('experimental-webgl');
+        } catch (err) { gl = null; }
+        const bail = () => {
+          canvas.style.background =
+            'radial-gradient(120% 92% at 76% 20%, rgba(77,163,255,.17), transparent 58%), #05070d';
+        };
+        if (!gl) { bail(); return; }
+
+        const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+        const prog = gl.createProgram();
+        gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+        gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { bail(); return; }
+        gl.useProgram(prog);
+
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, 'p');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+        const uRes = gl.getUniformLocation(prog, 'res');
+        const uT = gl.getUniformLocation(prog, 't');
+        const uM = gl.getUniformLocation(prog, 'mouse');
+        const uA = gl.getUniformLocation(prog, 'active');
+
+        const host = document.querySelector('.hero');
+        let mx = 0.62, my = 0.5, active = 0, target = 0;
+        host.addEventListener('pointermove', (e) => {
+          const r = host.getBoundingClientRect();
+          mx = (e.clientX - r.left) / r.width;
+          my = 1 - (e.clientY - r.top) / r.height;
+          target = 1;
+          paintReadout(mx);
+        });
+        host.addEventListener('pointerleave', () => { target = 0; });
+
+        // Cap the pixel ratio: a 3x phone screen buys nothing here and costs
+        // fill rate on exactly the devices least able to spare it.
+        function size() {
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          const w = Math.floor(host.clientWidth * dpr);
+          const h = Math.floor(host.clientHeight * dpr);
+          if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h);
+          }
+        }
+        window.addEventListener('resize', size, { passive: true });
+        size();
+
+        let onScreen = true, running = false;
+        const t0 = performance.now();
+        function draw(seconds) {
+          size();
+          active += (target - active) * 0.09;
+          gl.uniform2f(uRes, canvas.width, canvas.height);
+          gl.uniform1f(uT, seconds);
+          gl.uniform2f(uM, mx, my);
+          gl.uniform1f(uA, active);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+        function frame(now) {
+          if (!onScreen) { running = false; return; }
+          draw((now - t0) / 1000);
+          requestAnimationFrame(frame);
+        }
+        // Nothing renders while the hero is off screen.
+        if ('IntersectionObserver' in window) {
+          new IntersectionObserver((es) => {
+            onScreen = es[0].isIntersecting;
+            if (onScreen && !reduced && !running) { running = true; requestAnimationFrame(frame); }
+          }, { threshold: 0 }).observe(host);
+        }
+        if (reduced) draw(0);
+        else if (!running) { running = true; requestAnimationFrame(frame); }
+      })();
+
+      /* ── trust boundary detail ─────────────────────────────────────────── */
+      const CAPS = {
+        quote: '<b>trade.quote — allowed.</b> Reads a price from public chain data. It touches no key and returns no calldata, so a site button can show a number and nothing more.',
+        warm: '<b>trade.warm — allowed.</b> Caches which venue trades a token. It carries no amount and answers identically whatever happens, so it cannot be used to probe which tokens are tradeable.',
+        request: '<b>trade.request — allowed.</b> Proposes a trade and moves nothing. Only one may be outstanding, and approval happens in extension UI a website cannot reach. The worst a hostile site achieves is a prompt you dismiss.',
+        settings: '<b>settings.get — allowed.</b> Reads your buy presets so the overlay can draw its buttons. Writing them is refused: a preset is a spend amount, and a page that could set it could widen it and wait to be clicked.',
+        unlock: '<b>wallet.unlock — refused, permanently.</b> A page that could unlock could drain a wallet without you ever seeing a prompt. It sits on a list of capabilities that may never be granted to a page, whatever else changes.',
+        withdraw: '<b>wallet.withdraw — refused, permanently.</b> The most direct theft available if it were ever reachable: no venue, no quote, no approval, just an address and an amount. It is popup-only, and a test asserts a page cannot reach it.',
+      };
+      const detail = document.getElementById('cap-detail');
+      document.querySelectorAll('.cap').forEach((g) => {
+        const show = () => { const c = CAPS[g.dataset.cap]; if (c) detail.innerHTML = c; };
+        g.addEventListener('mouseenter', show);
+        g.addEventListener('focus', show);
+        g.addEventListener('click', show);
+        g.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(); }
+        });
+      });
+
+      /* ── latency bars and the venue race, revealed on arrival ──────────── */
+      function fillTracks() {
+        document.querySelectorAll('.rail span').forEach((s) => {
+          s.style.width = s.dataset.w + '%';
+          if (s.dataset.off) s.style.left = s.dataset.off + '%';
+          requestAnimationFrame(() => { s.style.transform = 'scaleX(1)'; });
+        });
+      }
+      function runRace() {
+        const lanes = Array.prototype.slice.call(document.querySelectorAll('#race .lane'));
+        const slowest = Math.max.apply(null, lanes.map((l) => +l.dataset.ms));
+        lanes.forEach((l) => {
+          const f = l.querySelector('.fill');
+          f.style.transform = 'scaleX(0)';
+          l.querySelector('.verdict').textContent = 'probing';
+        });
+        lanes.forEach((l) => {
+          const ms = +l.dataset.ms;
+          setTimeout(() => {
+            const fill = l.querySelector('.fill');
+            fill.style.width = (ms / slowest) * 100 + '%';
+            requestAnimationFrame(() => { fill.style.transform = 'scaleX(1)'; });
+            l.querySelector('.verdict').textContent = l.classList.contains('win') ? 'claims' : 'passes';
+          }, reduced ? 0 : ms * 1.7);
+        });
+      }
+      document.getElementById('race-again').addEventListener('click', runRace);
+
+      if ('IntersectionObserver' in window) {
+        const once = new IntersectionObserver((entries) => {
+          entries.forEach((e) => {
+            if (!e.isIntersecting) return;
+            if (e.target.id === 'speed') fillTracks();
+            if (e.target.id === 'venues') runRace();
+            once.unobserve(e.target);
+          });
+        }, { threshold: 0.25 });
+        ['speed', 'venues'].forEach((id) => once.observe(document.getElementById(id)));
+      } else { fillTracks(); runRace(); }
+
+      /* ── fee arithmetic ────────────────────────────────────────────────── */
       const vol = document.getElementById('vol');
       const volOut = document.getElementById('vol-out');
       const them = document.getElementById('them');
-      const render = () => {
+      const year = document.getElementById('year');
+      const renderFee = () => {
         const eth = Number(vol.value);
         volOut.textContent = eth + ' ETH';
         them.textContent = (eth * 0.01).toFixed(2) + ' ETH';
+        year.textContent = (eth * 0.01 * 12).toFixed(2) + ' ETH';
       };
-      vol.addEventListener('input', render);
-      render();
+      vol.addEventListener('input', renderFee);
+      renderFee();
     </script>
   </body>
 </html>

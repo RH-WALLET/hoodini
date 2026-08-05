@@ -22,3 +22,6 @@ apps/extension/dist/
 
 # recon output (regenerable; census lives in DATA_SOURCES.md)
 scripts/out/
+
+# local preview server, not part of the product
+.claude/launch.json
