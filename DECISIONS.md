@@ -1704,3 +1704,42 @@ and treating it that way would be a far worse failure than the one being fixed.
 **Found by selling, not by testing** — the fifth time this project has learned
 something only by running the thing (D-052), and the second where the failure
 was shaped like success.
+
+---
+
+### D-062 — The sell went out too, and 0% now holds in both directions
+
+The round trip that D-061 made possible, completed on 2026-08-06. Two
+transactions, both successful, from the same wallet as the canary.
+
+```
+approve  0x0ef953385bd6f16ab34fdf952e87cb702bc533bf80066cdbb0cf6fe71de6e2f6
+         block 28843851  ->  0x0000...8BA3 Permit2      gas 47662   fee 0.000001188785604
+swap     0x04188ffb95d1e231fd9a956c3ec7ae90f974a735f024db42e6d28b60e3362dc1
+         block 28843867  ->  0x53BF...6F77 UniversalRouter  gas 104416  fee 0.000002583460672
+nonce    1 -> 3          YEW balance 398019.240430042974631535 -> 0
+```
+
+**The arithmetic, which is the reason to write this down.** 0.001 ETH went in on
+the buy (D-060) and 0.000995007240128386 ETH came back on the sell. Excluding
+all gas, the round trip cost **0.4993%**. Two 25 bps pool fees compounded is
+0.4994%. The entire cost of trading through Hoodini, in and out, is the pool's
+own fee and nothing else — invariant 6 measured in both directions rather than
+asserted in one.
+
+Net cost of the whole exercise was 0.0000115627 ETH, of which 57% was gas.
+
+**The read-only rehearsal was exact.** Before the sell, a script quoted
+0.000995007240128386 ETH out. The realised proceeds net of the swap's own gas
+were 0.000991234993852386, and the difference is precisely that gas fee. The
+quoting path is accurate to the wei, which is worth knowing given the confirm
+sheet prices at approval time (D-055).
+
+**What the sell exercised that the buy did not:** the two-step plan, the Permit2
+allowance, `approvalNeeded` returning a step rather than null,
+`mayNeedMoreApprovals`, and the whole-balance semantics that D-061 had broken.
+
+The landing page's fee note said network gas "is paid to validators". Robinhood
+Chain is an Arbitrum Orbit L2, so it goes to a sequencer. Corrected, and the
+measured round-trip figure added, since the page is public and the claim is now
+backed by two transactions rather than by tests.

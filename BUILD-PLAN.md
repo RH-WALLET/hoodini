@@ -139,6 +139,14 @@ send path is built on top of it.
       wallet was 0.001002797723994 ETH against a gas fee of 0.000002797723994,
       so exactly 0.001000000000000 reached the swap: the 0% invariant measured
       on chain rather than asserted (D-060).
+- [x] **First live sell** — **done 2026-08-06**, approve
+      `0x0ef953385bd6f16ab34fdf952e87cb702bc533bf80066cdbb0cf6fe71de6e2f6` then
+      swap `0x04188ffb95d1e231fd9a956c3ec7ae90f974a735f024db42e6d28b60e3362dc1`.
+      The whole round trip cost 0.4993% against a compounded pool fee of
+      0.4994%, so 0% holds in both directions (D-062). It also took three
+      defects to get there: the sell path had never worked end to end, and a
+      required-but-actually-optional field on `trade.execute` is what caused it
+      (D-061).
 
 ## [~] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
 
