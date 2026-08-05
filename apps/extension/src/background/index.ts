@@ -13,6 +13,11 @@
 import { KeystoreSession } from '@hoodini/core';
 import { VaultStore, chromeLocalArea } from './storage.js';
 import { SettingsStore } from './settingsStore.js';
+import { TradeJournal } from './journal.js';
+import { TradeEngine } from './engine.js';
+import { Watchlist } from './watchlist.js';
+import { createVenueStack } from './venues.js';
+import { LIVE_TRADING } from './config.js';
 import { createRouter } from './router.js';
 import { classifySender, type Request } from './protocol.js';
 
@@ -23,10 +28,40 @@ const session = new KeystoreSession({
   },
 });
 
+const area = chromeLocalArea();
+
+/**
+ * The venue stack, wired at last.
+ *
+ * Until now the worker was constructed without it, so every `trade.quote` and
+ * `positions.list` answered UNAVAILABLE — the overlay rendered its buttons and
+ * clicking one did nothing. The gap was deliberate while the engine was being
+ * built and then simply never closed, which is a reminder that "the handler
+ * reports it is unavailable" is not the same as anyone noticing.
+ *
+ * Quoting is read-only. `LIVE_TRADING` is a build-time constant and is false in
+ * any normal build, so wiring this grants the ability to see a price and
+ * nothing else (invariant 5).
+ */
+const { client, venues, chainId } = createVenueStack();
+
 const handle = createRouter({
-  store: new VaultStore(chromeLocalArea()),
+  store: new VaultStore(area),
   session,
-  settings: new SettingsStore(chromeLocalArea()),
+  settings: new SettingsStore(area),
+  trade: {
+    venues,
+    client,
+    chainId,
+    watchlist: new Watchlist(area),
+    engine: new TradeEngine({
+      client,
+      session,
+      journal: new TradeJournal(area),
+      liveTrading: LIVE_TRADING,
+      chainId,
+    }),
+  },
 });
 
 const EXTENSION_ORIGIN = `chrome-extension://${chrome.runtime.id}`;

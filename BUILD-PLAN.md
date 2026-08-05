@@ -126,6 +126,12 @@ send path is built on top of it.
 - [x] Nonce read per step, all sends serialised, approve-then-swap sequencing
 - [x] In-flight journal written before broadcast; never auto-resends
 - [x] 47 extension tests, mutation-checked (9 mutations, all caught)
+- [x] **Wired into the service worker** 2026-08-05. It never had been: the
+      worker was constructed without its trade deps, so every `trade.quote` and
+      `positions.list` answered UNAVAILABLE and the overlay's buttons did
+      nothing. Nothing failed — the router has a legitimate "not wired up in
+      this build" branch, correct while the engine was being written and then
+      never revisited. Found by opening the popup and reading it in red
 - [ ] **Rory to approve the first live canary in-session** (invariant 5)
 
 ## [~] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
