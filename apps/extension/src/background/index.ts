@@ -16,10 +16,11 @@ import { SettingsStore } from './settingsStore.js';
 import { TradeJournal } from './journal.js';
 import { TradeEngine } from './engine.js';
 import { Watchlist } from './watchlist.js';
+import { PendingTrades } from './pending.js';
 import { createVenueStack } from './venues.js';
 import { LIVE_TRADING } from './config.js';
 import { createRouter } from './router.js';
-import { classifySender, type Request } from './protocol.js';
+import { classifySender, senderOrigin, type Request } from './protocol.js';
 
 const session = new KeystoreSession({
   onLock: () => {
@@ -49,6 +50,10 @@ const handle = createRouter({
   store: new VaultStore(area),
   session,
   settings: new SettingsStore(area),
+  // In worker memory, not storage: a proposal that outlived a worker restart
+  // would be a confirmation for something the user has long since scrolled
+  // past, and MV3 restarts constantly.
+  pending: new PendingTrades(),
   trade: {
     venues,
     client,
@@ -68,6 +73,6 @@ const EXTENSION_ORIGIN = `chrome-extension://${chrome.runtime.id}`;
 
 chrome.runtime.onMessage.addListener((message: Request, sender, sendResponse) => {
   const surface = classifySender(sender, chrome.runtime.id, EXTENSION_ORIGIN);
-  handle(message, surface).then(sendResponse, () => sendResponse({ ok: false, error: { code: 'INTERNAL', message: 'the operation failed' } }));
+  handle(message, surface, senderOrigin(sender)).then(sendResponse, () => sendResponse({ ok: false, error: { code: 'INTERNAL', message: 'the operation failed' } }));
   return true; // keep the channel open for the async reply
 });

@@ -146,13 +146,23 @@ describe('classifySender', () => {
 });
 
 describe('surface policy', () => {
-  it('grants a page exactly one capability: quoting', () => {
-    // Pinned as an exact list rather than a count. A page may read a price —
-    // that is public chain data and a site button cannot render without it —
-    // and may do nothing else. Widening this must be a deliberate edit here,
-    // with the reasoning in D-026.
+  it('grants a page exactly three capabilities, none of which move money', () => {
+    // Pinned as an exact list rather than a count, so widening it is always a
+    // deliberate edit here with reasoning attached. Each entry earns its place
+    // by being unable to spend:
+    //
+    //   trade.quote    reads a price. Public chain data; a site button cannot
+    //                  render without it.
+    //   settings.get   reads the buy presets. The overlay cannot draw its
+    //                  buttons without them, and they reveal nothing a trade
+    //                  would not (D-053).
+    //   trade.request  *proposes* a trade. Moves nothing, cannot be made to
+    //                  move anything, and only one may be outstanding. The
+    //                  worst a hostile site achieves is a prompt nobody asked
+    //                  for. Approval happens in extension UI, which a page
+    //                  cannot reach — that separation is the whole of D-026.
     const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
-    expect(pageAllowed).toEqual(['settings.get', 'trade.quote']);
+    expect(pageAllowed).toEqual(['settings.get', 'trade.quote', 'trade.request']);
   });
 
   it('lets a page read settings but never write them', () => {

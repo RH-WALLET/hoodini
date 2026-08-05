@@ -1288,3 +1288,62 @@ amount and no way to tell them apart.
 becoming a button, nothing more. The canary limit and the `LIVE_TRADING` build
 flag are the safety mechanisms, and they sit at the send boundary where they
 cannot be bypassed by anything stored.
+
+---
+
+### D-054 — A page may propose a trade; only extension UI may approve one
+**Decided 2026-08-05.** Builds the mechanism D-026 said had to exist first.
+
+D-026 kept `trade.execute` popup-only and said why: the architecture calls for
+a page to *request* a trade and the user to approve it in extension UI, that
+confirm sheet did not exist, and granting execute first would leave a window
+where any matched site could spend funds. The sheet's worker half now exists,
+so the request half can land — without `trade.execute` ever becoming
+page-reachable.
+
+**What a page gains.** `trade.request` records a proposal and returns an id. It
+moves nothing and cannot be made to move anything. The worst a hostile or
+compromised site achieves is a prompt nobody asked for.
+
+**What stays out of reach.** `trade.approve`, `trade.reject` and `trade.pending`
+are popup-only and in `NEVER_PAGE_ACCESSIBLE`. A page that could approve would
+not need the user; one that could read what is pending would learn what the user
+is about to do. Both would make the prompt theatre.
+
+**One outstanding request, and a second is refused rather than substituted.**
+Substitution is the classic attack on a confirmation dialog: the user reads
+request A, reaches for approve, and the page swaps in B just before the click.
+Refusing means what is on screen is what was asked for and stays that way until
+it is answered. A queue has the same flaw one layer down — approving the top of
+a list a page can push to is approving something a page chose the position of.
+
+**Approval consumes the request before the trade runs, not after.** A double
+click or a duplicated message therefore cannot spend twice. If the trade then
+fails the user proposes again, which is a much better failure than a second
+send.
+
+**Requests expire after two minutes, checked on read.** An unanswered proposal
+left overnight is a click waiting to happen against a price that no longer
+exists. Checked on read rather than by a timer because MV3 kills the worker
+whenever it likes and a timer is not something this environment can be trusted
+to run. Held in worker memory for the same reason: a proposal that survived a
+restart would be a confirmation for something the user scrolled past long ago.
+
+**The origin comes from the sender, never the message.** A page that could name
+its own origin could name someone else's, and the only value in showing it is
+that it cannot be forged.
+
+**Approval re-dispatches through `trade.execute`.** Confirmation adds a step and
+changes nothing about how a trade is planned, gated or sent — the canary
+ceiling, the serialised nonce, the in-flight journal and the `LIVE_TRADING`
+build constant all still sit exactly where they did.
+
+**The page surface went from two capabilities to three.** The test asserting
+that list is an exact equality, so this required a deliberate edit with the
+reasoning attached — which is how it should have to work.
+
+**No UI yet.** This is the worker half. Nothing calls `trade.request` and no
+confirm sheet renders, so the observable behaviour of the extension is
+unchanged. Wiring the overlay to propose, and building the sheet, is the next
+slice — split per CLAUDE.md, since the security surface and the interface have
+independent risk.

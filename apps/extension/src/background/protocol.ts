@@ -51,6 +51,21 @@ export type Request =
   | { readonly type: 'positions.list' }
   | { readonly type: 'settings.get' }
   | { readonly type: 'settings.set'; readonly settings: unknown }
+  /**
+   * A page *proposing* a trade. Moves nothing: it records a request that only
+   * extension UI can approve. This is the capability D-026 said had to exist
+   * before a site could start a trade at all.
+   */
+  | {
+      readonly type: 'trade.request';
+      readonly side: 'buy' | 'sell';
+      readonly token: Address;
+      readonly amount?: string;
+      readonly slippageBps: number;
+    }
+  | { readonly type: 'trade.pending' }
+  | { readonly type: 'trade.approve'; readonly id: string }
+  | { readonly type: 'trade.reject' }
   | {
       readonly type: 'trade.execute';
       readonly side: 'buy' | 'sell';
@@ -103,6 +118,18 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   // how much of a trade the user is willing to lose; a page that could set
   // either could quietly widen both and wait to be clicked.
   'settings.set': ['popup'],
+  // A page may propose. Proposing moves nothing and cannot be made to move
+  // anything: the worst it achieves is a prompt nobody asked for, and only one
+  // at a time. This is deliberately *not* `trade.execute` under another name —
+  // approval happens in extension UI, where a site cannot reach.
+  'trade.request': ['popup', 'page'],
+  // Reading, approving and rejecting are the user's side of that conversation
+  // and stay entirely out of a page's reach. A page that could read the pending
+  // request would learn what the user is about to do; one that could approve
+  // would not need the user at all.
+  'trade.pending': ['popup'],
+  'trade.approve': ['popup'],
+  'trade.reject': ['popup'],
 };
 
 /** Capabilities a page may never hold, whatever else changes. */
@@ -118,7 +145,29 @@ export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
   'positions.list',
   // Changing what a button spends is a spending decision.
   'settings.set',
+  // Approving a trade is the whole point of having a confirmation. A page that
+  // could approve, or could read what is awaiting approval, would make the
+  // prompt theatre.
+  'trade.approve',
+  'trade.reject',
+  'trade.pending',
 ];
+
+/**
+ * The site a message came from, for showing in a confirmation.
+ *
+ * Derived from the sender, never from the message — a page that could name its
+ * own origin could name someone else's, and the whole value of showing it is
+ * that it cannot be forged. Returns null when there is no meaningful origin.
+ */
+export function senderOrigin(sender: { url?: string | undefined }): string | null {
+  if (typeof sender.url !== 'string') return null;
+  try {
+    return new URL(sender.url).origin;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Classify a sender. A content script always carries `tab`; popup and options

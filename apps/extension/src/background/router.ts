@@ -28,6 +28,7 @@ import type { VaultStore } from './storage.js';
 import type { TradeEngine } from './engine.js';
 import { isAllowed, type Request, type Response, type Surface, type WalletStatus } from './protocol.js';
 import type { Settings } from '@hoodini/core';
+import type { PendingTrades } from './pending.js';
 
 export interface RouterDeps {
   readonly store: VaultStore;
@@ -45,6 +46,8 @@ export interface RouterDeps {
   };
   /** Absent in tests that do not exercise settings; their messages then use defaults. */
   readonly settings?: { read(): Promise<Settings>; write(s: unknown): Promise<Settings> };
+  /** Holds the one trade awaiting the user's confirmation (D-026). */
+  readonly pending?: PendingTrades;
 }
 
 function fail(code: string, message: string): Response<never> {
@@ -58,7 +61,7 @@ function toError(e: unknown): Response<never> {
 }
 
 export function createRouter(deps: RouterDeps) {
-  const { store, session, kdf, trade, settings } = deps;
+  const { store, session, kdf, trade, settings, pending } = deps;
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
 
   async function status(): Promise<WalletStatus> {
@@ -71,7 +74,12 @@ export function createRouter(deps: RouterDeps) {
     };
   }
 
-  return async function handle(request: Request, surface: Surface | null): Promise<Response> {
+  return async function handle(
+    request: Request,
+    surface: Surface | null,
+    /** The sender's origin, for showing in a confirmation. Never from the message. */
+    origin?: string | null,
+  ): Promise<Response> {
     // An unknown or foreign sender gets nothing, not even a status read.
     if (surface === null) return fail('FORBIDDEN', 'unrecognised sender');
     if (!request || typeof request.type !== 'string') return fail('BAD_REQUEST', 'malformed message');
@@ -185,6 +193,71 @@ export function createRouter(deps: RouterDeps) {
               unvalued: totals.unvalued,
             },
           };
+        }
+
+        case 'trade.request': {
+          if (!pending) return fail('UNAVAILABLE', 'trade requests are not wired up in this build');
+          let token: Address;
+          try {
+            token = getAddress(request.token);
+          } catch {
+            return fail('BAD_REQUEST', 'token is not a valid address');
+          }
+          if (request.side === 'buy' && request.amount === undefined) {
+            return fail('BAD_REQUEST', 'amount is required for a buy');
+          }
+          if (request.amount !== undefined && !/^\d+$/.test(request.amount)) {
+            // Wei as a decimal string. Anything else is a page trying its luck.
+            return fail('BAD_REQUEST', 'amount must be a whole number of wei');
+          }
+          const proposed = pending.propose({
+            side: request.side,
+            token,
+            ...(request.amount !== undefined ? { amount: request.amount } : {}),
+            slippageBps: request.slippageBps,
+            // From the sender, never the message.
+            origin: origin ?? 'unknown',
+          });
+          if (!proposed) {
+            return fail('PENDING_EXISTS', 'another trade is already awaiting confirmation');
+          }
+          // Nudge the UI. Fire-and-forget: nothing is waiting on a listener.
+          chrome.runtime?.sendMessage?.({ type: 'trade.requested' })?.catch?.(() => {});
+          return { ok: true, data: { id: proposed.id } };
+        }
+
+        case 'trade.pending': {
+          if (!pending) return fail('UNAVAILABLE', 'trade requests are not wired up in this build');
+          return { ok: true, data: { request: pending.peek() } };
+        }
+
+        case 'trade.reject': {
+          if (!pending) return fail('UNAVAILABLE', 'trade requests are not wired up in this build');
+          pending.clear();
+          return { ok: true, data: {} };
+        }
+
+        case 'trade.approve': {
+          if (!pending || !trade) return fail('UNAVAILABLE', 'trading is not wired up in this build');
+          // Consumed before anything runs, so a double click cannot spend
+          // twice. If the trade then fails the user proposes again, which is a
+          // far better outcome than a second send.
+          const approved = pending.take(request.id);
+          if (!approved) return fail('NOT_FOUND', 'that request is no longer waiting — it may have expired');
+          if (!session.address) return fail('LOCKED', 'unlock to trade');
+          // Re-dispatched through the same path a popup-initiated trade takes,
+          // so approval adds a confirmation and changes nothing else about how
+          // a trade is planned, gated or sent.
+          return handle(
+            {
+              type: 'trade.execute',
+              side: approved.side,
+              token: approved.token,
+              amount: approved.amount ?? '0',
+              slippageBps: approved.slippageBps,
+            },
+            'popup',
+          );
         }
 
         case 'trade.quote':

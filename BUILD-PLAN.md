@@ -131,7 +131,8 @@ send path is built on top of it.
       `positions.list` answered UNAVAILABLE and the overlay's buttons did
       nothing. Nothing failed — the router has a legitimate "not wired up in
       this build" branch, correct while the engine was being written and then
-      never revisited. Found by opening the popup and reading it in red
+      never revisited. Found by opening the popup and reading it in red.
+      **Verified live 2026-08-05:** buttons quote on Axiom
 - [ ] **Rory to approve the first live canary in-session** (invariant 5)
 
 ## [~] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
@@ -206,7 +207,8 @@ two configs rather than two adapters (D-051, following D-045).
 - [x] 25 tests, mutation-checked (12 mutations; three survivors, one of which
       was a real defect — the overlay could anchor on an `<img>` and render
       nothing)
-- [ ] **Neither overlay has been seen render.** Same caveat as P4, and Axiom
+- [x] **Both seen rendering 2026-08-05.** The placement carried over correctly
+      from Axiom
 - [ ] GMGN's Trenches tab is uncaptured; the adapter is built from its home tab
 
 ## [x] P4c — Editable buy presets and slippage
@@ -228,7 +230,28 @@ so pressing `0.01` quoted the hardcoded 0.001 (D-052).
       button's label and its amount can never disagree
 - [x] 58 core settings tests + 6 router tests, mutation-checked (13 mutations,
       all caught)
-- [ ] Not yet seen in a browser — the same gap that made P3 wrong twice
+- [x] Seen in the popup 2026-08-05 — presets and slippage render and save
+
+## [~] P6 — Trade requests and the confirm sheet
+
+The step D-026 deferred: a page proposes, extension UI approves, and
+`trade.execute` never becomes page-reachable (D-054).
+
+### [x] P6a — worker half
+- [x] `PendingTrades` — one outstanding request, a second **refused** rather
+      than substituted, single-use approval, two-minute expiry checked on read
+- [x] `trade.request` page-allowed; `approve`/`reject`/`pending` popup-only and
+      in `NEVER_PAGE_ACCESSIBLE`
+- [x] Origin taken from the sender, never the message
+- [x] Approval re-dispatches through `trade.execute`, so the canary ceiling,
+      nonce serialisation and `LIVE_TRADING` gate are unchanged
+- [x] 14 tests, mutation-checked (6 mutations, all caught)
+
+### [ ] P6b — the sheet itself
+- [ ] Overlay calls `trade.request` instead of quoting on click
+- [ ] Popup renders the pending request: origin, token, amount, quote, and what
+      approving will actually do in a dry-run build
+- [ ] Nothing here can send while `LIVE_TRADING` is false
 
 ## [~] P5 — Hardening, open-source release, landing page, CWS submission
 
