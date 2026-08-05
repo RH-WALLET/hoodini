@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const html = readFileSync(
-  resolve(fileURLToPath(import.meta.url), '../../../../docs/landing/index.html'),
+  resolve(fileURLToPath(import.meta.url), '../../../../docs/index.html'),
   'utf8',
 );
 
