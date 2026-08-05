@@ -1436,3 +1436,53 @@ catch: `0xabc…` is a perfectly valid address that simply is not yours.
 **Refusing to send exactly the balance.** The most natural way to try to empty a
 wallet, and the one that always fails. It is refused here with a sentence
 pointing at Max, rather than by the node with a revert.
+
+---
+
+### D-057 — Venue resolution is concurrent and cached; the confirmation is the remaining cost
+**Decided 2026-08-05.** Measured, not guessed.
+
+A terminal overlay competes on speed, so the first thing worth knowing is where
+the time actually goes. Against the live chain, with a ~200–580ms RPC round
+trip:
+
+| Step | Before | After |
+|---|---|---|
+| `resolve()` cold | 3,605 ms | 1,233 ms |
+| `resolve()` warm | 1,064 ms | **0 ms** |
+| quote | ~200 ms | ~200 ms |
+| build calldata | ~200 ms | ~200 ms |
+| **warm click → calldata ready** | ~1,470 ms | **456 ms** |
+
+**`claims()` was sequential.** One RPC round trip per adapter, eleven adapters,
+paid on every click because nothing was cached. It is now probed concurrently
+and decided by registry rank afterwards — the answer is identical, because rank
+was always what decided it; the only change is that every adapter is asked
+rather than stopping at the first yes. That costs some read load and buys back
+seconds.
+
+**Positive resolutions are cached; negatives are not.** A token's venue does not
+change once its pool exists. But a token that has *just* launched legitimately
+goes from unclaimed to claimed within seconds, and caching that no would leave
+the newest tokens — the ones this product exists for — unsupported for the life
+of the worker.
+
+**The engine's three pre-sign reads now go together.** Nonce, gas estimate and
+fees are independent of one another; they were three sequential round trips
+before a single byte could be signed. The nonce is still read immediately
+before signing, which is the property that mattered.
+
+**What remains is not code.** At ~456ms warm, the machine is no longer the slow
+part — the confirmation is. Click, badge, open the popup, read it, approve: that
+is seconds of human time, and it is deliberate (D-026, D-054). Making trading
+genuinely instant means giving something up, and that is a product decision
+rather than an optimisation:
+
+- **Prefetching a quote** when a control mounts costs nothing in safety and
+  makes the sheet open with a price already in hand. Not built.
+- **Standing consent** — "approve buys under X ETH from this origin for the
+  next N minutes" — is how session keys work elsewhere. It is a real weakening
+  of D-054's guarantee that every trade meets a human, and it should only ever
+  be entered deliberately, bounded by both amount and time.
+
+Neither is built. The first is free and worth doing; the second is Rory's call.

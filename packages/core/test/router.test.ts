@@ -117,14 +117,63 @@ describe('VenueRouter.resolve', () => {
     expect(res?.via).not.toBe('registry');
   });
 
-  it('probes adapters in registry priority order', async () => {
+  it('lets registry rank decide when several adapters claim the same token', async () => {
+    // The property that matters, and the one the hookless-V4 venue depends on:
+    // a broad claimer must lose to a specific one. Registered out of order so
+    // that only rank can produce the right answer.
     const { client } = createStubClient({ reads: {} });
     const first = fakeAdapter('uniswap-v3', true);
     const other = fakeAdapter('other', true);
-    // Registered out of order; registry rank should still win.
     const router = new VenueRouter([other, first], registry, client);
 
     expect((await router.resolve(token))?.adapter.id).toBe('uniswap-v3');
-    expect(other.claimsCalls).toBe(0);
+  });
+
+  it('asks every adapter at once rather than stopping at the first yes', async () => {
+    // Deliberate. Sequential probing cost one RPC round trip per adapter —
+    // 3.6s cold on a chain with a ~200ms round trip — which is unusable for a
+    // product whose whole point is being fast on a new token. Asking everyone
+    // concurrently costs some read load and buys back seconds, and the answer
+    // is identical because rank still decides.
+    const { client } = createStubClient({ reads: {} });
+    const first = fakeAdapter('uniswap-v3', true);
+    const other = fakeAdapter('other', true);
+    const router = new VenueRouter([other, first], registry, client);
+
+    await router.resolve(token);
+    expect(other.claimsCalls).toBe(1);
+    expect(first.claimsCalls).toBe(1);
+  });
+
+  it('caches a positive resolution instead of re-probing every click', async () => {
+    const { client } = createStubClient({ reads: {} });
+    const first = fakeAdapter('uniswap-v3', true);
+    const router = new VenueRouter([first], registry, client);
+
+    await router.resolve(token);
+    await router.resolve(token);
+    await router.resolve(token);
+    expect(first.claimsCalls).toBe(1);
+  });
+
+  it('never caches a negative, so a token that just launched can be found', async () => {
+    // A token can legitimately go from unclaimed to claimed within seconds of
+    // its pool being created. Caching that no would leave the newest tokens —
+    // the ones this product exists for — unsupported for the worker's life.
+    const { client } = createStubClient({ reads: {} });
+    let claims = false;
+    const late = {
+      id: 'uniswap-v3',
+      claimsCalls: 0,
+      async claims() {
+        this.claimsCalls++;
+        return claims;
+      },
+    } as unknown as ReturnType<typeof fakeAdapter>;
+    const router = new VenueRouter([late], registry, client);
+
+    expect(await router.resolve(token)).toBeNull();
+    claims = true;
+    expect((await router.resolve(token))?.adapter.id).toBe('uniswap-v3');
   });
 });

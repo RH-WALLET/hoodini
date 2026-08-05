@@ -25,6 +25,8 @@ export interface VenueResolution {
 
 export class VenueRouter {
   readonly #adapters: readonly VenueAdapter[];
+  /** Positive resolutions, per token. See #remember for why not negatives. */
+  readonly #resolved = new Map<string, VenueResolution>();
   readonly #registry: readonly VenueRegistryEntry[];
   readonly #client: PublicClient | undefined;
 
@@ -43,11 +45,14 @@ export class VenueRouter {
    * UI must then show "unsupported venue" rather than guessing a router.
    */
   async resolve(token: TokenRef): Promise<VenueResolution | null> {
+    const cached = this.#resolved.get(token.address.toLowerCase());
+    if (cached) return cached;
+
     // 1a. Explicit override.
     const override = TOKEN_VENUE_OVERRIDES[token.address.toLowerCase()];
     if (override) {
       const adapter = this.#byId(override);
-      if (adapter) return { adapter, via: 'override' };
+      if (adapter) return this.#remember(token, { adapter, via: 'override' });
     }
 
     // 1b. Factory attribution from bundled data.
@@ -57,20 +62,44 @@ export class VenueRouter {
         if (entry.status !== 'VERIFIED') continue;
         if (!entry.factories?.some((f) => isAddressEqual(f, factory))) continue;
         const adapter = this.#byId(entry.id);
-        if (adapter) return { adapter, via: 'registry' };
+        if (adapter) return this.#remember(token, { adapter, via: 'registry' });
       }
     }
 
     // 2. Runtime fallback for tokens the bundle doesn't know.
-    for (const adapter of this.#orderedAdapters()) {
-      try {
-        if (await adapter.claims(token)) return { adapter, via: 'claims' };
-      } catch {
-        // An adapter that throws simply does not claim the token.
-      }
-    }
+    //
+    // Probed **concurrently**, then decided by registry rank. Sequentially this
+    // cost one RPC round trip per adapter — measured at 3.6s cold on a chain
+    // whose round trip is ~200ms — which is unusable for a product whose whole
+    // point is being fast on a new token.
+    //
+    // The answer is identical to the sequential one: rank still decides, so a
+    // broad claimer like hookless V4 still loses to a specific venue. The only
+    // difference is that every adapter is asked rather than stopping at the
+    // first yes, which costs some read load and buys back seconds.
+    const ordered = this.#orderedAdapters();
+    const claims = await Promise.all(
+      // An adapter that throws simply does not claim the token.
+      ordered.map((a) => a.claims(token).then((c) => c === true, () => false)),
+    );
+    const winner = claims.findIndex(Boolean);
+    if (winner >= 0) return this.#remember(token, { adapter: ordered[winner]!, via: 'claims' });
 
     return null;
+  }
+
+  /**
+   * Cache a resolution for this token.
+   *
+   * Positives only, and deliberately: a token's venue does not change once its
+   * pool exists, but a token that has *just* launched can legitimately go from
+   * unclaimed to claimed within seconds. Caching that negative would leave the
+   * newest tokens — the ones this product exists for — permanently
+   * "unsupported" for the life of the worker.
+   */
+  #remember(token: TokenRef, resolution: VenueResolution): VenueResolution {
+    this.#resolved.set(token.address.toLowerCase(), resolution);
+    return resolution;
   }
 
   /** Adapters in registry priority order, with any unregistered ones last. */

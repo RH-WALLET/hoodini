@@ -166,9 +166,14 @@ export class TradeEngine {
 
     // Read the nonce immediately before signing. Anything cached from earlier
     // in the plan would be stale the moment a previous step landed.
-    const nonce = await client.getTransactionCount({ address: owner, blockTag: 'pending' });
-    const gas = await client.estimateGas({ account: owner, to: step.tx.to, data: step.tx.data, value: step.tx.value });
-    const fees = await client.estimateFeesPerGas();
+    // Three independent reads, so they go together. Sequentially this was three
+    // round trips before a single byte could be signed; none of them depends on
+    // the others, and the nonce is still read immediately before signing.
+    const [nonce, gas, fees] = await Promise.all([
+      client.getTransactionCount({ address: owner, blockTag: 'pending' }),
+      client.estimateGas({ account: owner, to: step.tx.to, data: step.tx.data, value: step.tx.value }),
+      client.estimateFeesPerGas(),
+    ]);
 
     const signed = await session.withKey(async (privateKey, address) => {
       // The session could have been swapped between planning and signing.
