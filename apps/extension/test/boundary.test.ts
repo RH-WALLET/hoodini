@@ -338,6 +338,21 @@ describe('manifest — invariant 3 is checkable from the shipped file', () => {
     expect(manifest.host_permissions).toEqual(['https://rpc.mainnet.chain.robinhood.com/*']);
   });
 
+  it('is described accurately in the Chrome Web Store submission', () => {
+    // The submission doc justifies each host to a reviewer, and it went stale
+    // the moment two adapters were added — the sort of drift nobody notices
+    // until a reviewer is reading a list that does not match the upload.
+    const doc = readFileSync(
+      resolve(fileURLToPath(import.meta.url), '../../../../docs/CWS-SUBMISSION.md'),
+      'utf8',
+    );
+    const m = manifestExport as unknown as { content_scripts?: { matches?: string[] }[] };
+    const hosts = (m.content_scripts?.[0]?.matches ?? []).map((p) => new URL(p.replace('/*', '/')).hostname);
+    for (const host of hosts) {
+      expect(doc, `CWS-SUBMISSION.md does not mention ${host}`).toContain(host);
+    }
+  });
+
   it('forbids remote and eval-able code in its CSP', () => {
     const csp = manifest.content_security_policy?.extension_pages ?? '';
     expect(csp).toContain("script-src 'self'");

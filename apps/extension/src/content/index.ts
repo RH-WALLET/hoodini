@@ -62,7 +62,9 @@ async function quote(intent: OverlayIntent): Promise<void> {
     // observable without inventing UI that would imply trading works.
     console.debug('[hoodini] quote', intent.side, intent.token.address, res);
   } catch (e) {
-    console.debug('[hoodini] quote failed', e);
+    // A quote failing is the user pressing a button and getting nothing, so it
+    // is visible by default; the successful case above stays quiet.
+    console.warn('[hoodini] quote failed', e);
   }
 }
 
@@ -126,7 +128,11 @@ const adapter =
   ].find((a) => matchesSite(a, location.href)) ?? new GenericAddressAdapter(adapterOptions);
 
 const runtime = new AdapterRuntime(adapter, document, {
-  onError: (e) => console.debug('[hoodini] scan error', e),
+  // `warn`, not `debug`. A scan error means the overlay is not working, and
+  // Chrome hides `debug` unless Verbose is switched on — so the one channel
+  // that says what went wrong was invisible by default. That cost three rounds
+  // of guessing before the first real bug was found (D-052).
+  onError: (e) => console.warn('[hoodini] scan error', e),
 });
 
 runtime.start();

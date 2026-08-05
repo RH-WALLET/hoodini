@@ -25,7 +25,13 @@ import { getAddress, isAddress, type Address } from 'viem';
 import type { TokenRef } from '@hoodini/core';
 import type { SiteAdapter } from '../site.js';
 import { nearestRow } from '../detect.js';
-import { HOST_ATTR, mountOverlay, type OverlayIntent, type SellUnavailable } from '../overlay.js';
+import {
+  HOST_ATTR,
+  mountOverlay,
+  type OverlayIntent,
+  type OverlayPlacement,
+  type SellUnavailable,
+} from '../overlay.js';
 
 /**
  * A pattern that pulls a chain slug and an address out of one attribute value.
@@ -57,7 +63,25 @@ export interface ChainTaggedConfig {
   readonly onIntent: (intent: OverlayIntent) => void;
   readonly amounts?: readonly string[];
   readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  /** Position against the row rather than flowing after it — see PLACEMENT. */
+  readonly placement?: OverlayPlacement;
 }
+
+/**
+ * Where the control sits on a terminal row.
+ *
+ * Carried over from Axiom, where flow placement was measured putting a 19px
+ * control at offset 110px in a 115px card that clips at 116px (D-052). These
+ * two are the same shape of layout — GMGN's rows are a fixed 124px inside a
+ * virtual-list wrapper, and both sites put their own quick-buy on the right —
+ * so the same correction almost certainly applies.
+ *
+ * **Almost certainly is not the same as verified.** Nobody has watched either
+ * of these render. It is applied because leaving them in the flow would ship a
+ * defect already seen once on a structurally identical page, not because the
+ * geometry has been checked.
+ */
+const PLACEMENT: OverlayPlacement = { bottom: '10px', right: '12px' };
 
 /**
  * A quick-buy control as these terminals label it: `0.15`, `0.1 ETH`, `Buy`.
@@ -131,6 +155,7 @@ export class ChainTaggedSiteAdapter implements SiteAdapter {
   mount(anchor: Element, tokenRef: TokenRef): void {
     mountOverlay(anchor, tokenRef, {
       onIntent: this.#c.onIntent,
+      ...(this.#c.placement ? { placement: this.#c.placement } : {}),
       ...(this.#c.amounts ? { amounts: this.#c.amounts } : {}),
       ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
     });
@@ -237,6 +262,7 @@ export function createGmgnAdapter(o: Common): ChainTaggedSiteAdapter {
     ],
     chainSlugs: ['robinhood'],
     anchorSelectors: ['[data-sentry-source-file="TokenItem.tsx"]'],
+    placement: PLACEMENT,
     ...o,
   });
 }
@@ -262,6 +288,7 @@ export function createTerminalAdapter(o: Common): ChainTaggedSiteAdapter {
       },
     ],
     chainSlugs: ['robinhood'],
+    placement: PLACEMENT,
     ...o,
   });
 }

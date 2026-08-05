@@ -318,3 +318,21 @@ describe('the machine both share', () => {
     expect(seen).toEqual([`buy:${T1}`]);
   });
 });
+
+describe('placement', () => {
+  it.each([
+    ['gmgn', createGmgnAdapter, () => (document.body.innerHTML = gmgnRow(G1))],
+    ['terminal', createTerminalAdapter, () => (document.body.innerHTML = terminalRow(T1))],
+  ])('positions %s against the row rather than flowing after it', (_id, make, render) => {
+    // Flow placement was measured slicing the control in half on Axiom, whose
+    // cards are the same fixed-height clipping shape. Unverified on these two —
+    // nobody has watched either render — but shipping the known-broken
+    // arrangement would be the worse bet (D-052).
+    render();
+    run(make(opts));
+    const host = document.querySelector(`[${HOST_ATTR}]`) as HTMLElement;
+    expect(host.style.position).toBe('absolute');
+    expect(host.style.bottom).toBe('10px');
+    expect(Number(host.style.zIndex)).toBeGreaterThan(50);
+  });
+});

@@ -21,7 +21,7 @@ Reviewers reject vague answers. Each of these maps to one capability.
 |---|---|
 | `storage` | Stores the password-encrypted wallet vault, the token watchlist that produces the positions panel, and an in-flight trade record that prevents a duplicate send after a browser crash. All local; nothing is transmitted. |
 | `https://rpc.mainnet.chain.robinhood.com/*` | The public Robinhood Chain RPC endpoint. Required to read balances and prices and to broadcast transactions the user signs. This is the only network host the extension contacts. |
-| Content scripts on `axiom.trade`, `x.com`, `web.telegram.org`, `dexscreener.com` | The extension's entire purpose: it finds token contract addresses shown on these pages and draws buy/sell controls beside them. Page content is read locally and never transmitted. |
+| Content scripts on `axiom.trade`, `gmgn.ai`, `trade.padre.gg`, `x.com`, `www.x.com`, `web.telegram.org`, `dexscreener.com` | The extension's entire purpose: it finds token contract addresses shown on these pages and draws buy/sell controls beside them. Page content is read locally and never transmitted. The first three are trading terminals the controls attach to; the last four are places a contract address is commonly seen. |
 
 **Single purpose:** let a user trade Robinhood Chain tokens directly from the
 pages where those tokens are discussed, using a wallet held on their own device.
