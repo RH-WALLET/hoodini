@@ -668,10 +668,11 @@ function AutoApprove(): React.JSX.Element {
         </div>
         <p className="note warn">
           Buys from a supported site are being signed and sent without a confirmation. There is no amount limit
-          and no expiry. It stays on until you disarm it, lock the wallet, or the browser restarts.
+          and no expiry. Your password is what authorises it, so it turns itself back on every time you unlock,
+          and it stops the moment the wallet locks.
         </p>
         <button className="danger" disabled={busy} onClick={() => void act(() => consentApi.disarm())}>
-          Disarm now
+          Turn off — and keep it off
         </button>
         {error && <p className="note warn">{error}</p>}
       </div>
@@ -688,12 +689,12 @@ function AutoApprove(): React.JSX.Element {
       ) : (
         <>
           <p className="note warn">
-            This approves buys without showing you anything. The amount is chosen by the website, not by your
-            presets, so a compromised site could propose far more than you would click. With no limit set, the
-            ceiling on a single buy is your balance.
+            This approves buys without showing you anything, and switches itself on again at every unlock. The
+            amount is chosen by the website, not by your presets, so a compromised site could propose far more
+            than you would click. With no limit set, the ceiling on a single buy is your balance.
           </p>
           <p className="note">
-            Sells always ask. A locked wallet still signs nothing.
+            Sells always ask. A locked wallet still signs nothing, and it locks itself after 25 idle minutes.
             {state && !state.liveUnlocked
               ? ' Your first live trade must be approved by hand before this can send anything.'
               : ''}

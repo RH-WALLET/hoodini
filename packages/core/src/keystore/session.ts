@@ -15,8 +15,17 @@ import type { Address, Hex } from 'viem';
 import { KeystoreError, type EncryptedVault } from './types.js';
 import { unlockVault } from './vault.js';
 
-/** Default idle timeout. Short enough to matter, long enough to trade. */
-export const DEFAULT_AUTO_LOCK_MS = 15 * 60 * 1000;
+/**
+ * Default idle timeout.
+ *
+ * 25 minutes, set by Rory. Long enough to work a session of a terminal without
+ * the password becoming background noise you type without reading, short enough
+ * that a walked-away-from laptop does not stay able to sign indefinitely.
+ *
+ * The timer is idle-based, so it is 25 minutes of *nothing happening* rather
+ * than 25 minutes from unlocking.
+ */
+export const DEFAULT_AUTO_LOCK_MS = 25 * 60 * 1000;
 
 export interface SessionOptions {
   readonly autoLockMs?: number;

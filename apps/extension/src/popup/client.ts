@@ -95,6 +95,8 @@ export interface ConsentState {
   readonly armedAt: number | null;
   /** False until a live send has happened by hand — invariant 5 (D-059). */
   readonly liveUnlocked: boolean;
+  /** Whether unlocking arms it automatically. Persisted; on by default. */
+  readonly autoArm: boolean;
 }
 
 export const consentApi = {

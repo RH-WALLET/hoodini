@@ -51,12 +51,29 @@ import type { TradeRequest } from './pending.js';
  */
 export const FIRST_LIVE_KEY = 'hoodini.firstlive.v1';
 
+/**
+ * Whether unlocking should arm standing consent by itself.
+ *
+ * Defaults to **on**, at Rory's instruction: auto-approval should be automatic
+ * rather than something armed by hand each session. The password is therefore
+ * the authorisation, and it lasts as long as the session does.
+ *
+ * Deliberately **not** part of `Settings`. `settings.get` is page-readable
+ * (D-053), so a preference living there would tell any matched site whether
+ * this wallet approves without asking — which is precisely the fact a hostile
+ * page would want before deciding how much to propose. Kept here, it is only
+ * reachable through `consent.status`, which is popup-only.
+ */
+export const AUTO_ARM_KEY = 'hoodini.autoarm.v1';
+
 export interface ConsentState {
   readonly armed: boolean;
   /** When it was armed, for showing "armed 4 minutes ago" rather than a bare flag. */
   readonly armedAt: number | null;
   /** False until a live send has happened by hand, whatever the arming says. */
   readonly liveUnlocked: boolean;
+  /** Whether unlocking arms it automatically. Persisted; defaults to on. */
+  readonly autoArm: boolean;
 }
 
 export class StandingConsent {
@@ -81,6 +98,34 @@ export class StandingConsent {
     this.#armedAt = null;
   }
 
+  /**
+   * Should unlocking arm this?
+   *
+   * Absent means yes. A wallet that has never been told otherwise auto-approves,
+   * which is the instructed default; only an explicit disarm turns it off, and
+   * that choice persists.
+   */
+  async autoArmEnabled(): Promise<boolean> {
+    const got = await this.#area.get(AUTO_ARM_KEY);
+    return got[AUTO_ARM_KEY] !== false;
+  }
+
+  async setAutoArm(on: boolean): Promise<void> {
+    await this.#area.set({ [AUTO_ARM_KEY]: on });
+  }
+
+  /**
+   * Arm because the wallet was just unlocked, if the preference allows it.
+   *
+   * Returns whether it armed, so the caller can repaint the badge without
+   * asking again.
+   */
+  async armOnUnlock(): Promise<boolean> {
+    if (!(await this.autoArmEnabled())) return false;
+    this.arm();
+    return true;
+  }
+
   get armed(): boolean {
     return this.#armedAt !== null;
   }
@@ -103,6 +148,7 @@ export class StandingConsent {
       armed: this.armed,
       armedAt: this.#armedAt,
       liveUnlocked: await this.#liveUnlocked(),
+      autoArm: await this.autoArmEnabled(),
     };
   }
 

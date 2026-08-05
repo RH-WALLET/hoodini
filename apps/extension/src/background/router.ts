@@ -138,6 +138,11 @@ export function createRouter(deps: RouterDeps) {
           const vault = await store.read();
           if (!vault) return fail('NO_VAULT', 'no wallet has been created yet');
           const address = await session.unlock(vault, request.password);
+          // Auto-approval rides on the session rather than on a separate switch
+          // (D-063): the password is the authorisation, and it lasts exactly as
+          // long as the unlock does. Nothing is armed if the user turned it off,
+          // and that choice persists across restarts.
+          if (consent && (await consent.armOnUnlock())) onConsentChange?.(true);
           return { ok: true, data: { address } };
         }
 
@@ -325,6 +330,7 @@ export function createRouter(deps: RouterDeps) {
           // Arming while locked would be a switch that silently does nothing
           // until the next unlock, which is the worst kind of security control.
           if (!session.address) return fail('LOCKED', 'unlock before arming auto-approve');
+          await consent.setAutoArm(true);
           consent.arm();
           onConsentChange?.(true);
           return { ok: true, data: await consent.state() };
@@ -333,14 +339,16 @@ export function createRouter(deps: RouterDeps) {
         case 'consent.disarm': {
           if (!consent) return fail('UNAVAILABLE', 'standing consent is not wired up in this build');
           // Never refused, for any reason. A user reaching for the off switch
-          // must always find it working, including while locked.
+          // must always find it working, including while locked. Turning it off
+          // sticks: otherwise the next unlock would quietly turn it back on.
+          await consent.setAutoArm(false);
           consent.disarm();
           onConsentChange?.(false);
           return { ok: true, data: await consent.state() };
         }
 
         case 'consent.status': {
-          if (!consent) return { ok: true, data: { armed: false, armedAt: null, liveUnlocked: false } };
+          if (!consent) return { ok: true, data: { armed: false, armedAt: null, liveUnlocked: false, autoArm: false } };
           const state = await consent.state();
           // Auto-lock expires a session without any message reaching this
           // router, so the stored flag alone could outlive the unlock it

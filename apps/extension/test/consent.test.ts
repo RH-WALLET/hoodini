@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { KeystoreSession, TEST_KDF } from '@hoodini/core';
 import { createRouter } from '../src/background/router.js';
 import { PendingTrades } from '../src/background/pending.js';
-import { StandingConsent, FIRST_LIVE_KEY } from '../src/background/consent.js';
+import { StandingConsent, FIRST_LIVE_KEY, AUTO_ARM_KEY } from '../src/background/consent.js';
 import { VaultStore, type StorageArea } from '../src/background/storage.js';
 import { ALLOWED_SURFACES, NEVER_PAGE_ACCESSIBLE, isAllowed, type RequestType } from '../src/background/protocol.js';
 
@@ -314,14 +314,63 @@ describe('turning it off', () => {
     expect(res.ok).toBe(true);
   });
 
-  it('does not persist arming: a worker restart starts disarmed', async () => {
+  it('does not persist the armed flag itself: a worker restart starts disarmed', async () => {
+    // What persists is the *preference* (D-063). The armed state is still
+    // memory-only, so a worker that comes back from eviction cannot sign until
+    // something unlocks it again.
     const { handle, area } = build();
     await handle({ type: 'consent.arm' }, 'popup');
-    // Nothing about the armed state reached storage; only the canary record may.
-    expect(Object.keys(area.data).filter((k) => k !== FIRST_LIVE_KEY)).toHaveLength(0);
-    // A fresh instance over the same storage is a fresh worker.
     const restarted = new StandingConsent(area);
     expect(restarted.armed).toBe(false);
+  });
+
+  it('turning it off sticks, so the next unlock does not quietly turn it back on', async () => {
+    const { handle, area } = build();
+    await handle({ type: 'consent.disarm' }, 'popup');
+    const restarted = new StandingConsent(area);
+    expect(await restarted.autoArmEnabled()).toBe(false);
+    expect(await restarted.armOnUnlock()).toBe(false);
+    expect(restarted.armed).toBe(false);
+  });
+});
+
+describe('unlocking is the authorisation (D-063)', () => {
+  it('arms itself on unlock, with nothing ever having been set', async () => {
+    // The instructed default: a wallet that has never been told otherwise
+    // auto-approves as soon as it is unlocked.
+    const area = memoryArea();
+    const consent = new StandingConsent(area);
+    expect(await consent.autoArmEnabled()).toBe(true);
+    expect(await consent.armOnUnlock()).toBe(true);
+    expect(consent.armed).toBe(true);
+  });
+
+  it('does not arm on unlock once it has been turned off', async () => {
+    const area = memoryArea();
+    const consent = new StandingConsent(area);
+    await consent.setAutoArm(false);
+    expect(await consent.armOnUnlock()).toBe(false);
+    expect(consent.armed).toBe(false);
+  });
+
+  it('the preference is not reachable through the page-facing settings', async () => {
+    // settings.get is page-readable, so a preference living there would tell a
+    // hostile site whether this wallet approves without asking — exactly what it
+    // would want before choosing how much to propose.
+    const { handle, area } = build();
+    await handle({ type: 'consent.arm' }, 'popup');
+    expect(Object.keys(area.data)).toContain(AUTO_ARM_KEY);
+    const res = (await handle({ type: 'settings.get' }, 'page')) as { ok: true; data: object };
+    expect(JSON.stringify(res.data)).not.toMatch(/autoArm|armed/i);
+  });
+
+  it('locking still drops it, however automatic arming is', async () => {
+    const { handle, executed } = build();
+    await handle({ type: 'consent.arm' }, 'popup');
+    await handle({ type: 'wallet.lock' }, 'popup');
+    const res = (await handle(buy(), 'page')) as { ok: true; data: { autoApproved?: boolean } };
+    expect(res.data.autoApproved).toBeUndefined();
+    expect(executed).toHaveLength(0);
   });
 
   it('never reports armed while the session has expired underneath it', async () => {

@@ -1743,3 +1743,43 @@ The landing page's fee note said network gas "is paid to validators". Robinhood
 Chain is an Arbitrum Orbit L2, so it goes to a sequencer. Corrected, and the
 measured round-trip figure added, since the page is public and the claim is now
 backed by two transactions rather than by tests.
+
+---
+
+### D-063 — The password is the authorisation, and it lasts 25 minutes
+
+Two instructions, taken together because they describe one model.
+
+**Auto-lock moves to 25 minutes** (`DEFAULT_AUTO_LOCK_MS`, was 15). Idle-based,
+so it is 25 minutes of nothing happening rather than 25 minutes from unlocking.
+Long enough to work a terminal session without the password becoming background
+noise typed without reading; short enough that a walked-away-from laptop is not
+indefinitely able to sign.
+
+**Standing consent now arms on unlock** rather than by a separate press. D-059
+built it off-by-default and armed by hand; the instruction is that auto-buy
+should be automatic. So unlocking is the authorisation, and it lasts exactly as
+long as the session does.
+
+The consequence, stated once and not re-argued: a fresh unlock now means any
+matched site can propose any amount and have it signed with nothing appearing on
+screen. The reasoning about page-controlled amounts in D-059 still applies and
+has not changed; what has changed is that reaching that state no longer takes a
+deliberate act. Everything that still refuses — locked wallet, sells, the
+invariant-5 canary gate, malformed amounts — is unchanged.
+
+**The preference is deliberately not a `Settings` field.** `settings.get` is
+page-readable (D-053). A preference living there would tell any matched site
+whether this wallet approves without asking, which is precisely the fact a
+hostile page would want before deciding how much to propose. It lives on
+`StandingConsent` behind `consent.status`, which is popup-only, and a test
+greps the page-facing settings response to keep it that way.
+
+**Off stays off.** Disarming writes the preference as well as clearing the
+armed flag, because otherwise the next unlock would quietly turn it back on and
+the off switch would be a fiction. Arming writes it too, so there is one control
+rather than a switch and a hidden default that can disagree with it.
+
+**The armed flag itself is still memory-only.** Only the preference persists. A
+worker returning from eviction is disarmed until something unlocks the wallet
+again, which is what keeps the lock the real boundary rather than the switch.
