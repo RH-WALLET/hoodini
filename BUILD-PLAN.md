@@ -55,7 +55,12 @@ independent risk.
 - [x] Permit2 two-step approval flow, with expiry handling
 - [x] Both paths executed against live state via `eth_call` + state overrides
 - [x] 30 Doppler tests, mutation-checked (5 mutations, all caught)
-- [ ] Confirm a Graduated/Exited asset on-chain — none observed yet
+- [x] Searched for a Graduated/Exited asset — `scripts/doppler-states.ts`, two
+      windows, ≈2,000 assets from the chain's earliest days to now. **All
+      Locked.** `Initialized` is now observed; `Graduated` and `Exited` remain
+      unwitnessed, so that branch of `state()` is a reading of the hook's source
+      and not of the chain. Recorded in DATA_SOURCES rather than left as a to-do,
+      because a negative result found deliberately is an answer
 - [x] Sell control gated on a real quote of the whole balance (D-049)
 
 ## [x] P1c — Second curve adapter — **flap.sh**

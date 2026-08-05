@@ -435,6 +435,35 @@ Solady slot recipe (`keccak256(owner ++ 8 zero bytes ++ uint32(0x87a211a2))`) �
 Doppler tokens are EIP-1167 clones of `DopplerERC20V1`, which is Solady-based, so
 linear storage slots do not work.
 
+### Doppler never graduates — searched, 2026-08-04
+
+`state()` maps five `PoolStatus` values, and two of them had never been seen on
+chain. `scripts/doppler-states.ts` enumerates V4 `Initialize` events, keeps the
+pools whose hook is Doppler's, and reads each asset's status.
+
+| Window | Blocks | Assets | Distribution |
+|---|---|---|---|
+| Recent | 26,969,809 → 28,469,809 | 1,979 | **all Locked** (+33 numeraires Uninitialized) |
+| Earliest | 1,500,000 → 3,000,000 | 25 | 22 Locked, **1 Initialized**, 2 Uninitialized |
+
+**≈2,000 distinct Doppler assets, spanning the chain's first days to now, and
+not one Graduated or Exited.** The old window matters more than the new one: a
+token launched an hour ago has had no chance to graduate, so a recent-only scan
+finding none would prove very little. The earliest blocks are where a graduate
+would be, and there are none there either.
+
+So `state()`'s `graduated` branch is **still unwitnessed** and remains a reading
+of the hook's source rather than of the chain. It is not wrong as far as anyone
+can tell — it is untested against reality, and anything built on it should be
+treated accordingly. `Initialized` moved from unwitnessed to observed.
+
+> **The first version of this script reported a false negative.** It declared
+> three outputs for `getState` where the real ABI has six, so it read `reserves`
+> as the status, failed to decode for most assets, and concluded "none found"
+> from twenty garbage answers. The corrected run is the one above. A recon
+> script that can produce a confident false negative is worse than no script
+> (D-048's lesson, learned again).
+
 ### ⚠ Doppler sells can be unavailable — product-critical
 
 Sells revert on **3 of 4** sampled `Locked` pools, at *every* size including 1
