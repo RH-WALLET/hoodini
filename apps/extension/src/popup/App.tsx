@@ -28,7 +28,7 @@ import {
   type WithdrawOutcome,
   type PositionsResult,
 } from './client.js';
-import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS } from '@hoodini/core';
+import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS, type Settings } from '@hoodini/core';
 import { TopHat, Icon } from './icons.js';
 import { SUPPORTED_HOSTS } from '../hosts.js';
 import { LIVE_TRADING } from '../background/config.js';
@@ -948,7 +948,28 @@ function AutoApprove(): React.JSX.Element {
   );
 }
 
+/**
+ * Fold the fields currently on screen back into a full settings record.
+ *
+ * The edited tab wins; the other two are carried through untouched. Slippage
+ * becomes NaN rather than 0 on a non-numeric input — 0 is a number the
+ * validator would have to special-case, NaN is plainly not a value.
+ */
+function withEdits(base: Settings, index: number, presets: string[], bps: string): Settings {
+  const profiles = base.profiles.map((p, i) =>
+    i === index
+      ? {
+          buyPresets: presets.map((v) => v.trim()).filter((v) => v !== ''),
+          slippageBps: /^\d+$/.test(bps.trim()) ? Number(bps.trim()) : Number.NaN,
+        }
+      : p,
+  );
+  return { ...base, profiles, activeProfile: index };
+}
+
 function TradeSettings(): React.JSX.Element {
+  const [all, setAll] = useState<Settings | null>(null);
+  const [tab, setTab] = useState(0);
   const [presets, setPresets] = useState<string[]>([...DEFAULT_SETTINGS.buyPresets]);
   const [slippage, setSlippage] = useState(String(DEFAULT_SETTINGS.slippageBps));
   const [error, setError] = useState<string | null>(null);
@@ -959,27 +980,39 @@ function TradeSettings(): React.JSX.Element {
     void (async () => {
       try {
         const s = await settingsApi.get();
-        setPresets([...s.buyPresets]);
-        setSlippage(String(s.slippageBps));
+        setAll(s);
+        setTab(s.activeProfile);
+        setPresets([...(s.profiles[s.activeProfile]?.buyPresets ?? s.buyPresets)]);
+        setSlippage(String(s.profiles[s.activeProfile]?.slippageBps ?? s.slippageBps));
       } catch {
         // Defaults are already on screen; a failed read should not blank them.
       }
     })();
   }, []);
 
+  /** Move to another tab, keeping unsaved edits on the one being left. */
+  const pick = (i: number) => {
+    if (!all) return;
+    const next = withEdits(all, tab, presets, slippage);
+    setAll(next);
+    setTab(i);
+    setPresets([...(next.profiles[i]?.buyPresets ?? [])]);
+    setSlippage(String(next.profiles[i]?.slippageBps ?? 100));
+    setSaved(false);
+  };
+
   const save = async (next: string[], bps: string) => {
     setError(null);
     setSaved(false);
     setBusy(true);
     try {
-      const applied = await settingsApi.set({
-        buyPresets: next.map((p) => p.trim()).filter((p) => p !== ''),
-        // NaN rather than 0 on a non-numeric input: 0 is a number the
-        // validator would have to special-case, NaN is plainly not a value.
-        slippageBps: /^\d+$/.test(bps.trim()) ? Number(bps.trim()) : Number.NaN,
-      });
-      setPresets([...applied.buyPresets]);
-      setSlippage(String(applied.slippageBps));
+      // The whole record goes back, not just the edited tab. Sending one
+      // profile would read as a settings object with the other two missing,
+      // and they would be replaced by defaults.
+      const applied = await settingsApi.set(withEdits(all ?? DEFAULT_SETTINGS, tab, next, bps));
+      setAll(applied);
+      setPresets([...(applied.profiles[tab]?.buyPresets ?? applied.buyPresets)]);
+      setSlippage(String(applied.profiles[tab]?.slippageBps ?? applied.slippageBps));
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not save');

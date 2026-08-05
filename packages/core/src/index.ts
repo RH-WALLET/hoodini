@@ -74,6 +74,7 @@ export {
 export { loadPositions, summarise, type Position, type PositionsOptions } from './positions.js';
 export {
   DEFAULT_SETTINGS,
+  PROFILE_COUNT,
   normaliseSettings,
   validateSettings,
   isValidPreset,

@@ -21,16 +21,60 @@
  * shape (the presets that never reached the intent at all).
  */
 
-export interface Settings {
+/**
+ * One configuration: what the buttons spend, and how much slippage they accept.
+ *
+ * Slippage belongs *inside* a profile rather than beside them. The reference
+ * terminals get this right: the reason to keep three of these is that market
+ * conditions differ, and a calm-market preset set with a hot-market slippage is
+ * not a configuration anyone wanted (D-066).
+ */
+export interface Profile {
   /** Quick-buy amounts in ETH, in the order they are shown. */
   readonly buyPresets: readonly string[];
   /** Slippage tolerance in basis points. 100 = 1%. */
   readonly slippageBps: number;
 }
 
+export interface Settings {
+  /** Exactly `PROFILE_COUNT` of them, addressed as P1, P2, P3 in the UI. */
+  readonly profiles: readonly Profile[];
+  /** Which one is in force. Always a valid index into `profiles`. */
+  readonly activeProfile: number;
+  /**
+   * The active profile's presets, flattened.
+   *
+   * Not redundant — load-bearing. Every existing reader (the overlay, the
+   * content script, the confirm sheet) asks for `buyPresets` and must keep
+   * working without knowing profiles exist. Kept in step by
+   * `normaliseSettings`, which is the only thing that constructs a `Settings`.
+   */
+  readonly buyPresets: readonly string[];
+  /** The active profile's slippage, flattened. See `buyPresets`. */
+  readonly slippageBps: number;
+}
+
+/** P1, P2, P3. Three is what the reference uses and what fits a row of tabs. */
+export const PROFILE_COUNT = 3;
+
+/**
+ * Three profiles that differ in the way market conditions do.
+ *
+ * P1 is the everyday one and matches what the extension shipped with before
+ * profiles existed, so an upgrade changes nothing anyone had set. P2 is bigger
+ * with more slippage for a fast market; P3 is a size nobody presses by accident.
+ */
+const DEFAULT_PROFILES: readonly Profile[] = [
+  { buyPresets: ['0.001', '0.01'], slippageBps: 100 },
+  { buyPresets: ['0.01', '0.05', '0.1'], slippageBps: 300 },
+  { buyPresets: ['0.1', '0.25'], slippageBps: 500 },
+];
+
 export const DEFAULT_SETTINGS: Settings = {
-  buyPresets: ['0.001', '0.01'],
-  slippageBps: 100,
+  profiles: DEFAULT_PROFILES,
+  activeProfile: 0,
+  buyPresets: DEFAULT_PROFILES[0]!.buyPresets,
+  slippageBps: DEFAULT_PROFILES[0]!.slippageBps,
 };
 
 /** At least one button, and few enough to fit a terminal card. */
@@ -85,8 +129,8 @@ export function isValidSlippageBps(value: unknown): value is number {
  * dropped individually rather than failing the whole record, so one bad row in
  * storage does not cost the user the other three.
  */
-export function normaliseSettings(input: unknown): Settings {
-  const raw = (input ?? {}) as Partial<Record<keyof Settings, unknown>>;
+function normaliseProfile(input: unknown, fallback: Profile): Profile {
+  const raw = (input ?? {}) as Partial<Record<keyof Profile, unknown>>;
 
   const presets = Array.isArray(raw.buyPresets)
     ? raw.buyPresets.filter(isValidPreset).map((p) => p.trim())
@@ -104,9 +148,35 @@ export function normaliseSettings(input: unknown): Settings {
   }
 
   return {
-    buyPresets: unique.length >= MIN_PRESETS ? unique : DEFAULT_SETTINGS.buyPresets,
-    slippageBps: isValidSlippageBps(raw.slippageBps) ? raw.slippageBps : DEFAULT_SETTINGS.slippageBps,
+    buyPresets: unique.length >= MIN_PRESETS ? unique : fallback.buyPresets,
+    slippageBps: isValidSlippageBps(raw.slippageBps) ? raw.slippageBps : fallback.slippageBps,
   };
+}
+
+export function normaliseSettings(input: unknown): Settings {
+  const raw = (input ?? {}) as Record<string, unknown>;
+
+  // Storage written before profiles existed is a single flat configuration.
+  // Read as P1 rather than discarded, so upgrading does not silently reset
+  // amounts somebody had chosen.
+  const source: unknown[] = Array.isArray(raw['profiles'])
+    ? (raw['profiles'] as unknown[])
+    : [raw];
+
+  const profiles = Array.from({ length: PROFILE_COUNT }, (_, i) =>
+    normaliseProfile(source[i], DEFAULT_PROFILES[i]!),
+  );
+
+  const wanted = raw['activeProfile'];
+  const active =
+    typeof wanted === 'number' && Number.isInteger(wanted) && wanted >= 0 && wanted < PROFILE_COUNT
+      ? wanted
+      : 0;
+
+  // The flattened fields are derived here and nowhere else, so they cannot
+  // drift from the profile they are supposed to mirror.
+  const chosen = profiles[active]!;
+  return { profiles, activeProfile: active, buyPresets: chosen.buyPresets, slippageBps: chosen.slippageBps };
 }
 
 /**
@@ -120,7 +190,36 @@ export function normaliseSettings(input: unknown): Settings {
 export type SettingsError = { readonly field: 'buyPresets' | 'slippageBps'; readonly message: string };
 
 export function validateSettings(input: unknown): SettingsError | null {
-  const raw = (input ?? {}) as Partial<Record<keyof Settings, unknown>>;
+  const outer = (input ?? {}) as Record<string, unknown>;
+
+  // A full record: every profile must be valid, because saving one that is not
+  // would leave a tab the user can select and then cannot spend from.
+  if (Array.isArray(outer['profiles'])) {
+    const list = outer['profiles'] as unknown[];
+    if (list.length !== PROFILE_COUNT) {
+      return { field: 'buyPresets', message: `expected ${PROFILE_COUNT} profiles` };
+    }
+    for (let i = 0; i < list.length; i++) {
+      const err = validateProfile(list[i]);
+      // Named by tab, so an error points at the one that is wrong rather than
+      // at "settings".
+      if (err) return { ...err, message: `P${i + 1}: ${err.message}` };
+    }
+    const active = outer['activeProfile'];
+    if (
+      active !== undefined &&
+      (typeof active !== 'number' || !Number.isInteger(active) || active < 0 || active >= PROFILE_COUNT)
+    ) {
+      return { field: 'buyPresets', message: 'that profile does not exist' };
+    }
+    return null;
+  }
+
+  return validateProfile(input);
+}
+
+function validateProfile(input: unknown): SettingsError | null {
+  const raw = (input ?? {}) as Partial<Record<keyof Profile, unknown>>;
 
   if (!Array.isArray(raw.buyPresets)) {
     return { field: 'buyPresets', message: 'presets must be a list' };

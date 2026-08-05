@@ -67,6 +67,8 @@ export interface ChainTaggedConfig {
   readonly onWarm?: (token: TokenRef) => void;
   /** Shown under the buttons: what a click will submit with (D-065). */
   readonly config?: { readonly slippageBps: number };
+  /** Open the focused trade panel — see OverlayOptions.onExpand. */
+  readonly onExpand?: (token: TokenRef) => void;
   /** Position against the row rather than flowing after it — see PLACEMENT. */
   readonly placement?: OverlayPlacement;
 }
@@ -164,6 +166,7 @@ export class ChainTaggedSiteAdapter implements SiteAdapter {
       ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
       ...(this.#c.onWarm ? { onWarm: this.#c.onWarm } : {}),
       ...(this.#c.config ? { config: this.#c.config } : {}),
+      ...(this.#c.onExpand ? { onExpand: this.#c.onExpand } : {}),
     });
   }
 
@@ -242,6 +245,7 @@ type Common = {
   probeSell?: (token: TokenRef, percent?: number) => Promise<SellUnavailable | null>;
   onWarm?: (token: TokenRef) => void;
   config?: { readonly slippageBps: number };
+  onExpand?: (token: TokenRef) => void;
 };
 
 /**

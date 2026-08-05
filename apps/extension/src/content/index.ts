@@ -15,9 +15,11 @@ import {
   createSiteAdapters,
   createTerminalAdapter,
   matchesSite,
+  mountPanel,
   unmountAll,
   type IntentResult,
   type OverlayIntent,
+  type PanelPosition,
 } from '@hoodini/adapters';
 import { parseEther } from 'viem';
 import { DEFAULT_SETTINGS, normaliseSettings, type Settings, type TokenRef } from '@hoodini/core';
@@ -176,6 +178,53 @@ function warm(token: TokenRef): void {
 
 const onIntent = (intent: OverlayIntent) => propose(intent);
 
+/**
+ * Where the panel was last dragged to.
+ *
+ * Kept in extension storage rather than the page's, because the page's belongs
+ * to the site and a panel that moved itself between terminals would be strange.
+ * Two integers, clamped into view on read, so nothing worse than a bad position
+ * can come back out of it.
+ */
+const PANEL_POS_KEY = 'hoodini.panelpos.v1';
+
+async function readPanelPosition(): Promise<PanelPosition | undefined> {
+  try {
+    const got = await chrome.storage.local.get(PANEL_POS_KEY);
+    const raw = got[PANEL_POS_KEY] as { x?: unknown; y?: unknown } | undefined;
+    if (typeof raw?.x !== 'number' || typeof raw?.y !== 'number') return undefined;
+    if (!Number.isFinite(raw.x) || !Number.isFinite(raw.y)) return undefined;
+    return { x: raw.x, y: raw.y };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Open the focused panel on a token.
+ *
+ * The profiles come from settings, which a page may read (D-053) but never
+ * write. Switching tabs inside the panel therefore changes what this page draws
+ * and submits, and nothing else: it does not persist, and it cannot reach the
+ * popup or another tab.
+ */
+function openPanel(token: TokenRef): void {
+  void readPanelPosition().then((position) => {
+    mountPanel(document, token, {
+      profiles: settings.profiles,
+      activeProfile: settings.activeProfile,
+      onIntent,
+      probeSell,
+      ...(position ? { position } : {}),
+      onMove: (next) => {
+        void chrome.storage.local.set({ [PANEL_POS_KEY]: next }).catch(() => {
+          // A position that fails to save costs a drag next time, nothing more.
+        });
+      },
+    });
+  });
+}
+
 // Prefer the adapter that knows this site; fall back to shape-based detection
 // so an unlisted page still gets controls rather than nothing.
 //
@@ -199,6 +248,7 @@ const adapterOptions = {
   get config(): { slippageBps: number } {
     return { slippageBps: settings.slippageBps };
   },
+  onExpand: openPanel,
 };
 const adapter =
   [

@@ -383,7 +383,7 @@ describe('sell gating', () => {
     // balance may pay out a quarter of it happily. Disabling every fraction
     // because one failed would hide a sell that works.
     const { host } = mount(async (_t, percent) => (percent === 100 ? { reason: 'too big' } : null));
-    const [quarter, , whole] = sellButtons(host);
+    const [quarter, , , whole] = sellButtons(host);
     whole!.click();
     await vi.waitFor(() => expect(whole!.disabled).toBe(true));
     expect(quarter!.disabled).toBe(false);
@@ -393,8 +393,8 @@ describe('sell gating', () => {
     const asked: (number | undefined)[] = [];
     const { host } = mount(async (_t, percent) => { asked.push(percent); return null; });
     for (const b of sellButtons(host)) b.click();
-    await vi.waitFor(() => expect(asked).toHaveLength(3));
-    expect(asked).toEqual([25, 50, 100]);
+    await vi.waitFor(() => expect(asked).toHaveLength(4));
+    expect(asked).toEqual([25, 50, 75, 100]);
   });
 
   it('stays disabled after refusing, so a second click cannot fire it', async () => {

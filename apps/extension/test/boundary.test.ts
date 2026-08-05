@@ -10,7 +10,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_SETTINGS, KeystoreSession, TEST_KDF } from '@hoodini/core';
+import { DEFAULT_SETTINGS, KeystoreSession, TEST_KDF, type Settings } from '@hoodini/core';
 import { createRouter } from '../src/background/router.js';
 import { SettingsStore } from '../src/background/settingsStore.js';
 import { VaultStore, VAULT_KEY, type StorageArea } from '../src/background/storage.js';
@@ -80,8 +80,49 @@ describe('settings', () => {
   it('round-trips a valid edit', async () => {
     const { handle } = makeSettingsRouter();
     const next = { buyPresets: ['0.02', '0.2'], slippageBps: 250 };
-    expect(await handle({ type: 'settings.set', settings: next }, 'popup')).toEqual({ ok: true, data: next });
-    expect(await handle({ type: 'settings.get' }, 'popup')).toEqual({ ok: true, data: next });
+    const saved = (await handle({ type: 'settings.set', settings: next }, 'popup')) as { ok: true; data: Settings };
+    // A flat edit is read as P1 (D-066), and the flattened fields mirror it.
+    expect(saved.data.buyPresets).toEqual(next.buyPresets);
+    expect(saved.data.slippageBps).toBe(250);
+    expect(saved.data.profiles[0]).toEqual(next);
+    expect(await handle({ type: 'settings.get' }, 'popup')).toEqual(saved);
+  });
+
+  it('keeps the other profiles when one is edited', async () => {
+    // Sending a single profile would read as a record with two missing, and
+    // they would be replaced by defaults — losing configurations silently.
+    const { handle } = makeSettingsRouter();
+    const full = {
+      profiles: [
+        { buyPresets: ['0.001'], slippageBps: 100 },
+        { buyPresets: ['0.5'], slippageBps: 400 },
+        { buyPresets: ['2'], slippageBps: 900 },
+      ],
+      activeProfile: 2,
+    };
+    const saved = (await handle({ type: 'settings.set', settings: full }, 'popup')) as { ok: true; data: Settings };
+    expect(saved.data.profiles[1]).toEqual({ buyPresets: ['0.5'], slippageBps: 400 });
+    expect(saved.data.activeProfile).toBe(2);
+    expect(saved.data.buyPresets).toEqual(['2']);
+  });
+
+  it('names the offending tab when one profile is invalid', async () => {
+    const { handle } = makeSettingsRouter();
+    const res = (await handle(
+      {
+        type: 'settings.set',
+        settings: {
+          profiles: [
+            { buyPresets: ['0.001'], slippageBps: 100 },
+            { buyPresets: ['0,5'], slippageBps: 100 },
+            { buyPresets: ['1'], slippageBps: 100 },
+          ],
+        },
+      },
+      'popup',
+    )) as { ok: false; error: { message: string } };
+    expect(res.ok).toBe(false);
+    expect(res.error.message).toContain('P2');
   });
 
   it('rejects a bad edit with a reason, and does not save it', async () => {
@@ -121,7 +162,9 @@ describe('settings', () => {
   it('stores only normalised values, whatever the writer passed', async () => {
     const { handle, area } = makeSettingsRouter();
     await handle({ type: 'settings.set', settings: { buyPresets: [' 0.02 ', '0.2'], slippageBps: 250 } }, 'popup');
-    expect(area.data['hoodini.settings.v1']).toEqual({ buyPresets: ['0.02', '0.2'], slippageBps: 250 });
+    const stored = area.data['hoodini.settings.v1'] as Settings;
+    expect(stored.profiles[0]).toEqual({ buyPresets: ['0.02', '0.2'], slippageBps: 250 });
+    expect(stored.buyPresets).toEqual(['0.02', '0.2']);
   });
 });
 

@@ -370,7 +370,7 @@ describe('preset amounts', () => {
 
     const shadow = document.querySelector(`[${HOST_ATTR}]`)!.shadowRoot!;
     const sells = [...shadow.querySelectorAll('button.sell')];
-    expect(sells.map((b) => b.textContent)).toEqual(['25%', '50%', '100%']);
+    expect(sells.map((b) => b.textContent)).toEqual(['25%', '50%', '75%', '100%']);
 
     sells[1]!.dispatchEvent(new Event('click', { bubbles: true }));
     expect(seen).toEqual([{ side: 'sell', token: { address: RH, chainId: CHAIN }, percent: 50 }]);

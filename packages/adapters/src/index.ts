@@ -19,6 +19,14 @@ export {
   type SellUnavailable,
 } from './overlay.js';
 export { AdapterRuntime, matchesSite, type RuntimeOptions } from './runtime.js';
+export {
+  mountPanel,
+  unmountPanel,
+  PANEL_ATTR,
+  type PanelOptions,
+  type PanelProfile,
+  type PanelPosition,
+} from './panel.js';
 export { GenericAddressAdapter, type GenericAdapterOptions } from './adapters/generic.js';
 export { AxiomAdapter, createAxiomAdapter, type AxiomAdapterOptions } from './adapters/axiom.js';
 export {

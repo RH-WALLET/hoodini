@@ -117,7 +117,7 @@ export interface OverlayOptions {
   /** Preset buy amounts in ETH, shown as quick buttons. */
   readonly amounts?: readonly string[];
   /**
-   * Sell fractions, shown as a second row. Defaults to quarters.
+   * Sell fractions, shown as a second row. Defaults to 25/50/75/100.
    *
    * Empty disables them and restores the single whole-balance Sell button, so
    * an adapter with no room for two rows is not forced into one.
@@ -167,6 +167,13 @@ export interface OverlayOptions {
    * before the click — which is the whole window needed.
    */
   readonly onWarm?: (token: TokenRef) => void;
+  /**
+   * Open the focused panel for this token.
+   *
+   * Renders a small expander at the end of the bar. Absent means no expander,
+   * which is how a surface with no room for one opts out (D-066).
+   */
+  readonly onExpand?: (token: TokenRef) => void;
 }
 
 /**
@@ -194,6 +201,9 @@ const STYLE = `
   button.unavailable { border-color: #3a3f4a; background: #1a1c21; color: #6f7787; cursor: not-allowed; }
   button:disabled { cursor: default; opacity: 0.75; }
   .label { color: #8b93a5; font-size: 11px; padding-right: 2px; }
+  button.expand { padding: 6px 8px; border-color: #2a3648; background: #121a27; color: #8493aa;
+                  font-size: 11px; line-height: 1; }
+  button.expand:hover { border-color: #4da3ff; color: #e9eef7; }
   .cfg { color: #6f7787; font-size: 10px; padding: 0 2px; border-left: 1px solid rgba(255,255,255,.09);
          margin-left: 2px; padding-left: 6px; }
 `;
@@ -270,7 +280,7 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
    * venue that pays out 25% may still revert on 100%, and one button standing
    * for all four would be a button that is sometimes lying.
    */
-  const percents = options.sellPercents ?? [25, 50, 100];
+  const percents = options.sellPercents ?? [25, 50, 75, 100];
   for (const percent of percents) {
     const b = doc.createElement('button');
     b.className = 'sell';
@@ -321,6 +331,19 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
     label.className = 'label';
     label.textContent = options.label;
     bar.appendChild(label);
+  }
+
+  if (options.onExpand) {
+    const expand = doc.createElement('button');
+    expand.className = 'expand';
+    expand.textContent = '⤢';
+    expand.title = 'Open the trade panel';
+    expand.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      options.onExpand?.(token);
+    });
+    bar.appendChild(expand);
   }
 
   if (options.config) {

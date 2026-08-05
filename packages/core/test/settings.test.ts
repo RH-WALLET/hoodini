@@ -13,6 +13,7 @@ import { parseEther } from 'viem';
 import {
   DEFAULT_SETTINGS,
   MAX_PRESETS,
+  PROFILE_COUNT,
   isValidPreset,
   isValidSlippageBps,
   normaliseSettings,
@@ -91,10 +92,47 @@ describe('normaliseSettings', () => {
   });
 
   it('keeps a valid slippage even when the presets are rubbish', () => {
-    expect(normaliseSettings({ buyPresets: 'no', slippageBps: 300 })).toEqual({
-      buyPresets: DEFAULT_SETTINGS.buyPresets,
-      slippageBps: 300,
+    const s = normaliseSettings({ buyPresets: 'no', slippageBps: 300 });
+    expect(s.buyPresets).toEqual(DEFAULT_SETTINGS.buyPresets);
+    expect(s.slippageBps).toBe(300);
+  });
+
+  it('reads settings written before profiles existed as P1', () => {
+    // Upgrading must not silently reset amounts somebody chose (D-066).
+    const s = normaliseSettings({ buyPresets: ['0.02', '0.2'], slippageBps: 250 });
+    expect(s.profiles).toHaveLength(PROFILE_COUNT);
+    expect(s.profiles[0]).toEqual({ buyPresets: ['0.02', '0.2'], slippageBps: 250 });
+    expect(s.activeProfile).toBe(0);
+    // And the flattened fields mirror the active one, which is what every
+    // existing reader actually asks for.
+    expect(s.buyPresets).toEqual(['0.02', '0.2']);
+    expect(s.slippageBps).toBe(250);
+  });
+
+  it('always flattens the ACTIVE profile, not the first one', () => {
+    const s = normaliseSettings({
+      profiles: [
+        { buyPresets: ['0.001'], slippageBps: 100 },
+        { buyPresets: ['0.5'], slippageBps: 400 },
+        { buyPresets: ['1'], slippageBps: 900 },
+      ],
+      activeProfile: 1,
     });
+    expect(s.buyPresets).toEqual(['0.5']);
+    expect(s.slippageBps).toBe(400);
+  });
+
+  it('falls back to P1 when the active index is out of range or nonsense', () => {
+    for (const bad of [3, -1, 1.5, 'two', null]) {
+      const s = normaliseSettings({ activeProfile: bad });
+      expect(s.activeProfile, String(bad)).toBe(0);
+      expect(s.buyPresets).toEqual(s.profiles[0]!.buyPresets);
+    }
+  });
+
+  it('always produces exactly three profiles, however many were stored', () => {
+    expect(normaliseSettings({ profiles: [] }).profiles).toHaveLength(PROFILE_COUNT);
+    expect(normaliseSettings({ profiles: [{}, {}, {}, {}, {}] }).profiles).toHaveLength(PROFILE_COUNT);
   });
 
   it('trims whitespace rather than rejecting it', () => {

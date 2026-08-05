@@ -1889,3 +1889,51 @@ edit is reflected without a reload.
 disclosure to the site, for the same shadow-root reason as above, and the
 percentages do not need it — the confirm sheet shows the exact amount before
 anything is signed. It is not a small omission and it is not an oversight.
+
+---
+
+### D-066 — Profiles, and the focused panel
+
+The second half of the trade widget Rory pinned. The row controls stay for
+scanning a list; this is the other object, for one token held still.
+
+**Profiles carry slippage, not just amounts.** Three configurations, P1–P3, each
+with its own presets *and* its own tolerance. That pairing is the whole point:
+market conditions differ, and a calm-market preset set with a hot-market
+slippage is not a configuration anyone chose. P1 defaults to exactly what the
+extension shipped with before, so upgrading changes nothing anybody had set, and
+storage written before profiles existed is read as P1 rather than discarded.
+
+**`Settings` keeps flat `buyPresets` and `slippageBps` alongside the profiles.**
+Not redundancy — every existing reader asks for those and must keep working
+without knowing profiles exist. They are derived in `normaliseSettings`, which
+is the only thing that constructs a `Settings`, so they cannot drift from the
+profile they mirror.
+
+**Switching profiles in the panel does not write settings.** `settings.set` is
+popup-only so that a site cannot quietly widen what a button spends and wait to
+be clicked (D-053), and that reasoning does not stop applying because the
+control is prettier. A tab switch changes what *this page* draws and submits for
+as long as the panel is open. The popup owns the persistent default. This needed
+no new capability at all: the page may already read settings, so it can be given
+all three and choose locally.
+
+**The panel shows no balance, and cannot be told one.** The reference prints
+`0 CASHCAT · $0` beside its sell buttons. An injected panel has an open shadow
+root, so anything it renders the site can read, and `positions.list` is
+popup-only precisely to keep holdings from a site. Percentages need no such
+disclosure. Two tests hold this: one scans the rendered rows and rejects any
+number that is not a preset, a percentage or the slippage, and one asserts the
+options interface has no channel for a balance in the first place — the stronger
+claim, because widening it would be a visible change rather than a quiet one.
+
+**One panel at a time**, by construction. Two would be two configurations on
+screen with no way to tell which one a click used.
+
+**Position is stored in extension storage, not the page's.** The page's belongs
+to the site, and a panel that moved itself between terminals would be strange.
+Clamped into view on read, so a stale coordinate cannot strand it off screen,
+and written on pointer release rather than on every move.
+
+Sell fractions became 25/50/75/100 rather than 25/50/100 — Rory's call, and it
+matches the reference.
