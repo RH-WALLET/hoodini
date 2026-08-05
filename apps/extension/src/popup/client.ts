@@ -42,6 +42,11 @@ export interface PositionsResult {
   readonly unvalued: number;
 }
 
+export const balanceApi = {
+  /** Native ETH, wei as a decimal string. Popup-only. */
+  read: () => send<{ wei: string }>({ type: 'wallet.balance' }),
+};
+
 export const positions = {
   list: () => send<PositionsResult>({ type: 'positions.list' }),
 };

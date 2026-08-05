@@ -73,6 +73,14 @@ export type Request =
   | { readonly type: 'consent.arm' }
   | { readonly type: 'consent.disarm' }
   | { readonly type: 'consent.status' }
+  /**
+   * The wallet's native ETH balance.
+   *
+   * Popup-only for the same reason as `positions.list`: what someone holds is
+   * their business, not a site's. A page that could read it would learn the
+   * wallet's contents just by being visited.
+   */
+  | { readonly type: 'wallet.balance' }
   | { readonly type: 'positions.list' }
   | { readonly type: 'settings.get' }
   | { readonly type: 'settings.set'; readonly settings: unknown }
@@ -158,6 +166,7 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   // Holdings are the user's business, not a site's. A page that could read
   // them would learn the wallet's contents just by being visited.
   'positions.list': ['popup'],
+  'wallet.balance': ['popup'],
   // The overlay needs the presets to draw its buttons, and they are not
   // sensitive — a site learning that someone's quick-buy is 0.01 ETH tells it
   // nothing it could not infer from watching a trade.

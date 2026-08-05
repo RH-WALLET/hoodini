@@ -308,6 +308,18 @@ export function createRouter(deps: RouterDeps) {
           return { ok: true, data: { id: proposed.id } };
         }
 
+        case 'wallet.balance': {
+          if (!trade) return fail('UNAVAILABLE', 'chain access is not wired up in this build');
+          const owner = session.address;
+          if (!owner) return fail('LOCKED', 'unlock to see your balance');
+          try {
+            const wei = await trade.client.getBalance({ address: owner });
+            return { ok: true, data: { wei: wei.toString() } };
+          } catch {
+            return fail('UNAVAILABLE', 'could not reach the network');
+          }
+        }
+
         case 'consent.arm': {
           if (!consent) return fail('UNAVAILABLE', 'standing consent is not wired up in this build');
           // Arming while locked would be a switch that silently does nothing

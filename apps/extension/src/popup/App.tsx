@@ -16,12 +16,14 @@ import {
   trades,
   withdrawApi,
   consentApi,
+  balanceApi,
   type ConsentState,
   type PendingTradeRow,
   type WithdrawOutcome,
   type PositionsResult,
 } from './client.js';
 import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS } from '@hoodini/core';
+import { TopHat, Icon } from './icons.js';
 import { LIVE_TRADING } from '../background/config.js';
 import { CANARY_MAX_WEI } from '../background/engine.js';
 import { confirmNotice } from './notice.js';
@@ -78,33 +80,275 @@ export function App(): React.JSX.Element {
     [refresh],
   );
 
+  const [tab, setTab] = useState<'home' | 'activity' | 'settings'>('home');
   const view: View = !status ? 'loading' : !status.hasVault ? 'setup' : status.isUnlocked ? 'unlocked' : 'locked';
 
   return (
-    <div className="wrap">
-      <header>
-        <h1>Hoodini</h1>
-        <span className="tag">0% fee · non-custodial</span>
-      </header>
-
-      {error && <div className="error">{error}</div>}
-
+    <div className="app">
       {/* Outside the view switch on purpose. A badge that leads to an empty
           popup is worse than no badge: if something is waiting, it is shown
           whatever state the wallet is in, and the sheet says so when approving
           needs an unlock first. */}
       <ConfirmSheet unlocked={view === 'unlocked'} />
 
-      {view === 'loading' && <div className="panel muted">Loading…</div>}
+      {view === 'unlocked' && status && <AccountBar status={status} busy={busy} run={run} />}
+      {error && <div className="error">{error}</div>}
+
+      {view === 'loading' && (
+        <div className="solo">
+          <p className="note" style={{ textAlign: 'center' }}>Loading…</p>
+        </div>
+      )}
       {view === 'setup' && <Setup busy={busy} run={run} />}
       {view === 'locked' && status && <Locked status={status} busy={busy} run={run} />}
-      {view === 'unlocked' && status && <Unlocked status={status} busy={busy} run={run} />}
 
-      <p className="note">
-        Keys are generated on this device, encrypted with your password, and never leave it. Hoodini has no server.
-      </p>
+      {view === 'unlocked' && status && (
+        <>
+          <div className="scroll">
+            {tab === 'home' && <Home status={status} busy={busy} run={run} />}
+            {tab === 'activity' && <ActivityTab />}
+            {tab === 'settings' && <SettingsTab status={status} busy={busy} run={run} />}
+          </div>
+          <nav className="nav">
+            <button aria-current={tab === 'home' ? 'page' : undefined} onClick={() => setTab('home')}>
+              <Icon.home /> Home
+            </button>
+            <button aria-current={tab === 'activity' ? 'page' : undefined} onClick={() => setTab('activity')}>
+              <Icon.activity /> Activity
+            </button>
+            <button aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}>
+              <Icon.settings /> Settings
+            </button>
+          </nav>
+        </>
+      )}
     </div>
   );
+}
+
+/**
+ * The account bar.
+ *
+ * Address is a button rather than text: copying it is the single most common
+ * thing anyone does on a wallet's home screen, and making that a click on the
+ * thing itself removes the only step between wanting it and having it.
+ */
+function AccountBar({ status, busy, run }: { status: WalletStatus; busy: boolean; run: RunFn }): React.JSX.Element {
+  const [copied, setCopied] = useState(false);
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    const load = () => void consentApi.status().then((c) => setArmed(c.armed)).catch(() => setArmed(false));
+    load();
+    const onMsg = (m: { type?: string }) => { if (m?.type === 'consent.changed') load(); };
+    chrome.runtime.onMessage.addListener(onMsg);
+    return () => chrome.runtime.onMessage.removeListener(onMsg);
+  }, []);
+
+  const copy = async () => {
+    if (!status.address) return;
+    await navigator.clipboard.writeText(status.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  };
+
+  return (
+    <div className="acct">
+      <div className="avatar"><TopHat size={22} /></div>
+      <div className="acct-id">
+        <div className="acct-name">Hoodini</div>
+        <button className="acct-addr" onClick={() => void copy()} title="Copy address">
+          {status.address ? short(status.address) : ''} {copied ? <Icon.check /> : <Icon.copy />}
+        </button>
+      </div>
+      <div className="acct-actions">
+        {armed && (
+          <span className="icon-btn armed" title="Auto-approve is armed"><Icon.bolt /></span>
+        )}
+        <button className="icon-btn" title="Lock now" disabled={busy} onClick={() => run(() => wallet.lock())}>
+          <Icon.lock />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Home: what you hold, and the four things you can do about it. */
+function Home({ status, busy, run }: { status: WalletStatus; busy: boolean; run: RunFn }): React.JSX.Element {
+  const [wei, setWei] = useState<string | null>(null);
+  const [pos, setPos] = useState<PositionsResult | null>(null);
+  const [open, setOpen] = useState<'receive' | 'withdraw' | null>(null);
+
+  useEffect(() => {
+    void balanceApi.read().then((b) => setWei(b.wei)).catch(() => setWei(null));
+    void positionsApi.list().then(setPos).catch(() => setPos(null));
+  }, []);
+
+  // Everything is denominated in ETH rather than a currency, because pricing it
+  // in dollars would need a feed and there is no backend to ask (invariant 4).
+  const liquid = wei ? BigInt(wei) : 0n;
+  const inTokens = pos ? BigInt(pos.totalWei) : 0n;
+  const total = liquid + inTokens;
+
+  const openTerminal = () => void chrome.tabs.create({ url: 'https://axiom.trade/' });
+
+  return (
+    <>
+      <div className="hero">
+        <div className="amount">
+          {wei === null ? '—' : fmt(total)}
+          <span className="unit">ETH</span>
+        </div>
+        <div className="split">
+          <b>{fmt(liquid)}</b> liquid · <b>{fmt(inTokens)}</b> in tokens
+        </div>
+        <div className="chip">0% fee, every trade</div>
+      </div>
+
+      <div className="tiles">
+        <button className="tile" onClick={() => setOpen(open === 'receive' ? null : 'receive')}>
+          <Icon.receive /> Receive
+        </button>
+        <button className="tile" onClick={() => setOpen(open === 'withdraw' ? null : 'withdraw')}>
+          <Icon.send /> Send
+        </button>
+        <button className="tile" onClick={openTerminal}>
+          <Icon.trade /> Trade
+        </button>
+        <button className="tile" disabled={busy} onClick={() => run(() => wallet.lock())}>
+          <Icon.lock /> Lock
+        </button>
+      </div>
+
+      {open === 'receive' && <Receive address={status.address} />}
+      {open === 'withdraw' && <Withdraw from={status.address} />}
+
+      <Positions />
+    </>
+  );
+}
+
+/** Receive: the address, large enough to check character by character. */
+function Receive({ address }: { address: Address | null }): React.JSX.Element {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="card stack" style={{ marginBottom: 12 }}>
+      <div className="card-title">Your address on Robinhood Chain</div>
+      <div className="mono" style={{ lineHeight: 1.7 }}>{address}</div>
+      <button
+        className="primary"
+        onClick={async () => {
+          if (!address) return;
+          await navigator.clipboard.writeText(address);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1400);
+        }}
+      >
+        {copied ? 'Copied' : 'Copy address'}
+      </button>
+      <p className="note">Only send Robinhood Chain assets here. Anything on another network is gone.</p>
+    </div>
+  );
+}
+
+/** Activity: what is happening right now, and what has been pre-authorised. */
+function ActivityTab(): React.JSX.Element {
+  const [pending, setPending] = useState<PendingTradeRow | null>(null);
+  useEffect(() => {
+    const load = () => void trades.pending().then((r) => setPending(r.request)).catch(() => setPending(null));
+    load();
+    const onMsg = (m: { type?: string }) => { if (m?.type === 'trade.pendingChanged') load(); };
+    chrome.runtime.onMessage.addListener(onMsg);
+    return () => chrome.runtime.onMessage.removeListener(onMsg);
+  }, []);
+
+  return (
+    <div style={{ paddingTop: 14 }}>
+      <AutoApprove />
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="card-title">Waiting on you</div>
+        {pending ? (
+          <p className="note">
+            A {pending.side} from <b className="muted">{pending.origin}</b> is waiting. The confirmation is showing over
+            this window.
+          </p>
+        ) : (
+          <div className="empty">
+            <div className="big">🎩</div>
+            <p>Nothing up your sleeve. Trades you start on a terminal show up here.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Settings: presets and slippage, then the things that need a password. */
+function SettingsTab({ status, busy, run }: { status: WalletStatus; busy: boolean; run: RunFn }): React.JSX.Element {
+  const [showExport, setShowExport] = useState(false);
+  const [password, setPassword] = useState('');
+  const [revealed, setRevealed] = useState<Hex | null>(null);
+  const minutes = Math.round(status.autoLockMs / 60000);
+
+  return (
+    <div style={{ paddingTop: 14 }}>
+      <TradeSettings />
+
+      <div className="card stack">
+        <div className="card-title">Security</div>
+        <p className="note">
+          Locks automatically after {minutes} minutes idle, and whenever the browser suspends it. Keys are generated on
+          this device, encrypted with your password, and never leave it. There is no server.
+        </p>
+        {!showExport ? (
+          <button className="danger small" onClick={() => setShowExport(true)}>
+            Export private key
+          </button>
+        ) : (
+          <>
+            <p className="note warn">
+              Anyone with this key owns the wallet. Never paste it into a site, a chat, or a support ticket.
+            </p>
+            {/* Password is required again even though the wallet is unlocked:
+                revealing a key is the one action an idle session must not authorise. */}
+            <div>
+              <label htmlFor="exp">Confirm your password</label>
+              <input id="exp" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <button
+              className="danger"
+              disabled={!password || busy}
+              onClick={() =>
+                run(async () => {
+                  const { privateKey } = await wallet.exportKey(password);
+                  setRevealed(privateKey);
+                  setPassword('');
+                })
+              }
+            >
+              Reveal
+            </button>
+            {revealed && (
+              <>
+                <div className="mono armed-banner">{revealed}</div>
+                <button className="ghost" onClick={() => { setRevealed(null); setShowExport(false); }}>Hide</button>
+              </>
+            )}
+            <button className="ghost" onClick={() => { setShowExport(false); setRevealed(null); setPassword(''); }}>
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Six significant figures of ETH: enough to see a canary, short enough to read. */
+function fmt(wei: bigint): string {
+  const whole = wei / 10n ** 18n;
+  const frac = (wei % 10n ** 18n).toString().padStart(18, '0').slice(0, 4);
+  return `${whole}.${frac}`;
 }
 
 type RunFn = (fn: () => Promise<unknown>) => Promise<void>;
@@ -183,43 +427,50 @@ function ConfirmSheet({ unlocked }: { unlocked: boolean }): React.JSX.Element | 
   };
 
   return (
-    <div className="panel stack" style={{ borderColor: '#7bf1a8' }}>
-      <strong style={{ fontSize: 12 }}>Confirm trade</strong>
+    // Covers the window rather than queueing below it. This is the only screen
+    // in the extension that authorises a spend, so nothing else should be
+    // competing for the same glance.
+    <div className="sheet">
+      <div className="sheet-inner">
+        <p className="sheet-hd">{req.side === 'buy' ? 'Approve this buy?' : 'Approve this sell?'}</p>
+        <p className="note" style={{ marginBottom: 12 }}>
+          Requested by <b className="muted">{req.origin}</b>
+        </p>
 
-      <p className="note">
-        <span className="mono">{req.origin}</span> asked to {req.side} this token.
-      </p>
+        <dl style={{ margin: 0 }}>
+          <div className="kv"><dt>Token</dt><dd className="mono">{short(req.token)}</dd></div>
+          <div className="kv">
+            <dt>{req.side === 'buy' ? 'You spend' : 'You sell'}</dt>
+            <dd className="mono">{req.amount ? `${formatEth(req.amount)} ETH` : 'whole balance'}</dd>
+          </div>
+          <div className="kv">
+            <dt>You receive ≈</dt>
+            <dd className="mono">{quote ?? (quoteError ? '—' : '…')}</dd>
+          </div>
+          <div className="kv"><dt>Max slippage</dt><dd className="mono">{(req.slippageBps / 100).toFixed(2)}%</dd></div>
+          <div className="kv"><dt>Hoodini's cut</dt><dd style={{ color: 'var(--zero)' }}>0.00%</dd></div>
+        </dl>
 
-      <div className="stack" style={{ gap: 2 }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span>Token</span>
-          <span className="mono">{short(req.token)}</span>
-        </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span>{req.side === 'buy' ? 'Spend' : 'Sell'}</span>
-          <span className="mono">{req.amount ? `${formatEth(req.amount)} ETH` : 'whole balance'}</span>
-        </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span>You receive ≈</span>
-          <span className="mono">{quote ?? (quoteError ? '—' : '…')}</span>
-        </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span>Slippage</span>
-          <span className="mono">{(req.slippageBps / 100).toFixed(2)}%</span>
+        {quoteError && <p className="note warn">Could not price this: {quoteError}</p>}
+        {error && <div className="error" style={{ margin: '8px 0 0' }}>{error}</div>}
+
+        <p className={notice.tone === 'danger' ? 'note warn' : 'note'} style={{ margin: '10px 0 14px' }}>
+          {notice.text}
+        </p>
+
+        <div className="stack">
+          <button
+            className={LIVE_TRADING ? 'danger' : 'primary'}
+            disabled={busy || !unlocked}
+            onClick={() => void act(() => trades.approve(req.id))}
+          >
+            {busy ? '…' : !unlocked ? 'Unlock to approve' : LIVE_TRADING ? 'Approve — spends real funds' : 'Approve'}
+          </button>
+          <button className="ghost" disabled={busy} onClick={() => void act(() => trades.reject())}>
+            Reject
+          </button>
         </div>
       </div>
-
-      {quoteError && <p className="note warn">Could not price this: {quoteError}</p>}
-      {error && <div className="error">{error}</div>}
-
-      <p className={notice.tone === 'danger' ? 'note warn' : 'note'}>{notice.text}</p>
-
-      <button className="ghost" disabled={busy} onClick={() => void act(() => trades.reject())}>
-        Reject
-      </button>
-      <button disabled={busy || !unlocked} onClick={() => void act(() => trades.approve(req.id))}>
-        {busy ? '…' : !unlocked ? 'Unlock to approve' : LIVE_TRADING ? 'Approve — spends real funds' : 'Approve'}
-      </button>
     </div>
   );
 }
@@ -282,7 +533,7 @@ function Withdraw({ from }: { from: Address | null }): React.JSX.Element {
   };
 
   return (
-    <div className="panel stack">
+    <div className="card stack">
       <strong style={{ fontSize: 12 }}>Withdraw</strong>
 
       <div>
@@ -411,7 +662,7 @@ function AutoApprove(): React.JSX.Element {
 
   if (state?.armed) {
     return (
-      <div className="panel stack">
+      <div className="card stack">
         <div>
           <span className="warn">● Auto-approve is ARMED</span>
         </div>
@@ -428,7 +679,7 @@ function AutoApprove(): React.JSX.Element {
   }
 
   return (
-    <div className="panel stack">
+    <div className="card stack">
       <div className="muted">Auto-approve · off</div>
       {!confirming ? (
         <button className="ghost" onClick={() => setConfirming(true)}>
@@ -506,7 +757,7 @@ function TradeSettings(): React.JSX.Element {
   };
 
   return (
-    <div className="panel stack">
+    <div className="card stack">
       <strong style={{ fontSize: 12 }}>Trade settings</strong>
 
       <label htmlFor="preset0">Quick-buy amounts (ETH)</label>
@@ -604,51 +855,57 @@ function Positions(): React.JSX.Element {
   }, [load]);
 
   return (
-    <div className="panel stack">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <strong style={{ fontSize: 12 }}>Positions</strong>
-        <button className="ghost" style={{ width: 'auto', padding: '2px 8px' }} onClick={() => void load()} disabled={loading}>
+    <>
+      <div className="tabs">
+        <button aria-selected="true">Tokens</button>
+        <button
+          aria-selected="false"
+          onClick={() => void load()}
+          disabled={loading}
+          style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 550, borderBottom: 0 }}
+        >
           {loading ? '…' : 'Refresh'}
         </button>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" style={{ margin: '0 0 10px' }}>{error}</div>}
+
       {!error && data && data.positions.length === 0 && (
-        <p className="note">Nothing yet. Tokens appear here once you quote or trade them.</p>
+        <div className="empty">
+          <div className="big">🐰</div>
+          <p>Nothing up your sleeve yet. Tokens land here once you trade them.</p>
+        </div>
       )}
 
       {data?.positions.map((p) => (
-        <div key={p.token} className="stack" style={{ gap: 2 }}>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span>{p.symbol ?? 'token'}</span>
-            <span className="mono">{p.balanceFormatted}</span>
+        <div key={p.token} className="tok">
+          <div className="tok-mark">{(p.symbol ?? '?').slice(0, 3).toUpperCase()}</div>
+          <div className="tok-id">
+            <div className="tok-name">{p.symbol ?? 'Unknown token'}</div>
+            <div className="tok-qty">{p.balanceFormatted}</div>
           </div>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="note">{p.venueId ?? 'no venue'}</span>
-            <span className="note">
-              {p.valueWei !== null ? `${formatEth(p.valueWei)} ETH` : (p.valueUnavailableReason ?? 'no quote')}
-            </span>
+          <div className="tok-val">
+            <div className="v">{p.valueWei !== null ? `${formatEth(p.valueWei)}` : '—'}</div>
+            <div className={p.valueWei !== null ? 's' : 's bad'}>
+              {p.valueWei !== null ? 'ETH' : (p.valueUnavailableReason ?? 'no quote')}
+            </div>
           </div>
         </div>
       ))}
 
-      {data && data.positions.length > 0 && (
-        <>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <strong style={{ fontSize: 12 }}>Total</strong>
-            <strong style={{ fontSize: 12 }}>{formatEth(data.totalWei)} ETH</strong>
-          </div>
-          {/* Stated, not hidden: a total that quietly omitted unsellable rows
-              would read as complete. */}
-          {data.unvalued > 0 && (
-            <p className="note">
-              {data.unvalued} of {data.positions.length} could not be priced and are excluded from this total.
-            </p>
-          )}
-        </>
+      {/* Stated, not hidden: a total that quietly omitted unsellable rows would
+          read as complete. */}
+      {data && data.unvalued > 0 && (
+        <p className="note" style={{ paddingTop: 10 }}>
+          {data.unvalued} of {data.positions.length} could not be priced, so they are missing from the balance above.
+        </p>
       )}
-      <p className="note">Only tokens seen in Hoodini. Not a full portfolio — there is no indexer.</p>
-    </div>
+      {data && data.positions.length > 0 && (
+        <p className="note" style={{ paddingTop: 8 }}>
+          Only tokens seen in Hoodini. Not a full portfolio, because there is no indexer to ask.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -663,8 +920,17 @@ function Setup({ busy, run }: { busy: boolean; run: RunFn }): React.JSX.Element 
   const ready = password.length >= 8 && password === confirm && (mode === 'create' || /^0x[0-9a-fA-F]{64}$/.test(privateKey));
 
   return (
-    <div className="panel stack">
-      <div className="row">
+    <div className="scroll" style={{ paddingTop: 20 }}>
+      <div style={{ display: 'grid', placeItems: 'center', paddingBottom: 14 }}>
+        <TopHat size={84} />
+      </div>
+      <h2 style={{ textAlign: 'center', margin: '0 0 4px', fontSize: 19, letterSpacing: '-0.02em' }}>
+        {mode === 'create' ? 'A wallet in one step' : 'Bring your own key'}
+      </h2>
+      <p className="note" style={{ textAlign: 'center', marginBottom: 16 }}>
+        Generated here, encrypted here, and it never leaves. Hoodini has no server to send it to.
+      </p>
+      <div className="row" style={{ marginBottom: 12 }}>
         <button className={mode === 'create' ? 'primary' : 'ghost'} onClick={() => setMode('create')}>
           Create
         </button>
@@ -721,108 +987,31 @@ function Setup({ busy, run }: { busy: boolean; run: RunFn }): React.JSX.Element 
 function Locked({ status, busy, run }: { status: WalletStatus; busy: boolean; run: RunFn }): React.JSX.Element {
   const [password, setPassword] = useState('');
   return (
-    <div className="panel stack">
-      <div>
-        <span className="muted">Locked · </span>
-        <span className="mono">{status.address ? short(status.address) : ''}</span>
+    <div className="solo">
+      <div style={{ display: 'grid', placeItems: 'center', paddingBottom: 6 }}>
+        <TopHat size={132} />
       </div>
-      <div>
-        <label htmlFor="unlock">Password</label>
-        <input
-          id="unlock"
-          type="password"
-          autoComplete="current-password"
-          autoFocus
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && password) void run(() => wallet.unlock(password));
-          }}
-        />
-      </div>
+      <h2>Enter your password</h2>
+      <p className="sub">{status.address ? short(status.address) : ''}</p>
+      <input
+        id="unlock"
+        type="password"
+        placeholder="Password"
+        autoComplete="current-password"
+        autoFocus
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && password) void run(() => wallet.unlock(password));
+        }}
+      />
       <button className="primary" disabled={!password || busy} onClick={() => run(() => wallet.unlock(password))}>
         {busy ? 'Unlocking…' : 'Unlock'}
       </button>
-      <p className="note">Unlocking takes a moment — the password is deliberately slow to derive.</p>
+      <p className="note" style={{ textAlign: 'center' }}>
+        Takes a moment. The password is deliberately slow to derive, which is what makes it worth guessing at.
+      </p>
     </div>
   );
 }
 
-function Unlocked({ status, busy, run }: { status: WalletStatus; busy: boolean; run: RunFn }): React.JSX.Element {
-  const [showExport, setShowExport] = useState(false);
-  const [password, setPassword] = useState('');
-  const [revealed, setRevealed] = useState<Hex | null>(null);
-
-  const minutes = Math.round(status.autoLockMs / 60000);
-
-  return (
-    <div className="stack">
-      <div className="panel stack">
-        <div>
-          <span className="muted">Unlocked · </span>
-          <span className="mono">{status.address ? short(status.address) : ''}</span>
-        </div>
-        <div className="mono muted">{status.address}</div>
-        <button onClick={() => run(() => wallet.lock())} disabled={busy}>
-          Lock now
-        </button>
-        <p className="note">Locks automatically after {minutes} minutes idle, and whenever the browser suspends it.</p>
-      </div>
-
-      <Positions />
-      <AutoApprove />
-      <Withdraw from={status.address} />
-      <TradeSettings />
-
-      <div className="panel stack">
-        {!showExport ? (
-          <button className="ghost danger" onClick={() => setShowExport(true)}>
-            Export private key
-          </button>
-        ) : (
-          <>
-            <p className="note warn">
-              Anyone with this key owns the wallet. Never paste it into a site, a chat, or a support ticket.
-            </p>
-            {/* Password is required again even though the wallet is unlocked:
-                revealing a key is the one action an idle session must not authorise. */}
-            <div>
-              <label htmlFor="exp">Confirm your password</label>
-              <input id="exp" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-            <button
-              className="danger"
-              disabled={!password || busy}
-              onClick={() =>
-                run(async () => {
-                  const { privateKey } = await wallet.exportKey(password);
-                  setRevealed(privateKey);
-                  setPassword('');
-                })
-              }
-            >
-              Reveal
-            </button>
-            {revealed && (
-              <>
-                <div className="mono warn panel">{revealed}</div>
-                <button
-                  className="ghost"
-                  onClick={() => {
-                    setRevealed(null);
-                    setShowExport(false);
-                  }}
-                >
-                  Hide
-                </button>
-              </>
-            )}
-            <button className="ghost" onClick={() => { setShowExport(false); setRevealed(null); setPassword(''); }}>
-              Cancel
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
