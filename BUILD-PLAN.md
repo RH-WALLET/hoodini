@@ -232,7 +232,7 @@ so pressing `0.01` quoted the hardcoded 0.001 (D-052).
       all caught)
 - [x] Seen in the popup 2026-08-05 — presets and slippage render and save
 
-## [~] P6 — Trade requests and the confirm sheet
+## [x] P6 — Trade requests and the confirm sheet
 
 The step D-026 deferred: a page proposes, extension UI approves, and
 `trade.execute` never becomes page-reachable (D-054).
@@ -265,7 +265,11 @@ The step D-026 deferred: a page proposes, extension UI approves, and
 - [x] **Verified live 2026-08-05:** a buy click proposes, the button reads
       `confirm ↗`, and the toolbar badge appears. The badge needed an icon to
       exist at all — see P5
-- [ ] The sheet itself, and a dry-run approval, not yet exercised
+- [x] **Sheet and dry-run approval verified live 2026-08-05.** The trade engine
+      ran in the extension for the first time: planned the trade, resolved the
+      venue, built the calldata and refused at the send boundary, reporting what
+      would have happened. The whole pipeline is now proven except the act of
+      broadcasting
 
 ## [~] P5 — Hardening, open-source release, landing page, CWS submission
 
