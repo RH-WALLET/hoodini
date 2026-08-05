@@ -1651,3 +1651,56 @@ The send set the persistent first-live flag, so the invariant-5 gate in D-059 ha
 now closed and standing consent is able to approve live sends. Uncapped, per the
 instruction. Armed, any matched site can propose any amount and it goes without a
 sheet — which is a reason to leave it disarmed until it is actually wanted.
+
+---
+
+### D-061 — The sell path had never worked, and a wrong type is why
+
+The canary buy landed (D-060). The sell that followed did nothing at all: nonce
+stayed at 1, the token balance was untouched, and the button reported success.
+Three defects, in the order they were found, though the last one caused the
+second.
+
+**1. The overlay never proposed a sell.** `propose()` took an early branch for
+anything that was not a buy-with-an-amount: it called `quote()`, logged the
+price at `console.debug`, and returned `{ ok: true }`. No `trade.request` was
+ever sent, so a sell could not reach the popup, could not be approved, and could
+not execute. The button showed its normal label, because the return said
+success.
+
+The comment defending this said the Sell control's own probe had already priced
+the balance and that proposing again would ask the worker the same question
+twice. It would not. The probe decides whether to *offer* the control; the
+request is the thing the user approves. Those are different questions and the
+second one was never asked.
+
+**2. An approved sell would have been refused anyway.** `trade.approve`
+re-dispatched with `amount: approved.amount ?? '0'`. A sell carries no amount,
+so it sent `'0'` — and `trade.execute` reads "sell the whole balance" from the
+*absence* of an amount while rejecting an explicit zero as out of range. Every
+approved sell would have come back BAD_REQUEST.
+
+**3. The type is what produced defect 2.** `trade.execute` declared
+`amount: string` as required, while its handler had always branched on
+`amount === undefined`. The type asserted a real code path was unreachable, so
+the approve path satisfied the compiler the only way it could, by coercing to
+`'0'` — and that coercion is the bug. `trade.quote` had the field optional with
+exactly the right semantics all along; `trade.execute` simply disagreed with
+itself.
+
+This is worth stating plainly: the type was not merely wrong alongside the bug,
+it *caused* the bug. A required field that the implementation treats as optional
+does not fail loudly. It pushes a lie into every call site until one of them
+picks a plausible-looking value.
+
+**Why no test caught any of it.** Every piece was covered and every piece
+passed. What was never covered was a sell travelling propose -> approve ->
+execute in one go, which is the only path a real sell takes. Unit boundaries
+were exactly where the defects hid. Four tests now cover the whole route,
+including that an explicit `'0'` is still refused rather than quietly reinstated
+as "everything" — that coercion would look correct if zero meant the balance,
+and treating it that way would be a far worse failure than the one being fixed.
+
+**Found by selling, not by testing** — the fifth time this project has learned
+something only by running the thing (D-052), and the second where the failure
+was shaped like success.

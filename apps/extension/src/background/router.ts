@@ -371,16 +371,26 @@ export function createRouter(deps: RouterDeps) {
           // Re-dispatched through the same path a popup-initiated trade takes,
           // so approval adds a confirmation and changes nothing else about how
           // a trade is planned, gated or sent.
-          return handle(
-            {
-              type: 'trade.execute',
-              side: approved.side,
-              token: approved.token,
-              amount: approved.amount ?? '0',
-              slippageBps: approved.slippageBps,
-            },
-            'popup',
-          );
+          // Amount is omitted on a sell, never coerced to '0'. `trade.execute`
+          // reads "sell the whole balance" from the *absence* of an amount and
+          // rejects an explicit zero as out of range, so the previous
+          // `?? '0'` turned every approved sell into BAD_REQUEST (D-061).
+          const execute: Request =
+            approved.amount !== undefined
+              ? {
+                  type: 'trade.execute',
+                  side: approved.side,
+                  token: approved.token,
+                  amount: approved.amount,
+                  slippageBps: approved.slippageBps,
+                }
+              : {
+                  type: 'trade.execute',
+                  side: approved.side,
+                  token: approved.token,
+                  slippageBps: approved.slippageBps,
+                };
+          return handle(execute, 'popup');
         }
 
         case 'trade.warm': {

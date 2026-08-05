@@ -107,21 +107,26 @@ async function probeSell(token: TokenRef): Promise<{ reason: string } | null> {
  * which this script cannot reach (D-054). So the honest thing to show on the
  * button is that the ball is now in the popup's court, not a price.
  *
- * A sell still only quotes: the Sell control's own probe has already priced the
- * whole balance to decide whether to offer at all, and proposing a second time
- * on the click would ask the worker the same question twice.
+ * Sells propose too. An earlier version returned here after merely quoting,
+ * reasoning that the Sell control's own probe had already priced the balance
+ * and that proposing again would ask the worker the same question twice. It
+ * would not: the probe decides whether to *offer* the control, and the request
+ * is what the user actually approves. The effect was that pressing Sell logged
+ * a price at console.debug and reported success, so the sell path could not
+ * reach the popup at all — found by trying to sell, never by a test (D-052,
+ * D-061).
  */
 async function propose(intent: OverlayIntent): Promise<IntentResult> {
-  if (intent.side !== 'buy' || intent.amount === undefined) {
-    await quote(intent);
-    return { ok: true };
-  }
+  const isBuy = intent.side === 'buy' && intent.amount !== undefined;
   try {
     const res = (await chrome.runtime.sendMessage({
       type: 'trade.request',
-      side: 'buy',
+      side: intent.side,
       token: intent.token.address,
-      amount: parseEther(intent.amount).toString(),
+      // Omitted entirely on a sell. The worker reads the balance itself and
+      // sells all of it (D-049); sending `0` would be an explicit amount, and
+      // an explicit zero is refused rather than treated as "everything".
+      ...(isBuy ? { amount: parseEther(intent.amount!).toString() } : {}),
       slippageBps: settings.slippageBps,
     })) as
       | { ok: boolean; data?: { autoApproved?: boolean }; error?: { code: string; message: string } }

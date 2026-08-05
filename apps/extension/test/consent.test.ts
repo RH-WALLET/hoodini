@@ -65,6 +65,17 @@ function build(opts: { unlocked?: boolean; liveTrading?: boolean; firstLiveDone?
             async buildBuy() {
               return { to: TOKEN, data: '0x', value: 0n };
             },
+            async quoteSell(_t: unknown, amountIn: bigint) {
+              return { venueId: 'test-venue', state: 'open', amountIn, amountOut: amountIn / 3n, quoteAsset: null, feeBps: 25 };
+            },
+            // A real sell needs an allowance first; returning one exercises the
+            // two-step shape the live plan actually has.
+            async approvalNeeded() {
+              return { to: TOKEN, data: '0x', value: 0n };
+            },
+            async buildSell() {
+              return { to: TOKEN, data: '0x', value: 0n };
+            },
           },
           via: 'registry',
         }),
@@ -226,6 +237,60 @@ describe('what it does when it does fire', () => {
     await handle(buy(), 'page');
     const second = (await handle(buy(), 'page')) as { ok: false; error: { code: string } };
     expect(second.error.code).toBe('PENDING_EXISTS');
+  });
+});
+
+describe('a sell must survive the whole route (D-061)', () => {
+  // Every piece of this was covered and every piece passed. What was never
+  // tested was a sell travelling propose -> approve -> execute in one go, and
+  // that is the only path a real sell takes.
+  const sell = () => ({ type: 'trade.request', side: 'sell', token: TOKEN, slippageBps: 100 }) as const;
+
+  it('an approved sell reaches the engine instead of failing as BAD_REQUEST', async () => {
+    // It used to re-dispatch with `amount: '0'`, and an explicit zero is
+    // refused as out of range, so approving a sell always failed.
+    const { handle, executed } = build();
+    const proposed = (await handle(sell(), 'page')) as { ok: true; data: { id: string } };
+    const res = (await handle({ type: 'trade.approve', id: proposed.data.id }, 'popup')) as {
+      ok: boolean;
+      error?: { code: string; message: string };
+    };
+    expect(res.error?.code).not.toBe('BAD_REQUEST');
+    expect(res.ok).toBe(true);
+    expect(executed).toHaveLength(1);
+  });
+
+  it('sells the whole balance, because absence of an amount is what means that', async () => {
+    // The fake client answers 10^21 for balanceOf, so that is what a sell of
+    // "everything" must price.
+    const { handle, executed } = build();
+    const proposed = (await handle(sell(), 'page')) as { ok: true; data: { id: string } };
+    await handle({ type: 'trade.approve', id: proposed.data.id }, 'popup');
+    expect(executed[0]?.amount).toBe((10n ** 21n).toString());
+  });
+
+  it('still refuses a buy with no amount — only a sell may omit it', async () => {
+    const { handle } = build();
+    const res = (await handle(
+      { type: 'trade.request', side: 'buy', token: TOKEN, slippageBps: 100 },
+      'page',
+    )) as { ok: false; error: { code: string } };
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('BAD_REQUEST');
+  });
+
+  it('refuses an explicit zero rather than reading it as "everything"', async () => {
+    // The coercion that caused D-061 would be silently correct if zero meant
+    // the whole balance. It must not: an explicit zero is a mistake, and
+    // treating it as "sell everything" would be the worse failure by far.
+    const { handle, executed } = build();
+    const res = (await handle(
+      { type: 'trade.execute', side: 'sell', token: TOKEN, amount: '0', slippageBps: 100 },
+      'popup',
+    )) as { ok: false; error: { code: string } };
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('BAD_REQUEST');
+    expect(executed).toHaveLength(0);
   });
 });
 

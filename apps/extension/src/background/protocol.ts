@@ -103,7 +103,18 @@ export type Request =
       readonly type: 'trade.execute';
       readonly side: 'buy' | 'sell';
       readonly token: Address;
-      readonly amount: string;
+      /**
+       * Omit on a sell to sell the whole balance, exactly as `trade.quote`
+       * does.
+       *
+       * This was declared required while the handler had always branched on
+       * its absence, so the type insisted a real code path could not happen.
+       * The approve path satisfied the compiler with `?? '0'`, and since an
+       * explicit zero is refused as out of range, every approved sell became
+       * BAD_REQUEST. The type was wrong, and the wrong type is what produced
+       * the bug (D-061).
+       */
+      readonly amount?: string;
       readonly slippageBps: number;
     };
 
