@@ -247,11 +247,22 @@ The step D-026 deferred: a page proposes, extension UI approves, and
       nonce serialisation and `LIVE_TRADING` gate are unchanged
 - [x] 14 tests, mutation-checked (6 mutations, all caught)
 
-### [ ] P6b — the sheet itself
-- [ ] Overlay calls `trade.request` instead of quoting on click
-- [ ] Popup renders the pending request: origin, token, amount, quote, and what
-      approving will actually do in a dry-run build
-- [ ] Nothing here can send while `LIVE_TRADING` is false
+### [x] P6b — the sheet itself
+- [x] A buy click proposes instead of quoting; the button reports back
+      (`confirm ↗`, or `one pending` when a request is already waiting)
+- [x] `onIntent` may answer with an outcome — optional, so adapters that
+      ignore it behave exactly as before
+- [x] Toolbar badge while something waits. The popup cannot be opened
+      programmatically from a content script, so the badge is the only honest
+      signal available
+- [x] Confirm sheet: origin (from the sender, unforgeable), token, amount, a
+      quote fetched **at approval time**, slippage, and a plain statement that
+      this build simulates rather than sends
+- [x] A locked wallet no longer costs the user the request — an earlier
+      version consumed it before checking, so unlocking left nothing to approve
+- [x] 25 tests, mutation-checked (8 mutations; two survivors, both real gaps —
+      origin spoofing and consume-on-approve had no coverage)
+- [ ] Not yet seen in a browser
 
 ## [~] P5 — Hardening, open-source release, landing page, CWS submission
 

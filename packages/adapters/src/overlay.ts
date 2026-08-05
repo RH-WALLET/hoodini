@@ -38,6 +38,50 @@ export interface OverlayIntent {
 export type SellUnavailable = { readonly reason: string };
 
 /**
+ * What became of an intent, for showing on the button that raised it.
+ *
+ * Optional by design. An overlay whose handler answers nothing still works
+ * exactly as before — this exists so the confirm flow can say "now go and
+ * approve it" without the user wondering whether their click registered.
+ */
+export interface IntentResult {
+  readonly ok: boolean;
+  /** Short enough to fit on a button. Shown verbatim, so no jargon. */
+  readonly message?: string;
+}
+
+/**
+ * Show an intent's outcome on the button that raised it, then restore it.
+ *
+ * The button is disabled while in flight: a trade request that a page could
+ * fire twice by double click is a second proposal the user has to dismiss.
+ */
+function reflect(button: HTMLButtonElement, label: string, result: Promise<IntentResult | void>): void {
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = '…';
+  void result
+    .then((r) => {
+      const message = r && typeof r === 'object' ? r.message : undefined;
+      button.textContent = message ?? label;
+      if (r && typeof r === 'object' && !r.ok) button.classList.add('unavailable');
+    })
+    .catch(() => {
+      button.textContent = 'failed';
+      button.classList.add('unavailable');
+    })
+    .finally(() => {
+      // Restored after a beat so the outcome is readable, and so a click that
+      // failed for a transient reason can simply be repeated.
+      setTimeout(() => {
+        button.textContent = label;
+        button.classList.remove('unavailable');
+        button.disabled = false;
+      }, 2500);
+    });
+}
+
+/**
  * Where the control sits inside its anchor.
  *
  * Appending into the flow is right for a tweet or a table row, which grow to
@@ -63,7 +107,11 @@ export interface OverlayPlacement {
 export interface OverlayOptions {
   /** Preset buy amounts in ETH, shown as quick buttons. */
   readonly amounts?: readonly string[];
-  readonly onIntent: (intent: OverlayIntent) => void;
+  /**
+   * Handle a click. May answer with an outcome to show on the button; a
+   * `void` return keeps the original fire-and-forget behaviour.
+   */
+  readonly onIntent: (intent: OverlayIntent) => void | Promise<IntentResult | void>;
   /** Rendered next to the controls when a quote is available. */
   readonly label?: string;
   /**
@@ -164,7 +212,13 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
       // is ours alone.
       e.preventDefault();
       e.stopPropagation();
-      options.onIntent({ side: 'buy', token, amount });
+      const result = options.onIntent({ side: 'buy', token, amount });
+      // A handler that reports back gets its outcome shown on the button. One
+      // that does not keeps the old fire-and-forget behaviour, so nothing that
+      // already worked has to change.
+      if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+        reflect(b, amount, result as Promise<IntentResult | void>);
+      }
     });
     bar.appendChild(b);
   }

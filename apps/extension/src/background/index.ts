@@ -54,6 +54,19 @@ const handle = createRouter({
   // would be a confirmation for something the user has long since scrolled
   // past, and MV3 restarts constantly.
   pending: new PendingTrades(),
+  /**
+   * Badge the toolbar icon while something waits.
+   *
+   * A proposal nobody can see is a proposal that expires unanswered — and the
+   * popup cannot be opened programmatically from a content script, so the badge
+   * is the only honest signal available. The popup is also told, for the case
+   * where it is already open.
+   */
+  onPendingChange: (request) => {
+    void chrome.action?.setBadgeText?.({ text: request ? '1' : '' });
+    void chrome.action?.setBadgeBackgroundColor?.({ color: '#7bf1a8' });
+    chrome.runtime.sendMessage({ type: 'trade.pendingChanged' }).catch(() => {});
+  },
   trade: {
     venues,
     client,

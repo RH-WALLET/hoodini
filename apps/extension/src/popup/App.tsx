@@ -8,7 +8,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Address, Hex } from 'viem';
-import { wallet, positions as positionsApi, settings as settingsApi, type PositionsResult } from './client.js';
+import {
+  wallet,
+  positions as positionsApi,
+  settings as settingsApi,
+  trades,
+  type PendingTradeRow,
+  type PositionsResult,
+} from './client.js';
 import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS } from '@hoodini/core';
 import type { WalletStatus } from '../background/protocol.js';
 
@@ -87,6 +94,127 @@ function formatEth(wei: string): string {
   const frac = (v % 10n ** 18n).toString().padStart(18, '0').slice(0, 6);
   return `${whole}.${frac}`;
 }
+
+/**
+ * The confirm sheet.
+ *
+ * A site proposed a trade; this is where a human decides. It is the only place
+ * an approval can happen — a page can reach `trade.request` and nothing else
+ * (D-054) — so everything shown here has to be true and legible:
+ *
+ * - the **origin** comes from the sender, so it cannot be forged by the page
+ * - the **amount** is what will be spent, not what was displayed on the button
+ * - the **quote** is fetched here, at approval time, rather than trusted from
+ *   whenever the request was made
+ *
+ * Approving is the destructive action, so it is the one that has to be reached
+ * for: Reject is the plain button and Approve carries the weight.
+ */
+function ConfirmSheet({ onDone }: { onDone: () => void }): React.JSX.Element | null {
+  const [req, setReq] = useState<PendingTradeRow | null>(null);
+  const [quote, setQuote] = useState<string | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const { request } = await trades.pending();
+      setReq(request);
+      setQuote(null);
+      setQuoteError(null);
+      if (!request) return;
+      try {
+        const q = await trades.quote(request.side, request.token, request.amount, request.slippageBps);
+        setQuote(q.out ? `${formatEth(q.out)} ${q.quoteAsset ?? ''}`.trim() : null);
+      } catch (e) {
+        // A quote that will not price is a reason to hesitate, not to hide the
+        // request — the user may still want to reject it.
+        setQuoteError(e instanceof Error ? e.message : 'could not price this');
+      }
+    } catch {
+      setReq(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+    const onMessage = (m: { type?: string }) => {
+      if (m?.type === 'trade.pendingChanged') void load();
+    };
+    chrome.runtime.onMessage.addListener(onMessage);
+    return () => chrome.runtime.onMessage.removeListener(onMessage);
+  }, [load]);
+
+  if (!req) return null;
+
+  const act = async (fn: () => Promise<unknown>) => {
+    setError(null);
+    setBusy(true);
+    try {
+      await fn();
+      await load();
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'that did not work');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="panel stack" style={{ borderColor: '#7bf1a8' }}>
+      <strong style={{ fontSize: 12 }}>Confirm trade</strong>
+
+      <p className="note">
+        <span className="mono">{req.origin}</span> asked to {req.side} this token.
+      </p>
+
+      <div className="stack" style={{ gap: 2 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span>Token</span>
+          <span className="mono">{short(req.token)}</span>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span>{req.side === 'buy' ? 'Spend' : 'Sell'}</span>
+          <span className="mono">{req.amount ? `${formatEth(req.amount)} ETH` : 'whole balance'}</span>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span>You receive ≈</span>
+          <span className="mono">{quote ?? (quoteError ? '—' : '…')}</span>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span>Slippage</span>
+          <span className="mono">{(req.slippageBps / 100).toFixed(2)}%</span>
+        </div>
+      </div>
+
+      {quoteError && <p className="note warn">Could not price this: {quoteError}</p>}
+      {error && <div className="error">{error}</div>}
+
+      {DRY_RUN_NOTE}
+
+      <button className="ghost" disabled={busy} onClick={() => void act(() => trades.reject())}>
+        Reject
+      </button>
+      <button disabled={busy} onClick={() => void act(() => trades.approve(req.id))}>
+        {busy ? '…' : 'Approve'}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Said plainly, every time. A confirmation that does not distinguish "this will
+ * spend" from "this will simulate" is a confirmation that teaches the user to
+ * click through it.
+ */
+const DRY_RUN_NOTE = (
+  <p className="note">
+    This build cannot broadcast — <span className="mono">LIVE_TRADING</span> is off, so approving simulates the trade
+    and reports what would have happened.
+  </p>
+);
 
 /**
  * Trade settings.
@@ -405,6 +533,7 @@ function Unlocked({ status, busy, run }: { status: WalletStatus; busy: boolean; 
         <p className="note">Locks automatically after {minutes} minutes idle, and whenever the browser suspends it.</p>
       </div>
 
+      <ConfirmSheet onDone={() => {}} />
       <Positions />
       <TradeSettings />
 

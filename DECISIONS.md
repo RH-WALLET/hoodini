@@ -1347,3 +1347,48 @@ confirm sheet renders, so the observable behaviour of the extension is
 unchanged. Wiring the overlay to propose, and building the sheet, is the next
 slice — split per CLAUDE.md, since the security surface and the interface have
 independent risk.
+
+---
+
+### D-055 — The confirmation shows what is true, and the badge is the only honest nudge
+**Decided 2026-08-05.** P6b, the interface half of D-054.
+
+**A buy click proposes; it does not price.** The overlay used to quote and log
+the answer nowhere the user could see it. Now it sends `trade.request` and the
+button says `confirm ↗`, or `one pending` if something is already waiting. The
+honest thing to report is where the decision now sits, not a number.
+
+**`onIntent` may answer, and need not.** Adapters that ignore the return value
+behave exactly as before, so the change costs nothing to anything that already
+worked. The button is disabled while in flight: a double click would otherwise
+be a second proposal for the user to dismiss.
+
+**The badge is the nudge, because there is no other.** A content script cannot
+open the popup — `chrome.action.openPopup` needs a user gesture in the
+extension's own UI — so a proposal with no visible signal would simply expire
+unanswered. The badge is not a nicety here; without it the flow does not work.
+
+**The quote is fetched in the sheet, at approval time.** Pricing at request time
+and showing it later would put a number in front of the user that the chain has
+since moved past. If it will not price, the sheet says so and still offers
+Reject: not being able to quote is a reason to hesitate, not a reason to hide
+what was asked.
+
+**The sheet states that this build cannot send.** A confirmation that does not
+distinguish "this will spend" from "this will simulate" trains the user to click
+through it — and the first one that *does* spend would meet a habit rather than
+a decision.
+
+**Reasons the user can fix must not cost them the request.** The first version
+consumed the request before checking whether the wallet was unlocked, so
+clicking Approve while locked destroyed the thing being approved: you unlocked
+to find nothing there. Validation now happens without consuming, and consuming
+happens immediately before execution — early enough that a double click cannot
+spend twice, late enough that a fixable refusal is not punished.
+
+Mutation testing found two gaps that mattered: nothing tested that a
+message-supplied `origin` is ignored in favour of the sender's, and nothing
+tested that approval consumes. Both are now covered — the first because a
+forgeable site name makes the whole confirmation worthless, the second because
+consuming after a send rather than before is exactly how something gets paid for
+twice.

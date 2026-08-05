@@ -12,6 +12,7 @@ export {
   unmountAll,
   HOST_ATTR,
   TOKEN_ATTR,
+  type IntentResult,
   type OverlayIntent,
   type OverlayOptions,
   type OverlayPlacement,

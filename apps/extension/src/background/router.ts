@@ -28,7 +28,7 @@ import type { VaultStore } from './storage.js';
 import type { TradeEngine } from './engine.js';
 import { isAllowed, type Request, type Response, type Surface, type WalletStatus } from './protocol.js';
 import type { Settings } from '@hoodini/core';
-import type { PendingTrades } from './pending.js';
+import type { PendingTrades, TradeRequest } from './pending.js';
 
 export interface RouterDeps {
   readonly store: VaultStore;
@@ -48,6 +48,13 @@ export interface RouterDeps {
   readonly settings?: { read(): Promise<Settings>; write(s: unknown): Promise<Settings> };
   /** Holds the one trade awaiting the user's confirmation (D-026). */
   readonly pending?: PendingTrades;
+  /**
+   * Told whenever the pending request appears or clears, so the worker can
+   * badge the toolbar icon. Injected rather than called directly because the
+   * router is tested without a browser, and because a message handler reaching
+   * for `chrome.action` is a handler that cannot be run offline.
+   */
+  readonly onPendingChange?: (request: TradeRequest | null) => void;
 }
 
 function fail(code: string, message: string): Response<never> {
@@ -61,7 +68,7 @@ function toError(e: unknown): Response<never> {
 }
 
 export function createRouter(deps: RouterDeps) {
-  const { store, session, kdf, trade, settings, pending } = deps;
+  const { store, session, kdf, trade, settings, pending, onPendingChange } = deps;
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
 
   async function status(): Promise<WalletStatus> {
@@ -221,8 +228,7 @@ export function createRouter(deps: RouterDeps) {
           if (!proposed) {
             return fail('PENDING_EXISTS', 'another trade is already awaiting confirmation');
           }
-          // Nudge the UI. Fire-and-forget: nothing is waiting on a listener.
-          chrome.runtime?.sendMessage?.({ type: 'trade.requested' })?.catch?.(() => {});
+          onPendingChange?.(proposed);
           return { ok: true, data: { id: proposed.id } };
         }
 
@@ -234,17 +240,29 @@ export function createRouter(deps: RouterDeps) {
         case 'trade.reject': {
           if (!pending) return fail('UNAVAILABLE', 'trade requests are not wired up in this build');
           pending.clear();
+          onPendingChange?.(null);
           return { ok: true, data: {} };
         }
 
         case 'trade.approve': {
           if (!pending || !trade) return fail('UNAVAILABLE', 'trading is not wired up in this build');
-          // Consumed before anything runs, so a double click cannot spend
+          // Checked without consuming first. An earlier version took the
+          // request before testing whether the wallet was unlocked, so clicking
+          // Approve while locked destroyed the very thing the user was about to
+          // approve — they unlocked to find nothing there. Reasons the user can
+          // fix must not cost them the request.
+          const waiting = pending.peek();
+          if (!waiting || waiting.id !== request.id) {
+            return fail('NOT_FOUND', 'that request is no longer waiting — it may have expired');
+          }
+          if (!session.address) return fail('LOCKED', 'unlock to trade');
+
+          // Now consume, before anything runs, so a double click cannot spend
           // twice. If the trade then fails the user proposes again, which is a
           // far better outcome than a second send.
           const approved = pending.take(request.id);
-          if (!approved) return fail('NOT_FOUND', 'that request is no longer waiting — it may have expired');
-          if (!session.address) return fail('LOCKED', 'unlock to trade');
+          onPendingChange?.(null);
+          if (!approved) return fail('NOT_FOUND', 'that request was answered a moment ago');
           // Re-dispatched through the same path a popup-initiated trade takes,
           // so approval adds a confirmation and changes nothing else about how
           // a trade is planned, gated or sent.

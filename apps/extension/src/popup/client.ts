@@ -60,3 +60,27 @@ export const settings = {
     return saved;
   },
 };
+
+export interface PendingTradeRow {
+  readonly id: string;
+  readonly side: 'buy' | 'sell';
+  readonly token: Address;
+  readonly amount?: string;
+  readonly slippageBps: number;
+  readonly origin: string;
+  readonly createdAt: number;
+}
+
+export const trades = {
+  pending: () => send<{ request: PendingTradeRow | null }>({ type: 'trade.pending' }),
+  approve: (id: string) => send<unknown>({ type: 'trade.approve', id }),
+  reject: () => send<Record<string, never>>({ type: 'trade.reject' }),
+  quote: (side: 'buy' | 'sell', token: Address, amount: string | undefined, slippageBps: number) =>
+    send<{ out?: string; quoteAsset?: string; venueId?: string }>({
+      type: 'trade.quote',
+      side,
+      token,
+      ...(amount !== undefined ? { amount } : {}),
+      slippageBps,
+    }),
+};

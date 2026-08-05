@@ -16,6 +16,7 @@ import {
   createTerminalAdapter,
   matchesSite,
   unmountAll,
+  type IntentResult,
   type OverlayIntent,
 } from '@hoodini/adapters';
 import { parseEther } from 'viem';
@@ -99,7 +100,45 @@ async function probeSell(token: TokenRef): Promise<{ reason: string } | null> {
   }
 }
 
-const onIntent = (intent: OverlayIntent) => void quote(intent);
+/**
+ * A click proposes a trade; it does not start one.
+ *
+ * The page can only ever cause a prompt — approval happens in extension UI,
+ * which this script cannot reach (D-054). So the honest thing to show on the
+ * button is that the ball is now in the popup's court, not a price.
+ *
+ * A sell still only quotes: the Sell control's own probe has already priced the
+ * whole balance to decide whether to offer at all, and proposing a second time
+ * on the click would ask the worker the same question twice.
+ */
+async function propose(intent: OverlayIntent): Promise<IntentResult> {
+  if (intent.side !== 'buy' || intent.amount === undefined) {
+    await quote(intent);
+    return { ok: true };
+  }
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: 'trade.request',
+      side: 'buy',
+      token: intent.token.address,
+      amount: parseEther(intent.amount).toString(),
+      slippageBps: settings.slippageBps,
+    })) as { ok: boolean; error?: { code: string; message: string } } | undefined;
+
+    if (!res) return { ok: false, message: 'no reply' };
+    if (res.ok) return { ok: true, message: 'confirm ↗' };
+    // The one refusal worth naming: it means a proposal is already waiting and
+    // the user has to answer that one first (D-054).
+    if (res.error?.code === 'PENDING_EXISTS') return { ok: false, message: 'one pending' };
+    console.warn('[hoodini] request refused', res.error);
+    return { ok: false, message: 'refused' };
+  } catch (e) {
+    console.warn('[hoodini] request failed', e);
+    return { ok: false, message: 'failed' };
+  }
+}
+
+const onIntent = (intent: OverlayIntent) => propose(intent);
 
 // Prefer the adapter that knows this site; fall back to shape-based detection
 // so an unlisted page still gets controls rather than nothing.
