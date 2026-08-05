@@ -590,6 +590,45 @@ what this project does not do.
 always fail, and a button that never works is worse than an honest "unsupported
 venue".
 
+### ⚠ Hookless V4 is the biggest gap in the census (2026-08-05)
+
+`pnpm tsx scripts/v4-hooks.ts` over 200,000 blocks: **6,784 of 7,701 pool
+initialisations — 88% — carry no hook at all.** Every V4 adapter this project
+has is keyed to a hook, so that entire class is currently untradeable.
+
+`scripts/hookless-v4.ts` traces who deploys them, by the census method: take the
+token side, ask Blockscout who created it, tally.
+
+| Creator | Sampled tokens | Notes |
+|---|---|---|
+| `0x000000e200088d55c39a11f609e5f667729ad49b` | **45 of 60** | `UERC20Factory`, verified, vanity address |
+| `0xc41194138e051fc505fef93b3c44dbdb63da64a2` | 9 | contract, unnamed |
+| long tail | 1 each | organic |
+
+**`UERC20Factory` has three functions and none of them trade:**
+`createToken(string,string,uint8,uint256,address,bytes,bytes32)`,
+`getParameters()`, `getUERC20Address(...)`. So it is the same shape as Pons
+(D-007) — a token factory, with the trade path on the DEX rather than the
+launchpad.
+
+**The pools are not one shape**, which matters for adapter design:
+
+| fee / tickSpacing | count |
+|---|---|
+| 2500 / 60 | 649 |
+| 2500 / 25 | 510 |
+| 10000 / 200 | 152 |
+| 990001 / 9900 | 50 |
+| 920000 / 9303 | 34 |
+
+So a fixed-parameter config (D-045) will not do. A hookless V4 adapter has to
+probe candidate shapes against `StateView.getSlot0`, the way the rwa-pairs
+adapter already does (D-046).
+
+**`POOL` is not a useful signal.** Four tokens with that exact ticker exist from
+at least two different creators, two of them carrying the `…7777` vanity suffix.
+Ticker collisions are normal here; attribution has to come from the creator.
+
 ### V4 hooks still not adopted
 
 | Hook | Why not |
