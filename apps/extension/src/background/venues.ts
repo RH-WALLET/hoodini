@@ -20,6 +20,7 @@ import {
   UniswapV3Adapter,
   V4HookAdapter,
   V4_HOOK_VENUES,
+  HOOKLESS_V4_VENUE,
   VenueRouter,
   VirtualsAdapter,
   createChainClient,
@@ -47,6 +48,10 @@ export function createVenueStack(rpcUrl: string = DEFAULT_RPC_URL): VenueStack {
     new VirtualsAdapter(client),
     // Fixed-parameter V4 hooks are config, not adapters (D-045).
     ...V4_HOOK_VENUES.map((v) => new V4HookAdapter(client, v)),
+    // Plain V4, no hook — 88% of pools on this chain, and the venue
+    // pools.trade launches into. Last, because its claims() is the broadest
+    // here and every specific venue must get the chance first.
+    new V4HookAdapter(client, HOOKLESS_V4_VENUE),
   ];
   return {
     client,

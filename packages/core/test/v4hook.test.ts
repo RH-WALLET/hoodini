@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { decodeFunctionData, getAddress, zeroAddress, type Address } from 'viem';
 import { V4HookAdapter, hookPoolKey, poolIdOfKey, numeraireFor, type V4HookVenue } from '../src/venues/v4hook.js';
+import { HOOKLESS_V4_VENUE, VENUE_REGISTRY } from '../src/venues/registry.js';
 import { STATE_VIEW, V4_QUOTER, V4_HOOK_VENUES, WETH, UNIVERSAL_ROUTER, PERMIT2 } from '../src/venues/registry.js';
 import { UNIVERSAL_ROUTER_ABI, UR_COMMANDS, ERC20_ABI } from '../src/abis.js';
 import { createStubClient } from './stubClient.js';
@@ -267,5 +268,52 @@ describe('approvalNeeded', () => {
       [`${PERMIT2.toLowerCase()}.allowance`]: [10n ** 30n, future, 0],
     });
     expect(await a.approvalNeeded(token, OWNER, 500n)).toBeNull();
+  });
+});
+
+describe('hookless V4 (pools.trade and the other 88%)', () => {
+  /** The token whose launch transaction this venue was derived from. */
+  const SUFFERING = getAddress('0x354D146C60D52BD775c6e826F94A45265C539633');
+  /** Its poolId, read from the PoolManager's own Initialize event. */
+  const REAL_POOL_ID = '0xbdfc3fd47a52be0628f927934af824857d8b0ab350239f086c7db515b8ed9b20';
+
+  it('derives the exact poolId the chain reported', () => {
+    // Not a self-consistency check: this id came out of the Initialize log of
+    // the real launch transaction, so it pins the whole key — ordering,
+    // native-ETH numeraire, fee, spacing and the zero hook — against reality.
+    const key = hookPoolKey(SUFFERING, HOOKLESS_V4_VENUE, { fee: 2500, tickSpacing: 60 }, zeroAddress);
+    expect(poolIdOfKey(key)).toBe(REAL_POOL_ID);
+  });
+
+  it('pairs against native ETH, not WETH', () => {
+    // These pools use address(0). Using WETH would hash to a pool that does
+    // not exist and claims() would silently answer no for every token.
+    expect(HOOKLESS_V4_VENUE.numeraire).toBe(zeroAddress);
+    const key = hookPoolKey(SUFFERING, HOOKLESS_V4_VENUE, { fee: 2500, tickSpacing: 60 }, zeroAddress);
+    expect(key.currency0).toBe(zeroAddress);
+    expect(key.currency1).toBe(SUFFERING);
+  });
+
+  it('carries no hook', () => {
+    expect(HOOKLESS_V4_VENUE.hook).toBe(zeroAddress);
+  });
+
+  it('is registered last, so it can never outrank a specific venue', () => {
+    // Its claims() means "a hookless ETH pool exists at one of these shapes",
+    // which is broad enough to swallow a token a specific venue would have
+    // claimed on better evidence. The router probes in registry order (D-005),
+    // so position here is a correctness property, not cosmetics.
+    const ids = VENUE_REGISTRY.map((v) => v.id);
+    expect(ids[ids.length - 1]).toBe(HOOKLESS_V4_VENUE.id);
+  });
+
+  it('probes the shapes the census actually found, commonest first', () => {
+    // claims() costs one call per variant, so the list is short and ordered —
+    // an unbounded search would make an unknown token expensive (D-005).
+    expect(HOOKLESS_V4_VENUE.variants.map((v) => `${v.fee}/${v.tickSpacing}`)).toEqual([
+      '2500/60',
+      '2500/25',
+      '10000/200',
+    ]);
   });
 });

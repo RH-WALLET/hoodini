@@ -11,7 +11,8 @@
  * (D-010).
  */
 
-import { getAddress, type Address } from 'viem';
+import { getAddress, zeroAddress, type Address } from 'viem';
+import type { V4HookVenue } from './v4hook.js';
 
 /** How a venue creates its tokens — determines how the router recognises them. */
 export type VenueKind = 'instant-pool' | 'bonding-curve' | 'dex';
@@ -142,6 +143,48 @@ export const STATE_VIEW = getAddress('0xF3334192D15450CdD385c8B70e03f9A6bD9E673b
  * numeraire below was read off that hook's own Initialize events, and every
  * constructed pool id was checked against the event and against StateView.
  */
+/**
+ * Plain Uniswap V4 — a pool with **no hook at all**.
+ *
+ * Not a launchpad. `scripts/v4-hooks.ts` found that 88% of pool initialisations
+ * on this chain carry `hooks = address(0)`, and every other V4 entry here is
+ * keyed to a hook, so that entire class was untradeable.
+ *
+ * The dominant deployer is `UERC20Factory` at `0x000000e2…` — pools.trade. Its
+ * launch transaction creates the token, initialises the pool, adds liquidity
+ * and swaps in one `Multicall3` call, so the token is tradeable from block one.
+ * That is Pons's shape (D-007) moved to V4: the launchpad has no trade surface,
+ * the DEX does.
+ *
+ * Deliberately *not* a pools.trade-specific venue. There is nothing
+ * pools.trade-shaped to encode — no hook, no curve, no launchpad getter — so a
+ * venue keyed to it would cover one deployer's share of a class this covers
+ * whole (D-013's reasoning).
+ *
+ * **Registered last**, and it must stay last: `claims()` here means "a hookless
+ * ETH pool exists at one of these shapes", which is broad enough to swallow a
+ * token that a specific venue would have claimed on better evidence. The router
+ * probes in registry order (D-005).
+ *
+ * Verified live: `0x354D146C60D52BD775c6e826F94A45265C539633`
+ * (`#sufferingfromsuccess`, created by UERC20Factory) — pool
+ * `0xbdfc3fd4…`, native ETH / token, fee 2500, tickSpacing 60, and a real
+ * 0.25 ETH swap in the launch block.
+ */
+export const HOOKLESS_V4_VENUE = {
+  id: 'uniswap-v4',
+  displayName: 'Uniswap V4 (no hook)',
+  hook: zeroAddress,
+  /** Ordered by how often each shape appears in the census. */
+  variants: [
+    { fee: 2500, tickSpacing: 60 },
+    { fee: 2500, tickSpacing: 25 },
+    { fee: 10000, tickSpacing: 200 },
+  ],
+  /** Native ETH — these pools use `address(0)`, not WETH. */
+  numeraire: zeroAddress,
+} as const satisfies V4HookVenue;
+
 export const V4_HOOK_VENUES = [
   {
     id: 'clanker',
@@ -252,6 +295,17 @@ export const VENUE_REGISTRY: readonly VenueRegistryEntry[] = [
     kind: 'bonding-curve',
     // No factory: on V4 the launchpad is the hook, so attribution comes from
     // the hook's own getState() rather than from a creation trace.
+    dexFactory: V4_POOL_MANAGER,
+    router: UNIVERSAL_ROUTER,
+    quoter: V4_QUOTER,
+    status: 'VERIFIED',
+  },
+  // LAST, deliberately. Its claims() is the broadest here — see
+  // HOOKLESS_V4_VENUE — so every specific venue must get the chance first.
+  {
+    id: HOOKLESS_V4_VENUE.id,
+    displayName: HOOKLESS_V4_VENUE.displayName,
+    kind: 'dex',
     dexFactory: V4_POOL_MANAGER,
     router: UNIVERSAL_ROUTER,
     quoter: V4_QUOTER,

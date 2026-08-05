@@ -629,6 +629,42 @@ adapter already does (D-046).
 at least two different creators, two of them carrying the `…7777` vanity suffix.
 Ticker collisions are normal here; attribution has to come from the creator.
 
+### pools.trade — CONFIRMED, and covered (2026-08-05)
+
+`0x354d146c60d52bd775c6e826f94a45265c539633` (`#sufferingfromsuccess`,
+supplied by Rory as a pools.trade token) is a `UERC20` created by
+`UERC20Factory` — so pools.trade **is** the hookless-V4 venue above.
+
+Following its launch transaction, `Multicall3.aggregate3Value`:
+
+| Step | Contract |
+|---|---|
+| `TokenCreated` | `UERC20Factory` `0x000000e2…` |
+| `TokenCreated` | **`LiquidityLauncher`** `0x00004c4ccc709Ef590F7C81102C0689F0263D4e9` |
+| `Initialize` + `ModifyLiquidity` | `PoolManager` — pool exists at launch |
+| `DistributionInitialized`, `TokenLaunched` | `0xcE57498D3474DCC244dFb6710fFbE6D4441cD2b2` |
+| `TokenDistributed` | `LiquidityLauncher` |
+| **`Swap`** | `PoolManager` — 0.25 ETH → 90.5M tokens, same block |
+
+**The token is a plain ERC-20.** Its 17 functions are the standard set plus
+`creator()`, `graffiti()`, `metadata()`, `tokenURI()` — no buy, no sell, no
+curve. Like Pons (D-007) the launchpad has no trade surface; the DEX does. So
+"migrated" and "not migrated" are a pools.trade UI distinction, not an on-chain
+trade-path difference: both are already swappable on their V4 pool.
+
+**Pool key** — native ETH / token, fee 2500, tickSpacing 60, `hooks = 0x0`,
+poolId `0xbdfc3fd4…`, asserted exactly in `v4hook.test.ts` against the id the
+PoolManager itself logged.
+
+**Verified live through the adapter:** `claims` true, `state` graduated,
+0.001 ETH → 393,016 tokens at 25 bps, and a Pons token as negative control
+returns false.
+
+> ⚠ **Solana is out of scope.** Rory also supplied
+> `Py9ocoLkuDqjWzenDZnpvVVcbHgWc8rW7VKJYL7pump`, a Solana address. Hoodini is
+> an EVM extension for chainId 4663 and cannot trade Solana at all. If
+> pools.trade is multi-chain, only its Robinhood Chain side is reachable here.
+
 ### V4 hooks still not adopted
 
 | Hook | Why not |

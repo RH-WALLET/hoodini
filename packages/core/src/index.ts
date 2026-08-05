@@ -39,6 +39,7 @@ export { UniswapV3Adapter, applySlippage, type UniswapV3AdapterOptions } from '.
 export { DopplerAdapter, type PoolKey } from './venues/doppler.js';
 export { FlapAdapter } from './venues/flap.js';
 export { V4HookAdapter, hookPoolKey, poolIdOfKey, type V4HookVenue } from './venues/v4hook.js';
+export { HOOKLESS_V4_VENUE } from './venues/registry.js';
 export { VirtualsAdapter, WrongDenominationError } from './venues/virtuals.js';
 export { KlikAdapter, klikPoolKey, poolIdOf, KLIK_POOL_FEE, KLIK_TICK_SPACING } from './venues/klik.js';
 export { encodeV4Buy, encodeV4Sell, packBytes, encodeV4Actions, encodeExactInSingle } from './venues/v4.js';
