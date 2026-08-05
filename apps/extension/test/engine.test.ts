@@ -197,6 +197,24 @@ describe('canary limit', () => {
     expect(f.sent).toHaveLength(0);
   });
 
+  it('refuses an over-limit plan in a LIVE build, one wei over the line', async () => {
+    // The test above proves the cap in simulation. This is the claim that
+    // actually protects the canary: in the one build that can broadcast, a plan
+    // a single wei above 0.005 ETH must not reach sendRawTransaction.
+    const session = await unlockedSession();
+    const f = fakeClient();
+    const engine = new TradeEngine({
+      client: f.client,
+      session,
+      journal: new TradeJournal(memoryArea()),
+      liveTrading: true,
+      chainId: 4663,
+    });
+    const over = plan({ steps: [{ kind: 'swap', tx: { to: ROUTER, data: '0x', value: CANARY_MAX_WEI + 1n, description: 'over' } }] });
+    await expect(engine.execute(over)).rejects.toMatchObject({ code: 'OVER_LIMIT' });
+    expect(f.sent).toHaveLength(0);
+  });
+
   it('counts value across every step, not just the swap', async () => {
     const session = await unlockedSession();
     const engine = new TradeEngine({

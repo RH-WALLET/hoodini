@@ -25,3 +25,6 @@ scripts/out/
 
 # local preview server, not part of the product
 .claude/launch.json
+
+# canary artifact — deliberately live, never shipped
+apps/extension/dist-live/
