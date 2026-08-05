@@ -63,8 +63,22 @@ const handle = createRouter({
    * where it is already open.
    */
   onPendingChange: (request) => {
-    void chrome.action?.setBadgeText?.({ text: request ? '1' : '' });
-    void chrome.action?.setBadgeBackgroundColor?.({ color: '#7bf1a8' });
+    // No optional chaining on the API itself. Writing `chrome.action?.` turns
+    // "the API is missing" into silence, which is the same invisible-by-default
+    // mistake that made a placement bug take three rounds to find (D-052). If
+    // the badge cannot be set, that is worth a line in the worker log.
+    try {
+      void Promise.resolve(chrome.action.setBadgeText({ text: request ? '1' : '' })).catch((e: unknown) =>
+        console.warn('[hoodini] setBadgeText failed', e),
+      );
+      void Promise.resolve(chrome.action.setBadgeBackgroundColor({ color: '#7bf1a8' })).catch((e: unknown) =>
+        console.warn('[hoodini] setBadgeBackgroundColor failed', e),
+      );
+      console.debug('[hoodini] badge', request ? 'set' : 'cleared');
+    } catch (e) {
+      console.warn('[hoodini] badge unavailable', e);
+    }
+    // No listener is a normal state — the popup is usually shut.
     chrome.runtime.sendMessage({ type: 'trade.pendingChanged' }).catch(() => {});
   },
   trade: {

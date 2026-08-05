@@ -74,6 +74,12 @@ export function App(): React.JSX.Element {
 
       {error && <div className="error">{error}</div>}
 
+      {/* Outside the view switch on purpose. A badge that leads to an empty
+          popup is worse than no badge: if something is waiting, it is shown
+          whatever state the wallet is in, and the sheet says so when approving
+          needs an unlock first. */}
+      <ConfirmSheet unlocked={view === 'unlocked'} />
+
       {view === 'loading' && <div className="panel muted">Loading…</div>}
       {view === 'setup' && <Setup busy={busy} run={run} />}
       {view === 'locked' && status && <Locked status={status} busy={busy} run={run} />}
@@ -110,7 +116,7 @@ function formatEth(wei: string): string {
  * Approving is the destructive action, so it is the one that has to be reached
  * for: Reject is the plain button and Approve carries the weight.
  */
-function ConfirmSheet({ onDone }: { onDone: () => void }): React.JSX.Element | null {
+function ConfirmSheet({ unlocked }: { unlocked: boolean }): React.JSX.Element | null {
   const [req, setReq] = useState<PendingTradeRow | null>(null);
   const [quote, setQuote] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -154,7 +160,6 @@ function ConfirmSheet({ onDone }: { onDone: () => void }): React.JSX.Element | n
     try {
       await fn();
       await load();
-      onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'that did not work');
     } finally {
@@ -197,8 +202,8 @@ function ConfirmSheet({ onDone }: { onDone: () => void }): React.JSX.Element | n
       <button className="ghost" disabled={busy} onClick={() => void act(() => trades.reject())}>
         Reject
       </button>
-      <button disabled={busy} onClick={() => void act(() => trades.approve(req.id))}>
-        {busy ? '…' : 'Approve'}
+      <button disabled={busy || !unlocked} onClick={() => void act(() => trades.approve(req.id))}>
+        {busy ? '…' : unlocked ? 'Approve' : 'Unlock to approve'}
       </button>
     </div>
   );
@@ -533,7 +538,6 @@ function Unlocked({ status, busy, run }: { status: WalletStatus; busy: boolean; 
         <p className="note">Locks automatically after {minutes} minutes idle, and whenever the browser suspends it.</p>
       </div>
 
-      <ConfirmSheet onDone={() => {}} />
       <Positions />
       <TradeSettings />
 
