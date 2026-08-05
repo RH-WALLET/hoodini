@@ -83,8 +83,9 @@ independent risk.
       `BondingV5`, not the bonding adapter; found by following a real `sell`
       transaction. Priced in $VIRTUAL, which forced `Quote.quoteAsset` (D-044).
       15 tests, mutation-checked
-- [ ] NOXA needs no adapter — launches are disabled and its tokens trade on
-      Uniswap V3, already covered
+- **NOXA needs no adapter** — launches are disabled and its tokens trade on
+  Uniswap V3, already covered. (A finding, not a task; it had an unchecked box
+  that could never be ticked.)
 - [x] **Clanker, CashCat, Pump (V4), EthCreatorFee** — one generic
       `V4HookAdapter` plus four config entries. Pool existence proved via
       `StateView.getSlot0` with a negative control. All four verified live

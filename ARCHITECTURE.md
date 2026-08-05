@@ -49,6 +49,14 @@ the only place a key exists, and nothing in between is a server.
 `POPUP / OPTIONS` talks to the service worker over the same message channel:
 wallet create/import, unlock, settings, positions.
 
+**Settings split across the boundary by what they are.** `settings.get` is
+page-readable — the overlay cannot draw its buttons without knowing the buy
+presets, and what someone's quick-buy is set to tells a site nothing it could
+not learn by watching a trade. `settings.set` is popup-only and sits in
+`NEVER_PAGE_ACCESSIBLE`, because a preset is a spend amount and slippage is how
+much of a trade the user will tolerate losing: a page that could write either
+could widen both and wait to be clicked (D-053).
+
 ---
 
 ## 2. The two interfaces
@@ -126,7 +134,11 @@ this interface plus one registry entry — nothing above the interface changes.
  user clicks BUY on an anchor
         │
         ▼
- content script → SW:  { buy, token, ethIn, slippageBps }
+ content script → SW:  { trade.quote, side, token, amount, slippageBps }
+        │
+        │  `amount` is the preset the user pressed and `slippageBps` comes
+        │  from settings — both read from the worker, never from the page
+        │  (D-053). A sell omits `amount` and quotes the whole balance (D-049).
         │
         ▼
  VenueRouter.resolve(token)

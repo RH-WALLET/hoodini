@@ -15,7 +15,8 @@
     "recon": "tsx scripts/recon.ts",
     "discover": "tsx scripts/discover.ts",
     "factories": "tsx scripts/factories.ts",
-    "v4-hooks": "tsx scripts/v4-hooks.ts"
+    "v4-hooks": "tsx scripts/v4-hooks.ts",
+    "doppler-states": "tsx scripts/doppler-states.ts"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
