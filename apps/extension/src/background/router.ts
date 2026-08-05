@@ -298,6 +298,28 @@ export function createRouter(deps: RouterDeps) {
           );
         }
 
+        case 'trade.warm': {
+          // Answers `{ ok: true }` no matter what happens below, including when
+          // trading is not wired up at all. Warming is an optimisation, and an
+          // optimisation that reports its own failures teaches a page to read
+          // them: a differing reply would say whether a venue trades this token
+          // before the user has asked anything.
+          if (trade) {
+            let token: Address | null = null;
+            try {
+              token = getAddress(request.token);
+            } catch {
+              // Untrusted page DOM. Nothing to warm and nothing to report.
+            }
+            if (token) {
+              // Not awaited. The point is to spend the pointer's travel time,
+              // and a hover must never make the page wait on RPC.
+              void trade.venues.resolve({ address: token, chainId: trade.chainId }).catch(() => {});
+            }
+          }
+          return { ok: true, data: null };
+        }
+
         case 'trade.quote':
         case 'trade.execute': {
           if (!trade) return fail('UNAVAILABLE', 'trading is not wired up in this build');

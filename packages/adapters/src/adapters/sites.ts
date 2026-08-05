@@ -36,6 +36,8 @@ export interface SiteAdapterConfig {
   readonly amounts?: readonly string[];
   /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
   readonly probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
+  /** Warm the venue cache on hover — see OverlayOptions.onWarm. */
+  readonly onWarm?: (token: TokenRef) => void;
 }
 
 export class ConfigurableSiteAdapter implements SiteAdapter {
@@ -88,6 +90,7 @@ export class ConfigurableSiteAdapter implements SiteAdapter {
       onIntent: this.#c.onIntent,
       ...(this.#c.amounts ? { amounts: this.#c.amounts } : {}),
       ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
+      ...(this.#c.onWarm ? { onWarm: this.#c.onWarm } : {}),
     });
   }
 }
@@ -97,6 +100,7 @@ type Common = {
   onIntent: (i: OverlayIntent) => void;
   amounts?: readonly string[];
   probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
+  onWarm?: (token: TokenRef) => void;
 };
 
 /**

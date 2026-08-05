@@ -138,6 +138,26 @@ async function propose(intent: OverlayIntent): Promise<IntentResult> {
   }
 }
 
+/**
+ * Spend the pointer's travel time resolving the venue.
+ *
+ * Cold, `resolve()` costs a round trip per adapter and dominates the click —
+ * measured at 1,233ms against 456ms for everything else put together. Warm it
+ * costs nothing. A hover lands a few hundred milliseconds before the click, so
+ * by the time the button is pressed the expensive half is already done.
+ *
+ * Fire-and-forget on purpose: the overlay must not wait on this, and a hover
+ * that fails to warm simply means the click pays what it always paid. Deliberately
+ * *not* on mount — D-049 settled that a column of fifty rows must not fire
+ * fifty requests nobody asked for, and hover is the signal that one of them is
+ * about to matter.
+ */
+function warm(token: TokenRef): void {
+  void chrome.runtime.sendMessage({ type: 'trade.warm', token: token.address }).catch(() => {
+    // Nothing is broken if warming fails; the click still works, just slower.
+  });
+}
+
 const onIntent = (intent: OverlayIntent) => propose(intent);
 
 // Prefer the adapter that knows this site; fall back to shape-based detection
@@ -151,6 +171,7 @@ const adapterOptions = {
   chainId: CHAIN_ID,
   onIntent,
   probeSell,
+  onWarm: warm,
   // A getter, not a snapshot: the adapter is built once at load, before the
   // worker has answered, so a copied array would pin the overlay to the
   // defaults for the life of the page.

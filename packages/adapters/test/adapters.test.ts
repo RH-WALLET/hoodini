@@ -290,6 +290,54 @@ describe('matchesSite', () => {
 
 // ── sell gating (D-049) ─────────────────────────────────────────────────────
 
+describe('hover warming', () => {
+  const noop = () => {};
+  const mount = (onWarm: (t: TokenRef) => void) => {
+    const doc = listPage();
+    const row = doc.querySelector('.row')!;
+    const host = mountOverlay(row, { address: A, chainId: CHAIN }, { onIntent: noop, onWarm });
+    return { doc, host };
+  };
+  const hover = (doc: Document, host: HTMLElement) =>
+    host.dispatchEvent(new doc.defaultView!.Event('pointerenter'));
+
+  it('does NOT warm on mount — fifty rows must not fire fifty requests', () => {
+    const warmed: string[] = [];
+    mount((t) => warmed.push(t.address));
+    // D-049's rule, applied to warming: a column of cards renders all of them,
+    // and the user is going to click at most one.
+    expect(warmed).toEqual([]);
+  });
+
+  it('warms on hover, carrying the token the control is bound to', () => {
+    const warmed: string[] = [];
+    const { doc, host } = mount((t) => warmed.push(t.address));
+    hover(doc, host);
+    expect(warmed).toEqual([A]);
+  });
+
+  it('warms once, however many times the pointer crosses it', () => {
+    const warmed: string[] = [];
+    const { doc, host } = mount((t) => warmed.push(t.address));
+    hover(doc, host);
+    hover(doc, host);
+    hover(doc, host);
+    // The worker caches what this warms, so passes two and three would be
+    // requests that buy nothing.
+    expect(warmed).toHaveLength(1);
+  });
+
+  it('works exactly as before when no warm handler is supplied', () => {
+    const doc = listPage();
+    const row = doc.querySelector('.row')!;
+    const seen: OverlayIntent[] = [];
+    const host = mountOverlay(row, { address: A, chainId: CHAIN }, { onIntent: (i) => seen.push(i) });
+    expect(() => hover(doc, host)).not.toThrow();
+    (host.shadowRoot!.querySelector('button') as HTMLButtonElement).click();
+    expect(seen).toHaveLength(1);
+  });
+});
+
 describe('sell gating', () => {
   const noop = () => {};
   const sellButton = (host: HTMLElement) => host.shadowRoot!.querySelector('button.sell') as HTMLButtonElement;

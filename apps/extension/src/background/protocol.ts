@@ -48,6 +48,21 @@ export type Request =
       readonly amount?: string;
       readonly slippageBps: number;
     }
+  /**
+   * Warm the venue cache for a token, and answer nothing about it.
+   *
+   * Resolving which venue trades a token is the expensive half of a trade:
+   * cold it costs a round trip per adapter, warm it costs nothing, and both the
+   * router and each adapter memoise the result. Paying it while the pointer is
+   * still travelling towards the button is the whole trick — the click then
+   * skips straight to quoting.
+   *
+   * Strictly weaker than `trade.quote`, deliberately. It carries no side, no
+   * amount and no slippage, and its reply is the same `{ ok: true }` whether
+   * resolution succeeded, failed or found nothing — so it cannot be used as an
+   * oracle for anything the page could not already ask outright.
+   */
+  | { readonly type: 'trade.warm'; readonly token: Address }
   | { readonly type: 'positions.list' }
   | { readonly type: 'settings.get' }
   | { readonly type: 'settings.set'; readonly settings: unknown }
@@ -114,6 +129,10 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   'wallet.changePassword': ['popup'],
   'wallet.reset': ['popup'],
   'trade.quote': ['popup', 'page'],
+  // Warming is a quote with everything interesting removed: no price comes
+  // back, no calldata, no signal at all. A page that may quote may obviously
+  // warm — this grants nothing `trade.quote` did not already.
+  'trade.warm': ['popup', 'page'],
   'trade.execute': ['popup'],
   // Holdings are the user's business, not a site's. A page that could read
   // them would learn the wallet's contents just by being visited.

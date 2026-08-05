@@ -129,6 +129,20 @@ export interface OverlayOptions {
   readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
   /** Position against the anchor rather than flowing after its content. */
   readonly placement?: OverlayPlacement;
+  /**
+   * Called once, the first time the pointer enters this control.
+   *
+   * For warming whatever the worker would otherwise compute on click —
+   * resolving the token's venue costs a round trip per adapter the first time
+   * and nothing afterwards (D-057), so paying it on hover makes the click feel
+   * instant.
+   *
+   * **On hover, not on mount.** D-049 already rejected mount-time probing: a
+   * column of fifty rows would fire fifty requests nobody asked for. Hover is
+   * intent, it is one row at a time, and it arrives a few hundred milliseconds
+   * before the click — which is the whole window needed.
+   */
+  readonly onWarm?: (token: TokenRef) => void;
 }
 
 /**
@@ -270,6 +284,14 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
     label.className = 'label';
     label.textContent = options.label;
     bar.appendChild(label);
+  }
+
+  if (options.onWarm) {
+    const warm = options.onWarm;
+    // `once`: hovering back and forth over a row must not become a request per
+    // pass. The worker caches what this warms, so a second call would be waste
+    // even if it were free.
+    host.addEventListener('pointerenter', () => warm(token), { once: true });
   }
 
   shadow.appendChild(bar);

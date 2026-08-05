@@ -63,6 +63,8 @@ export interface ChainTaggedConfig {
   readonly onIntent: (intent: OverlayIntent) => void;
   readonly amounts?: readonly string[];
   readonly probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  /** Warm the venue cache on hover — see OverlayOptions.onWarm. */
+  readonly onWarm?: (token: TokenRef) => void;
   /** Position against the row rather than flowing after it — see PLACEMENT. */
   readonly placement?: OverlayPlacement;
 }
@@ -158,6 +160,7 @@ export class ChainTaggedSiteAdapter implements SiteAdapter {
       ...(this.#c.placement ? { placement: this.#c.placement } : {}),
       ...(this.#c.amounts ? { amounts: this.#c.amounts } : {}),
       ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
+      ...(this.#c.onWarm ? { onWarm: this.#c.onWarm } : {}),
     });
   }
 
@@ -234,6 +237,7 @@ type Common = {
   onIntent: (i: OverlayIntent) => void;
   amounts?: readonly string[];
   probeSell?: (token: TokenRef) => Promise<SellUnavailable | null>;
+  onWarm?: (token: TokenRef) => void;
 };
 
 /**

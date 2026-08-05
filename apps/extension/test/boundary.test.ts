@@ -146,7 +146,7 @@ describe('classifySender', () => {
 });
 
 describe('surface policy', () => {
-  it('grants a page exactly three capabilities, none of which move money', () => {
+  it('grants a page exactly four capabilities, none of which move money', () => {
     // Pinned as an exact list rather than a count, so widening it is always a
     // deliberate edit here with reasoning attached. Each entry earns its place
     // by being unable to spend:
@@ -161,8 +161,12 @@ describe('surface policy', () => {
     //                  worst a hostile site achieves is a prompt nobody asked
     //                  for. Approval happens in extension UI, which a page
     //                  cannot reach — that separation is the whole of D-026.
+    //   trade.warm     caches which venue trades a token. Strictly weaker than
+    //                  trade.quote: no side, no amount, no price back, and the
+    //                  same reply whatever happens — so it answers nothing a
+    //                  page could not already ask outright (D-058).
     const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
-    expect(pageAllowed).toEqual(['settings.get', 'trade.quote', 'trade.request']);
+    expect(pageAllowed).toEqual(['settings.get', 'trade.quote', 'trade.request', 'trade.warm']);
   });
 
   it('never lets a page move ETH out of the wallet', () => {
@@ -501,6 +505,69 @@ describe('trade.quote — the sell-availability probe', () => {
     });
     return { handle, session, area };
   }
+
+  it('warming resolves the venue, so the click that follows does not have to', async () => {
+    const resolved: string[] = [];
+    const area = memoryArea();
+    const handle = createRouter({
+      store: new VaultStore(area), session: new KeystoreSession(), kdf: TEST_KDF,
+      trade: {
+        venues: { resolve: async (t: { address: string }) => { resolved.push(t.address); return null; } } as never,
+        engine: {} as never,
+        chainId: 4663,
+        client: {} as never,
+        watchlist: { async list() { return []; }, async add() {} },
+      },
+    });
+    expect(await handle({ type: 'trade.warm', token: TOKEN }, 'page')).toEqual({ ok: true, data: null });
+    // Resolution is fired without being awaited, so give the microtask queue a turn.
+    await Promise.resolve();
+    expect(resolved).toEqual([TOKEN]);
+  });
+
+  it('warming answers the same whether or not a venue was found', async () => {
+    // Otherwise it is an oracle: a page could sweep addresses and learn which
+    // are tradeable without ever asking for a quote.
+    const build = (resolve: () => Promise<unknown>) =>
+      createRouter({
+        store: new VaultStore(memoryArea()), session: new KeystoreSession(), kdf: TEST_KDF,
+        trade: {
+          venues: { resolve } as never,
+          engine: {} as never, chainId: 4663, client: {} as never,
+          watchlist: { async list() { return []; }, async add() {} },
+        },
+      });
+    const found = build(async () => ({ adapter: {}, via: 'registry' }));
+    const missing = build(async () => null);
+    const throwing = build(async () => { throw new Error('rpc down'); });
+    const expected = { ok: true, data: null };
+    expect(await found({ type: 'trade.warm', token: TOKEN }, 'page')).toEqual(expected);
+    expect(await missing({ type: 'trade.warm', token: TOKEN }, 'page')).toEqual(expected);
+    expect(await throwing({ type: 'trade.warm', token: TOKEN }, 'page')).toEqual(expected);
+    // Including a token that is not an address at all, and a build with no
+    // trading wired up — a hover must never surface either as a difference.
+    expect(await found({ type: 'trade.warm', token: 'not-an-address' as never }, 'page')).toEqual(expected);
+    const { handle: bare } = makeRouter();
+    expect(await bare({ type: 'trade.warm', token: TOKEN }, 'page')).toEqual(expected);
+  });
+
+  it('warming does not add to the watchlist — hovering is not interacting', async () => {
+    // The watchlist drives the positions panel and holds 200 entries. Filling
+    // it by moving a mouse down a column would bury what the user actually
+    // traded, and make the panel read 200 balances to show it.
+    const added: string[] = [];
+    const handle = createRouter({
+      store: new VaultStore(memoryArea()), session: new KeystoreSession(), kdf: TEST_KDF,
+      trade: {
+        venues: { resolve: async () => null } as never,
+        engine: {} as never, chainId: 4663, client: {} as never,
+        watchlist: { async list() { return []; }, async add(t: string) { added.push(t); } },
+      },
+    });
+    await handle({ type: 'trade.warm', token: TOKEN }, 'page');
+    await Promise.resolve();
+    expect(added).toEqual([]);
+  });
 
   it('quotes a buy without unlocking — a page must be able to show a price', async () => {
     const r = withTrade();

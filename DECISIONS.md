@@ -1479,10 +1479,68 @@ genuinely instant means giving something up, and that is a product decision
 rather than an optimisation:
 
 - **Prefetching a quote** when a control mounts costs nothing in safety and
-  makes the sheet open with a price already in hand. Not built.
+  makes the sheet open with a price already in hand. Built as hover-warming in
+  D-058 — on hover rather than on mount, for D-049's reason.
 - **Standing consent** — "approve buys under X ETH from this origin for the
   next N minutes" — is how session keys work elsewhere. It is a real weakening
   of D-054's guarantee that every trade meets a human, and it should only ever
   be entered deliberately, bounded by both amount and time.
 
-Neither is built. The first is free and worth doing; the second is Rory's call.
+The first is now built (D-058). The second is Rory's call.
+
+---
+
+### D-058 — A hover warms the venue cache; a page still learns nothing
+
+D-057 left prefetching described but unbuilt, and measured why it was worth
+building: resolving which venue trades a token was 1,800ms of a 2,016ms click.
+Everything else — quoting, building calldata — was noise beside it.
+
+**Warming happens on hover, not on mount.** This is the same rule D-049 settled
+for the sell probe, and it settles this the same way: a column of fifty cards
+mounts fifty controls and the user is going to click at most one, so mounting is
+not evidence of interest. A pointer entering a control is. It also arrives a few
+hundred milliseconds before the click, which is exactly the window needed.
+
+Measured on `0x354d…9633`, cold:
+
+|  | resolve | quote | click total |
+|---|---|---|---|
+| no warm | 1,800ms | 216ms | **2,016ms** |
+| after a hover | 0ms | 210ms | **210ms** |
+
+The 1,481ms the hover spends is not saved, it is *moved* — off the critical path
+and onto time the user was spending moving the mouse anyway.
+
+**`trade.warm` is a new page capability, and that is the part worth scrutiny.**
+The page-allowed list is pinned as an exact list precisely so widening it cannot
+happen quietly; the boundary test failed on the first run of this change, which
+is the test doing its job. The entry earns its place by being strictly weaker
+than the `trade.quote` it accelerates:
+
+- it carries no side, no amount and no slippage — only an address the page
+  already rendered;
+- it returns `{ ok: true, data: null }` and nothing else, so no price, no
+  calldata, no venue id;
+- it returns *the same reply* whether resolution succeeded, found no venue,
+  threw, was handed a string that is not an address, or ran in a build with no
+  trading wired up at all. A differing answer would make it an oracle: a page
+  could sweep addresses and learn which are tradeable without asking for a
+  quote. Four assertions pin this.
+
+**It deliberately does not touch the watchlist.** `trade.quote` adds the token,
+because quoting means the user pressed something. Hovering does not. The
+watchlist holds 200 entries and drives the positions panel, so filling it by
+moving a mouse down a column would bury what the user actually traded under what
+their cursor happened to cross, and make the panel read 200 balances to show it.
+
+**Resolution is fired without being awaited.** A hover must never make the page
+wait on RPC, and a warm that fails simply means the click pays what it always
+paid. The handler answers immediately either way.
+
+**The confirm sheet still quotes at approval time.** D-055 put it there so the
+user never approves against a stale price, and that has not changed — warming
+makes that fetch land in ~210ms instead of ~2s rather than replacing it. The
+price shown is still fetched when the sheet opens.
+
+Standing consent remains unbuilt and remains Rory's call (D-057).

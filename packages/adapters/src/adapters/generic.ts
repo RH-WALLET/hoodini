@@ -21,6 +21,8 @@ export interface GenericAdapterOptions {
   readonly onIntent: (intent: OverlayIntent) => void;
   /** Gate the Sell control on a real quote — see OverlayOptions.probeSell. */
   readonly probeSell?: (token: TokenRef) => Promise<{ reason: string } | null>;
+  /** Warm the venue cache on hover — see OverlayOptions.onWarm. */
+  readonly onWarm?: (token: TokenRef) => void;
   /** Defaults to every https page; narrowed by the manifest in practice. */
   readonly pattern?: URLPattern;
   readonly amounts?: readonly string[];
@@ -63,6 +65,7 @@ export class GenericAddressAdapter implements SiteAdapter {
       onIntent: this.#o.onIntent,
       ...(this.#o.amounts ? { amounts: this.#o.amounts } : {}),
       ...(this.#o.probeSell ? { probeSell: this.#o.probeSell } : {}),
+      ...(this.#o.onWarm ? { onWarm: this.#o.onWarm } : {}),
     });
   }
 }
