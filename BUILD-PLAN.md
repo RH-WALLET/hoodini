@@ -133,7 +133,12 @@ send path is built on top of it.
       this build" branch, correct while the engine was being written and then
       never revisited. Found by opening the popup and reading it in red.
       **Verified live 2026-08-05:** buttons quote on Axiom
-- [ ] **Rory to approve the first live canary in-session** (invariant 5)
+- [x] **Rory approved the first live canary in-session** (invariant 5) — **done
+      2026-08-06**, tx `0xb89c8b99d2a39570054cc48f863e9dd8344b027b0a0c1b8fa480e7493c915819`.
+      0.001 ETH into YEW via the V4 UniversalRouter, success. Total leaving the
+      wallet was 0.001002797723994 ETH against a gas fee of 0.000002797723994,
+      so exactly 0.001000000000000 reached the swap: the 0% invariant measured
+      on chain rather than asserted (D-060).
 
 ## [~] P3 — First terminal adapter — **Axiom** (`axiom.trade`)
 

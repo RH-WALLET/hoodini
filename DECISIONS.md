@@ -1602,3 +1602,52 @@ address. `positions.list` is popup-only specifically to keep that from a site
 (D-053), and auto-approval had quietly become the route around it. The page now
 gets `{ id, autoApproved: true }` and nothing else, asserted by a test that
 greps the whole response.
+
+---
+
+### D-060 — The canary went out, and 0% is now a measurement
+
+The first live trade, approved by hand in-session on 2026-08-06 as CLAUDE.md
+invariant 5 requires. Recorded here because "0% fee" had until now been a claim
+backed by tests and by the absence of fee-taking code. It is now backed by a
+transaction.
+
+```
+hash    0xb89c8b99d2a39570054cc48f863e9dd8344b027b0a0c1b8fa480e7493c915819
+block   28834795            status  success
+from    0x1A463b7b289AD1C2Ad73Ff95Ea2C048D9BB8e051   (nonce 0 -> 1)
+to      0x53BF6B0684Ec7eF91e1387Da3D1a1769bC5A6F77   UniversalRouter, execute
+value   0.001 ETH
+gas     113627 units, fee 0.000002797723994 ETH
+out     398019.240430042974631535 YEW (0x3CfDc3924d405c98230099e1826fF846BDBbb804)
+```
+
+**The arithmetic is the point.** The wallet went from `0.010189658214` to
+`0.009186860490006` ETH, a difference of `0.001002797723994`. Subtract the gas
+fee of `0.000002797723994` and the remainder is `0.001000000000000` exactly —
+to the wei. There is no skim, no tip, no spread and no third transfer. Every wei
+not paid to the sequencer went into the swap. That is the invariant-6 claim,
+measured rather than asserted.
+
+**What the canary exercised**, beyond the number: an unlocked keystore signing
+in worker memory, the V4 hookless adapter resolving and building calldata, the
+`LIVE_TRADING` gate at the send boundary, the journal recording before
+broadcast, the 0.005 ETH ceiling (never approached at 0.001), and the confirm
+sheet as the only thing that could authorise it.
+
+**What it did not exercise:** the sell path. Three venues are known to have
+pools that quote a buy and revert a sell (D-021, D-033, D-043), and the wallet
+now holds YEW specifically so that can be tested next.
+
+**Two operational consequences.**
+
+The live artifact was built to `apps/extension/dist-live` rather than `dist`, so
+the guard asserting `dist` is dry-run kept passing throughout and no live build
+was ever committed. `dist-live` is gitignored. The safe build should be
+reinstalled once testing is done: it can spend up to the canary ceiling per
+trade, and withdraw is deliberately uncapped (D-056).
+
+The send set the persistent first-live flag, so the invariant-5 gate in D-059 has
+now closed and standing consent is able to approve live sends. Uncapped, per the
+instruction. Armed, any matched site can propose any amount and it goes without a
+sheet — which is a reason to leave it disarmed until it is actually wanted.
