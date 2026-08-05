@@ -262,7 +262,10 @@ The step D-026 deferred: a page proposes, extension UI approves, and
       version consumed it before checking, so unlocking left nothing to approve
 - [x] 25 tests, mutation-checked (8 mutations; two survivors, both real gaps —
       origin spoofing and consume-on-approve had no coverage)
-- [ ] Not yet seen in a browser
+- [x] **Verified live 2026-08-05:** a buy click proposes, the button reads
+      `confirm ↗`, and the toolbar badge appears. The badge needed an icon to
+      exist at all — see P5
+- [ ] The sheet itself, and a dry-run approval, not yet exercised
 
 ## [~] P5 — Hardening, open-source release, landing page, CWS submission
 
