@@ -230,6 +230,24 @@ let dismissed: string | null = null;
  * scan rather than once at load: navigating from Pulse into a coin never
  * reloads the document.
  */
+/**
+ * Network gas, for the panel's stat rows.
+ *
+ * `chain.stats` is popup-only, so this asks the worker rather than the explorer
+ * directly — the content script has no business holding a network origin, and
+ * the figure carries no address either way.
+ */
+async function readGas(): Promise<number | null> {
+  try {
+    const res = (await chrome.runtime.sendMessage({ type: 'chain.stats' })) as
+      | { ok?: boolean; data?: { gasGwei?: number | null } }
+      | undefined;
+    return res?.ok ? (res.data?.gasGwei ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Nominal probe size: this asks whether a venue exists, not what a trade costs. */
 const PROBE_WEI = 1_000_000_000_000_000n;
 
@@ -305,7 +323,7 @@ function syncPanel(detected: readonly TokenRef[]): void {
  * popup or another tab.
  */
 function openPanel(token: TokenRef): void {
-  void readPanelPosition().then((position) => {
+  void Promise.all([readPanelPosition(), readGas()]).then(([position, gasGwei]) => {
     mountPanel(document, token, {
       profiles: settings.profiles,
       activeProfile: settings.activeProfile,
@@ -314,6 +332,7 @@ function openPanel(token: TokenRef): void {
       // The panel is a surface you opened on purpose, so it can afford the
       // graded sells the row strip cannot (D-068).
       sellPercents: [25, 50, 75, 100],
+      ...(gasGwei != null ? { gasGwei } : {}),
       ...(position ? { position } : {}),
       onMove: (next) => {
         void chrome.storage.local.set({ [PANEL_POS_KEY]: next }).catch(() => {

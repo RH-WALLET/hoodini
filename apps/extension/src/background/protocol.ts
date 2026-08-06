@@ -199,7 +199,11 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   'positions.list': ['popup'],
   'wallet.balance': ['popup'],
   // All four are the user's own business, and the last one spends gas.
-  'chain.stats': ['popup'],
+  // Global chain figures — the coin price and current gas. No address is in the
+  // request or the reply, so this tells a site nothing about who is asking, and
+  // the same numbers are on every block explorer. The panel prints gas beside
+  // the buttons, which is the point of showing it at all (D-069).
+  'chain.stats': ['popup', 'page'],
   'history.list': ['popup'],
   'approvals.list': ['popup'],
   'approvals.revoke': ['popup'],

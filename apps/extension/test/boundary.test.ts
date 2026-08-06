@@ -189,7 +189,7 @@ describe('classifySender', () => {
 });
 
 describe('surface policy', () => {
-  it('grants a page exactly four capabilities, none of which move money', () => {
+  it('grants a page exactly five capabilities, none of which move money', () => {
     // Pinned as an exact list rather than a count, so widening it is always a
     // deliberate edit here with reasoning attached. Each entry earns its place
     // by being unable to spend:
@@ -204,12 +204,21 @@ describe('surface policy', () => {
     //                  worst a hostile site achieves is a prompt nobody asked
     //                  for. Approval happens in extension UI, which a page
     //                  cannot reach — that separation is the whole of D-026.
+    //   chain.stats    the coin price and current gas. Global figures with no
+    //                  address in the request or the reply, identical for every
+    //                  visitor, and on every block explorer already (D-069).
     //   trade.warm     caches which venue trades a token. Strictly weaker than
     //                  trade.quote: no side, no amount, no price back, and the
     //                  same reply whatever happens — so it answers nothing a
     //                  page could not already ask outright (D-058).
     const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
-    expect(pageAllowed).toEqual(['settings.get', 'trade.quote', 'trade.request', 'trade.warm']);
+    expect(pageAllowed).toEqual([
+      'chain.stats',
+      'settings.get',
+      'trade.quote',
+      'trade.request',
+      'trade.warm',
+    ]);
   });
 
   it('never lets a page move ETH out of the wallet', () => {

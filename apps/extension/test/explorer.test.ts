@@ -93,10 +93,17 @@ describe('reading history', () => {
 
 describe('the new surfaces stay off the page', () => {
   it('keeps all four popup-only', () => {
-    for (const t of ['chain.stats', 'history.list', 'approvals.list', 'approvals.revoke'] as RequestType[]) {
+    for (const t of ['history.list', 'approvals.list', 'approvals.revoke'] as RequestType[]) {
       expect(ALLOWED_SURFACES[t]).toEqual(['popup']);
       expect(isAllowed(t, 'page')).toBe(false);
     }
+  });
+
+  it('lets a page read chain-wide figures, which name nobody', () => {
+    // Gas and the coin price are the same for every visitor and are on every
+    // block explorer. The panel prints gas beside the buttons (D-069); refusing
+    // it would protect nothing.
+    expect(ALLOWED_SURFACES['chain.stats']).toEqual(['popup', 'page']);
   });
 
   it('lists revoking among the capabilities a page may never hold', () => {

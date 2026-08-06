@@ -55,9 +55,11 @@ export interface PanelOptions {
   /** Where it opened last. Clamped into view, so a stale value cannot strand it. */
   readonly position?: PanelPosition;
   readonly onMove?: (position: PanelPosition) => void;
+  /** Current network gas in gwei, shown under each side. Omit for an em dash. */
+  readonly gasGwei?: number | null;
 }
 
-const WIDTH = 268;
+const WIDTH = 300;
 
 const STYLE = `
   :host { all: initial; }
@@ -89,7 +91,8 @@ const STYLE = `
   .x { all: unset; cursor: pointer; color: #4a5364; padding: 1px 2px; font-size: 12px; line-height: 1; }
   .x:hover { color: #e9eef7; }
 
-  .sec { padding: 0 11px 11px; }
+  .sec { padding: 0 12px 12px; }
+  .sec.sell { border-top: 1px solid rgba(255,255,255,.05); padding-top: 12px; }
   .lbl { color: #4a5364; font-size: 9px; letter-spacing: .13em; text-transform: uppercase;
          margin-bottom: 6px; display: block; font-weight: 650; }
   .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
@@ -109,6 +112,13 @@ const STYLE = `
   .grid button:disabled { cursor: default; opacity: .5; }
   .grid button.no { background: rgba(255,255,255,.04); color: #5d6472; }
   .grid button:focus-visible { outline: 1px solid currentColor; outline-offset: -3px; }
+
+  /* Under each side, the way the reference puts it: what this half will submit
+     with, readable without leaving the button you are about to press. */
+  .stats { display: flex; align-items: center; gap: 11px; margin-top: 7px; color: #4a5364; font-size: 9.5px; }
+  .stats i { font-style: normal; opacity: .65; margin-right: 3px; }
+  .stats b { color: #7d8797; font-weight: 600; }
+  .stats .gas { margin-left: auto; }
 
   .cfg { display: flex; align-items: center; gap: 6px; padding: 9px 11px;
          border-top: 1px solid rgba(255, 255, 255, .06);
@@ -202,10 +212,45 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   const buySec = doc.createElement('div');
   buySec.className = 'sec';
   const sellSec = doc.createElement('div');
-  sellSec.className = 'sec';
+  sellSec.className = 'sec sell';
   const cfg = doc.createElement('div');
   cfg.className = 'cfg';
   panel.append(buySec, sellSec, cfg);
+
+  /**
+   * The figures this side will actually submit with.
+   *
+   * Slippage and gas, and nothing else. The reference shows a priority fee and
+   * a tip beside them; this chain is an Orbit L2 with a sequencer and has no
+   * fee auction to bid into, so those two fields would be decoration shaped
+   * like information (D-069).
+   */
+  function statRow(profile: PanelProfile): HTMLElement {
+    const row = doc.createElement('div');
+    row.className = 'stats';
+
+    const slip = doc.createElement('span');
+    const slipIcon = doc.createElement('i');
+    slipIcon.textContent = '⇄';
+    const slipVal = doc.createElement('b');
+    slipVal.textContent = `${(profile.slippageBps / 100).toFixed(2).replace(/\.00$/, '')}%`;
+    slip.append(slipIcon, slipVal);
+    slip.title = 'Max slippage';
+
+    const gas = doc.createElement('span');
+    gas.className = 'gas';
+    const gasIcon = doc.createElement('i');
+    gasIcon.textContent = '⛽';
+    const gasVal = doc.createElement('b');
+    // Absent until the caller supplies one. A fabricated gas figure on a
+    // trading panel is worse than none.
+    gasVal.textContent = options.gasGwei != null ? `${options.gasGwei} gwei` : '—';
+    gas.append(gasIcon, gasVal);
+    gas.title = 'Network gas, paid to the sequencer either way';
+
+    row.append(slip, gas);
+    return row;
+  }
 
   function render(): void {
     const profile = options.profiles[active] ?? { buyPresets: [], slippageBps: 100 };
@@ -220,6 +265,7 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
     // three-preset profile and squeezes a two-preset one into quarter-width
     // buttons; both look like a mistake rather than a configuration.
     bg.style.gridTemplateColumns = `repeat(${Math.max(1, Math.min(4, profile.buyPresets.length))}, 1fr)`;
+    bg.style.gap = '5px';
     for (const amount of profile.buyPresets) {
       const b = doc.createElement('button');
       b.textContent = amount;
@@ -230,7 +276,7 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
       });
       bg.appendChild(b);
     }
-    buySec.append(bl, bg);
+    buySec.append(bl, bg, statRow(profile));
 
     sellSec.replaceChildren();
     const sl = doc.createElement('span');
@@ -274,7 +320,7 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
       });
       sg.appendChild(b);
     }
-    sellSec.append(sl, sg);
+    sellSec.append(sl, sg, statRow(profile));
 
     cfg.replaceChildren();
     const slip = doc.createElement('span');
