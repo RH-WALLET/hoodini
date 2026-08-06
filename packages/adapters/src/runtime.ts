@@ -22,6 +22,14 @@ export interface RuntimeOptions {
   readonly observe?: (target: Node, cb: () => void) => { disconnect: () => void };
   /** Reports scan errors instead of letting one bad row kill the runtime. */
   readonly onError?: (error: unknown) => void;
+  /**
+   * Told what each scan found, after mounting.
+   *
+   * The runtime already knows this and the caller would otherwise have to
+   * detect twice — once here and once to decide whether the page is about a
+   * single token (D-067).
+   */
+  readonly onScan?: (tokens: readonly TokenRef[]) => void;
 }
 
 export class AdapterRuntime {
@@ -32,6 +40,7 @@ export class AdapterRuntime {
   readonly #clearTimer: (handle: unknown) => void;
   readonly #observeFn: ((target: Node, cb: () => void) => { disconnect: () => void }) | undefined;
   readonly #onError: ((error: unknown) => void) | undefined;
+  readonly #onScan: ((tokens: readonly TokenRef[]) => void) | undefined;
 
   #observer: { disconnect: () => void } | null = null;
   #pending: unknown = null;
@@ -45,6 +54,7 @@ export class AdapterRuntime {
     this.#clearTimer = options.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
     this.#observeFn = options.observe;
     this.#onError = options.onError;
+    this.#onScan = options.onScan;
   }
 
   /** Scans performed. Exposed so tests can assert coalescing actually happens. */
@@ -99,8 +109,14 @@ export class AdapterRuntime {
       tokens = this.#adapter.detectTokens(this.#doc);
     } catch (e) {
       this.#onError?.(e);
+      // Still reported, as an empty page. A caller deciding whether to show a
+      // panel needs to hear that detection found nothing, not simply hear
+      // nothing at all.
+      this.#onScan?.([]);
       return 0;
     }
+
+    this.#onScan?.(tokens);
 
     for (const token of tokens) {
       try {

@@ -19,6 +19,7 @@ export {
   type SellUnavailable,
 } from './overlay.js';
 export { AdapterRuntime, matchesSite, type RuntimeOptions } from './runtime.js';
+export { pageToken, addressesInUrl } from './pageToken.js';
 export {
   mountPanel,
   unmountPanel,

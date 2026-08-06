@@ -40,8 +40,6 @@ export interface SiteAdapterConfig {
   readonly onWarm?: (token: TokenRef) => void;
   /** Shown under the buttons: what a click will submit with (D-065). */
   readonly config?: { readonly slippageBps: number };
-  /** Open the focused trade panel — see OverlayOptions.onExpand. */
-  readonly onExpand?: (token: TokenRef) => void;
 }
 
 export class ConfigurableSiteAdapter implements SiteAdapter {
@@ -96,7 +94,6 @@ export class ConfigurableSiteAdapter implements SiteAdapter {
       ...(this.#c.probeSell ? { probeSell: this.#c.probeSell } : {}),
       ...(this.#c.onWarm ? { onWarm: this.#c.onWarm } : {}),
       ...(this.#c.config ? { config: this.#c.config } : {}),
-      ...(this.#c.onExpand ? { onExpand: this.#c.onExpand } : {}),
     });
   }
 }
@@ -108,7 +105,6 @@ type Common = {
   probeSell?: (token: TokenRef, percent?: number) => Promise<{ reason: string } | null>;
   onWarm?: (token: TokenRef) => void;
   config?: { readonly slippageBps: number };
-  onExpand?: (token: TokenRef) => void;
 };
 
 /**

@@ -63,45 +63,60 @@ const STYLE = `
   :host { all: initial; }
   .panel {
     position: fixed; z-index: 2147483000; width: ${WIDTH}px;
-    background: rgba(10, 15, 24, 0.97); color: #e9eef7;
-    border: 1px solid #2a3648; border-radius: 12px;
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.62);
+    background: rgba(8, 11, 17, 0.94);
+    color: #e9eef7;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 44px -12px rgba(0, 0, 0, .75);
+    backdrop-filter: blur(14px) saturate(1.2);
     font: 500 12px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow: hidden;
   }
-  .hd { display: flex; align-items: center; gap: 7px; padding: 8px 9px;
-        border-bottom: 1px solid #1a2433; cursor: grab; user-select: none; }
+
+  .hd { display: flex; align-items: center; gap: 8px; padding: 10px 11px 9px;
+        cursor: grab; user-select: none; }
   .hd.drag { cursor: grabbing; }
-  .grip { color: #5a6880; font-size: 12px; letter-spacing: -2px; }
-  .tok { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
-         color: #8493aa; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tabs { display: flex; gap: 3px; }
-  .tabs button { all: unset; cursor: pointer; padding: 2px 7px; border-radius: 5px;
-                 font-size: 10.5px; font-weight: 650; color: #5a6880; border: 1px solid transparent; }
-  .tabs button:hover { color: #8493aa; }
-  .tabs button.on { color: #4da3ff; border-color: #4da3ff; background: rgba(77,163,255,.12); }
-  .x { all: unset; cursor: pointer; color: #5a6880; padding: 0 3px; font-size: 14px; line-height: 1; }
+  .grip { color: #39415170; font-size: 9px; letter-spacing: 1px; }
+  .tok { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px;
+         color: #6d7789; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+         letter-spacing: .01em; }
+  .tabs { display: flex; gap: 1px; background: rgba(255,255,255,.05); border-radius: 6px; padding: 1px; }
+  .tabs button { all: unset; cursor: pointer; padding: 3px 8px; border-radius: 5px;
+                 font-size: 10px; font-weight: 650; color: #6d7789; letter-spacing: .02em; }
+  .tabs button:hover { color: #aab4c4; }
+  .tabs button.on { color: #0a0f18; background: #7fb4f5; }
+  .x { all: unset; cursor: pointer; color: #4a5364; padding: 1px 2px; font-size: 12px; line-height: 1; }
   .x:hover { color: #e9eef7; }
 
-  .sec { padding: 9px; }
-  .sec + .sec { border-top: 1px solid #1a2433; }
-  .lbl { color: #5a6880; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
-         margin-bottom: 7px; display: block; }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  .sec { padding: 0 11px 11px; }
+  .lbl { color: #4a5364; font-size: 9px; letter-spacing: .13em; text-transform: uppercase;
+         margin-bottom: 6px; display: block; font-weight: 650; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
   .grid button {
     all: unset; box-sizing: border-box; cursor: pointer; text-align: center;
-    padding: 7px 2px; border-radius: 7px; font-size: 12px; font-weight: 600;
+    padding: 8px 2px; border-radius: 8px; font-size: 12px; font-weight: 650;
+    letter-spacing: -.01em; transition: background-color .12s ease, color .12s ease;
   }
-  .buy button { border: 1px solid #2b6b46; background: #10371f; color: #7bf1a8; }
-  .buy button:hover { background: #1d6640; }
-  .sell button { border: 1px solid #6b2b2b; background: #371010; color: #ff9a9a; }
-  .sell button:hover { background: #521818; }
-  .grid button:disabled { cursor: default; opacity: .55; }
-  .grid button.no { border-color: #3a3f4a; background: #1a1c21; color: #6f7787; }
+  /* Tinted glass rather than outlined pills: at this size a border on every
+     button is most of what the eye sees, and the colour alone carries the
+     buy/sell distinction perfectly well. */
+  .buy button { background: rgba(70, 214, 132, .12); color: #74e6a4; }
+  .buy button:hover { background: rgba(70, 214, 132, .22); color: #a6f3c6; }
+  .sell button { background: rgba(255, 122, 122, .11); color: #ff9494; }
+  .sell button:hover { background: rgba(255, 122, 122, .2); color: #ffbcbc; }
+  .grid button:active { transform: translateY(.5px); }
+  .grid button:disabled { cursor: default; opacity: .5; }
+  .grid button.no { background: rgba(255,255,255,.04); color: #5d6472; }
+  .grid button:focus-visible { outline: 1px solid currentColor; outline-offset: -3px; }
 
-  .cfg { display: flex; justify-content: space-between; padding: 7px 9px;
-         border-top: 1px solid #1a2433; color: #5a6880; font-size: 10.5px; }
-  .cfg b { color: #8493aa; font-weight: 600; }
+  .cfg { display: flex; align-items: center; gap: 6px; padding: 9px 11px;
+         border-top: 1px solid rgba(255, 255, 255, .06);
+         background: rgba(255,255,255,.015);
+         color: #4a5364; font-size: 10px; letter-spacing: .01em; }
+  .cfg .sp { flex: 1; }
+  .cfg b { color: #8e99ab; font-weight: 650; }
+  .cfg .zero { color: #74e6a4; font-weight: 650; }
 `;
 
 /** Keep the panel on screen whatever was stored or however the window changed. */
@@ -263,12 +278,17 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
 
     cfg.replaceChildren();
     const slip = doc.createElement('span');
-    slip.textContent = 'Max slippage';
+    slip.textContent = 'Slippage';
     const val = doc.createElement('b');
     val.textContent = `${(profile.slippageBps / 100).toFixed(2).replace(/\.00$/, '')}%`;
+    const spacer = doc.createElement('span');
+    spacer.className = 'sp';
+    const feeLabel = doc.createElement('span');
+    feeLabel.textContent = 'Fee';
     const fee = doc.createElement('span');
-    fee.textContent = 'Hoodini fee 0%';
-    cfg.append(slip, val, fee);
+    fee.className = 'zero';
+    fee.textContent = '0%';
+    cfg.append(slip, val, spacer, feeLabel, fee);
   }
   render();
 

@@ -58,8 +58,6 @@ export interface AxiomAdapterOptions {
   readonly onWarm?: (token: TokenRef) => void;
   /** Shown under the buttons: what a click will submit with (D-065). */
   readonly config?: { readonly slippageBps: number };
-  /** Open the focused trade panel — see OverlayOptions.onExpand. */
-  readonly onExpand?: (token: TokenRef) => void;
 }
 
 /**
@@ -203,7 +201,6 @@ export class AxiomAdapter implements SiteAdapter {
       ...(this.#o.probeSell ? { probeSell: this.#o.probeSell } : {}),
       ...(this.#o.onWarm ? { onWarm: this.#o.onWarm } : {}),
       ...(this.#o.config ? { config: this.#o.config } : {}),
-      ...(this.#o.onExpand ? { onExpand: this.#o.onExpand } : {}),
     });
   }
 

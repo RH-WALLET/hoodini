@@ -1937,3 +1937,45 @@ and written on pointer release rather than on every move.
 
 Sell fractions became 25/50/75/100 rather than 25/50/100 — Rory's call, and it
 matches the reference.
+
+---
+
+### D-067 — The panel belongs to a coin's page; a list keeps the strip
+
+D-066 opened the panel from a button on every row. Wrong: a list is for
+scanning, and a control that offers to open a workspace on each of fifty cards
+is in the way of the thing the list is for.
+
+**The panel now appears when the page is about one token, and only then.** No
+button summons it; it follows the page.
+
+**Detection is the URL, not the DOM.** "The page mentions exactly one address"
+is tempting and wrong — a list that has loaded one row and a detail page with a
+holders table both defeat it, and they defeat it by opening a trading panel on
+the wrong coin. A terminal that gives a token its own page puts the address in
+the path, because that is how the page is addressable at all. So the rule is:
+the path names an address, *and* the adapter also detected that address on the
+page. The first half says the page is about a token; the second says it is one
+this extension may trade, because it came through the adapter's own chain gate
+(D-050).
+
+Two addresses in the path that are both present answers null rather than picking
+the first. Sites that address a page by pair rather than by token — DexScreener
+— will not match, and that is the honest outcome: a pair address is not a token
+address and guessing which of the two was meant would open a panel that buys the
+wrong thing.
+
+**Re-evaluated on every scan**, because these terminals are single-page apps:
+navigating from Pulse into a coin never reloads the document, so a check at load
+would only ever see the list. Closing the panel is remembered per token, or the
+next mutation would reopen what was just dismissed.
+
+**Both surfaces were restyled, and the row strip is the important one.** It was
+a row of separate pills with a panel behind them; at 345px on a terminal card
+that is most of the card. It is now one continuous strip divided by hairlines,
+311×25, with the colour alone carrying buy from sell and the slippage as a
+9px tail. On a dense card the gaps between pills were most of what the eye saw.
+
+The panel dropped its outlined buttons for tinted glass and its loose tabs for a
+segmented control. At that size a border on every button is most of the ink, and
+the colour already says which side you are on.

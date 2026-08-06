@@ -167,13 +167,6 @@ export interface OverlayOptions {
    * before the click — which is the whole window needed.
    */
   readonly onWarm?: (token: TokenRef) => void;
-  /**
-   * Open the focused panel for this token.
-   *
-   * Renders a small expander at the end of the bar. Absent means no expander,
-   * which is how a surface with no room for one opts out (D-066).
-   */
-  readonly onExpand?: (token: TokenRef) => void;
 }
 
 /**
@@ -184,28 +177,42 @@ export interface OverlayOptions {
  */
 const STYLE = `
   :host { all: initial; display: inline-flex; vertical-align: middle; }
-  .bar { display: inline-flex; gap: 5px; align-items: center;
-         font: 600 13px/1 ui-sans-serif, system-ui, sans-serif;
-         background: rgba(9, 9, 11, 0.94); padding: 4px; border-radius: 9px;
-         border: 1px solid rgba(255, 255, 255, 0.10);
-         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55); }
-  button { all: unset; box-sizing: border-box; cursor: pointer;
-           padding: 6px 11px; border-radius: 6px; border: 1px solid #2b6b46;
-           background: #10371f; color: #7bf1a8; white-space: nowrap;
-           line-height: 1; }
-  button:hover { background: #1d6640; border-color: #3f9c68; }
-  button:active { transform: translateY(1px); }
-  button:focus-visible { outline: 2px solid #7bf1a8; outline-offset: 1px; }
-  button.sell { border-color: #6b2b2b; background: #371010; color: #ff9a9a; }
-  button.sell:hover { background: #521818; border-color: #a04141; }
-  button.unavailable { border-color: #3a3f4a; background: #1a1c21; color: #6f7787; cursor: not-allowed; }
-  button:disabled { cursor: default; opacity: 0.75; }
-  .label { color: #8b93a5; font-size: 11px; padding-right: 2px; }
-  button.expand { padding: 6px 8px; border-color: #2a3648; background: #121a27; color: #8493aa;
-                  font-size: 11px; line-height: 1; }
-  button.expand:hover { border-color: #4da3ff; color: #e9eef7; }
-  .cfg { color: #6f7787; font-size: 10px; padding: 0 2px; border-left: 1px solid rgba(255,255,255,.09);
-         margin-left: 2px; padding-left: 6px; }
+  .bar {
+    display: inline-flex; align-items: stretch; gap: 0;
+    font: 600 11px/1 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: rgba(9, 12, 18, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 8px;
+    overflow: hidden;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  }
+  /* One continuous strip divided by hairlines, rather than a row of separate
+     pills. On a dense terminal card the pill gaps read as clutter, and the
+     control has to disappear into the page until it is wanted. */
+  button {
+    all: unset; box-sizing: border-box; cursor: pointer;
+    padding: 6px 6.5px; white-space: nowrap; line-height: 1;
+    color: #86e6ab; border-right: 1px solid rgba(255, 255, 255, 0.07);
+    transition: background-color .12s ease, color .12s ease;
+  }
+  button:hover { background: rgba(123, 241, 168, 0.14); color: #b9f7d1; }
+  button:active { background: rgba(123, 241, 168, 0.22); }
+  button:focus-visible { outline: 1px solid #7bf1a8; outline-offset: -2px; }
+  button.sell { color: #ff9a9a; }
+  button.sell:hover { background: rgba(255, 154, 154, 0.14); color: #ffc4c4; }
+  button.sell:active { background: rgba(255, 154, 154, 0.22); }
+  /* The first sell takes a stronger rule, so buys and sells read as two groups
+     without needing a gap between them. */
+  button.sell.first { border-left: 1px solid rgba(255, 255, 255, 0.16); }
+  button.unavailable { color: #5d6472; background: rgba(255, 255, 255, 0.03); cursor: not-allowed; }
+  button:disabled { cursor: default; opacity: 0.8; }
+  .label { color: #8b93a5; font-size: 10.5px; padding: 0 7px; align-self: center; }
+  .cfg {
+    color: #656c7a; font-size: 9px; letter-spacing: .02em; align-self: center;
+    padding: 0 5px; border-left: 1px solid rgba(255, 255, 255, 0.07);
+  }
 `;
 
 /**
@@ -281,9 +288,9 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
    * for all four would be a button that is sometimes lying.
    */
   const percents = options.sellPercents ?? [25, 50, 75, 100];
-  for (const percent of percents) {
+  percents.forEach((percent, index) => {
     const b = doc.createElement('button');
-    b.className = 'sell';
+    b.className = index === 0 ? 'sell first' : 'sell';
     b.textContent = `${percent}%`;
     const label = b.textContent;
     b.addEventListener('click', (e) => {
@@ -324,26 +331,13 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
         });
     });
     bar.appendChild(b);
-  }
+  });
 
   if (options.label) {
     const label = doc.createElement('span');
     label.className = 'label';
     label.textContent = options.label;
     bar.appendChild(label);
-  }
-
-  if (options.onExpand) {
-    const expand = doc.createElement('button');
-    expand.className = 'expand';
-    expand.textContent = '⤢';
-    expand.title = 'Open the trade panel';
-    expand.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      options.onExpand?.(token);
-    });
-    bar.appendChild(expand);
   }
 
   if (options.config) {

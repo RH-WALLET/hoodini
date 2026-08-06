@@ -16,6 +16,8 @@ import {
   createTerminalAdapter,
   matchesSite,
   mountPanel,
+  unmountPanel,
+  pageToken,
   unmountAll,
   type IntentResult,
   type OverlayIntent,
@@ -201,6 +203,49 @@ async function readPanelPosition(): Promise<PanelPosition | undefined> {
 }
 
 /**
+ * The token whose panel is currently open, lowercased. Null when none is.
+ *
+ * Tracked so a rescan does not tear the panel down and rebuild it underneath
+ * the user mid-drag, or reset the profile tab they just chose.
+ */
+let panelToken: string | null = null;
+
+/**
+ * A token whose panel the user closed.
+ *
+ * Without this, the next scan reopens what was just dismissed — and scans run
+ * on every mutation, so the panel would come straight back. Cleared when the
+ * page moves to a different token, because dismissing one coin's panel says
+ * nothing about the next.
+ */
+let dismissed: string | null = null;
+
+/**
+ * Show the panel when the page is about one token, and only then.
+ *
+ * A list gets the small row controls and nothing else — that is what makes them
+ * usable while scanning. A coin's own page is where a panel earns its space
+ * (D-067). Terminals are single-page apps, so this is re-evaluated on every
+ * scan rather than once at load: navigating from Pulse into a coin never
+ * reloads the document.
+ */
+function syncPanel(detected: readonly TokenRef[]): void {
+  const token = pageToken(location.href, detected);
+  if (!token) {
+    if (panelToken !== null) {
+      unmountPanel(document);
+      panelToken = null;
+    }
+    return;
+  }
+  const key = token.address.toLowerCase();
+  if (key === panelToken || key === dismissed) return;
+  dismissed = null;
+  panelToken = key;
+  openPanel(token);
+}
+
+/**
  * Open the focused panel on a token.
  *
  * The profiles come from settings, which a page may read (D-053) but never
@@ -220,6 +265,11 @@ function openPanel(token: TokenRef): void {
         void chrome.storage.local.set({ [PANEL_POS_KEY]: next }).catch(() => {
           // A position that fails to save costs a drag next time, nothing more.
         });
+      },
+      onClose: () => {
+        // Remembered, so the next scan does not reopen what was just dismissed.
+        panelToken = null;
+        dismissed = token.address.toLowerCase();
       },
     });
   });
@@ -248,7 +298,6 @@ const adapterOptions = {
   get config(): { slippageBps: number } {
     return { slippageBps: settings.slippageBps };
   },
-  onExpand: openPanel,
 };
 const adapter =
   [
@@ -264,6 +313,7 @@ const runtime = new AdapterRuntime(adapter, document, {
   // that says what went wrong was invisible by default. That cost three rounds
   // of guessing before the first real bug was found (D-052).
   onError: (e) => console.warn('[hoodini] scan error', e),
+  onScan: syncPanel,
 });
 
 runtime.start();

@@ -91,7 +91,11 @@ describe('what it puts on screen', () => {
   });
 
   it('states the fee as zero where the trade is made', () => {
-    expect(open().shadow.textContent).toContain('Hoodini fee 0%');
+    // Not in a settings screen and not on the landing page: on the surface the
+    // trade is actually made from.
+    const cfg = open().shadow.querySelector('.cfg')!;
+    expect(cfg.textContent).toContain('Fee');
+    expect(cfg.querySelector('.zero')?.textContent).toBe('0%');
   });
 });
 
