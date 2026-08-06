@@ -384,12 +384,22 @@ detect but never `mount`, plus a fallback in `syncPanel` — the route names no
 token on a social page, so use "the adapter found exactly one", which is what a
 single post is.
 
-**Attempted and reverted.** The source change is three lines and worked; two
-tests in `packages/adapters/test/sites.test.ts` then failed, including
-`X > falls back to shape when the testid is gone`, which asserts anchor
-resolution and should not depend on whether `mount` does anything. That is not
-understood, and a suppressed test on the surface that decides where buttons
-appear is worse than the bug. Diagnose that first — it may be a real coupling
-between mounting and anchor resolution, which would be worth knowing regardless.
+**Attempted twice and reverted twice. Here is exactly how far it got**, so the
+next attempt starts from evidence rather than from scratch:
+
+- The source change is safe. Probed directly with the change applied and the
+  same markup, `detectTokens` returns 1 and `findAnchors` returns 1 — so
+  `panelOnly` does *not* break anchor resolution, which was the first theory.
+- Retargeting the three mounting assertions fixes two of them. `X > anchors on
+  the tweet article` and `never nests a control inside another control` pass
+  once the first asserts resolution rather than a mounted host, and the second
+  moves to DexScreener, which still decorates.
+- **One test remains red:** `X > falls back to shape when the testid is gone`,
+  where `detectTokens` returns 0 for markup that returns 1 when probed in
+  isolation. The adapter is constructed fresh, so the suspicion is state shared
+  through the module-global jsdom `document` between tests in that file — an
+  ordering artifact rather than a defect in the change. Confirm that before
+  touching anything: if it is real ordering coupling, other tests in this file
+  are load-bearing on run order and that is worth knowing on its own.
 
 `scripts/diagnose-social.js` checks the selectors on a live page.
