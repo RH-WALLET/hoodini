@@ -9,8 +9,11 @@ not something this project does on his behalf.
 - [ ] `pnpm --filter @hoodini/extension build` clean
 - [ ] Confirm `LIVE_TRADING` is **false** in the shipped build unless a live
       release is intended (it is a build-time constant; the default is false)
-- [ ] Version bumped in `src/manifest.ts`
-- [ ] `docs/landing/index.html` has the real token CA, or still says "not launched"
+- [ ] Version bumped in `src/manifest.ts` (currently 0.0.1 — the store rejects a
+      re-upload of a version already published)
+- [ ] `activeTab` is still declared and still used, or dropped — an unused
+      permission is a common rejection reason
+- [ ] `docs/index.html` has the real token CA, or still says "not launched"
 - [ ] Reviewer note below updated if permissions changed
 
 ## Permission justifications
@@ -84,8 +87,9 @@ Privacy policy URL: point at the hosted copy of `PRIVACY.md`.
 > This extension is a non-custodial wallet and trading overlay. Keys are
 > generated client-side, encrypted with scrypt + AES-GCM, and stored only in
 > chrome.storage.local — they are never transmitted. The extension contacts
-> exactly one network host, the public Robinhood Chain RPC, declared in
-> host_permissions. Content scripts read page text to find token contract
+> exactly two network hosts, both declared in host_permissions and both public:
+> the Robinhood Chain RPC, and the chain's Blockscout explorer for the ETH price
+> and the user's own transaction list. Content scripts read page text to find token contract
 > addresses and inject controls; page content is never sent anywhere. There is
 > no remote code: CSP is script-src 'self' with no unsafe-eval. Source:
 > https://github.com/RH-WALLET/hoodini
