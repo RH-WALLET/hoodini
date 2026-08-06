@@ -51,7 +51,13 @@ const REPLIES = {
     hasVault: STATE !== 'setup',
     address: ADDR,
     isUnlocked: STATE === 'unlocked',
-    autoLockMs: 900000,
+    autoLockMs: 1500000,
+    accounts: [
+      { address: ADDR, label: null },
+      { address: '0x5dbaca8327b0baa57eb6c872a333bf8d6f642ba3', label: 'burner' },
+      { address: '0xa9b49b038835bf5a664e07ea86d9fc9a5d841a9c', label: null },
+    ],
+    activeIndex: 0,
   },
   'wallet.balance': { wei: '9186860490006000' },
   'positions.list': {
