@@ -28,6 +28,12 @@ import { parseEther } from 'viem';
 import { DEFAULT_SETTINGS, normaliseSettings, type Settings, type TokenRef } from '@hoodini/core';
 
 const CHAIN_ID = 4663;
+
+/**
+ * Bumped whenever the content script changes in a way a stale tab would hide.
+ * Read from the page with `document.documentElement.dataset.hoodiniBuild`.
+ */
+const BUILD_MARKER = 'panel-2';
 const DEFAULT_BUY_WEI = 10n ** 15n; // 0.001 ETH
 
 /**
@@ -388,6 +394,21 @@ const runtime = new AdapterRuntime(adapter, document, {
   onError: (e) => console.warn('[hoodini] scan error', e),
   onScan: syncPanel,
 });
+
+/**
+ * Stamp the document with what is running.
+ *
+ * Content scripts inject on page load and never again: reloading the extension
+ * leaves every open tab running the previous build, which has now cost this
+ * project two debugging sessions that both ended in "hard-reload the tab"
+ * (D-052, D-067). A marker turns "is the new code even here?" from a guess into
+ * a one-line answer.
+ *
+ * On documentElement rather than a global, because a content script's globals
+ * are isolated from the page and therefore invisible to a console paste.
+ */
+document.documentElement.setAttribute('data-hoodini-build', BUILD_MARKER);
+document.documentElement.setAttribute('data-hoodini-panel-capable', 'yes');
 
 runtime.start();
 
