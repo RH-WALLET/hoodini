@@ -394,12 +394,25 @@ next attempt starts from evidence rather than from scratch:
   the tweet article` and `never nests a control inside another control` pass
   once the first asserts resolution rather than a mounted host, and the second
   moves to DexScreener, which still decorates.
-- **One test remains red:** `X > falls back to shape when the testid is gone`,
-  where `detectTokens` returns 0 for markup that returns 1 when probed in
-  isolation. The adapter is constructed fresh, so the suspicion is state shared
-  through the module-global jsdom `document` between tests in that file — an
-  ordering artifact rather than a defect in the change. Confirm that before
-  touching anything: if it is real ordering coupling, other tests in this file
-  are load-bearing on run order and that is worth knowing on its own.
+- **One test remains red:** `X > falls back to shape when the testid is gone`.
+  Everything below was checked, so do not re-check it:
+  - It fails with the change and passes without it, **both with `-t` filtering
+    to that single test**, so it is not test *ordering* in the obvious sense.
+  - The `mount` guard is one line at the top of `mount` and was read back; it
+    cannot reach `detectTokens` or `findAnchors`.
+  - `nearestRow` was traced by hand against that exact markup: the `.post` div
+    has three same-tag siblings under `#feed` and >40 characters of text, so it
+    should be returned.
+  - **The anomaly worth chasing:** the identical markup, probed from a
+    *separate* test file with the change applied, returns 1 token and 1 anchor.
+    Same code, same DOM, different file, different result. So something in
+    `sites.test.ts` itself is participating — module-level setup in that file
+    still executes under `-t`, so a filtered run does not isolate as much as it
+    appears to. Instrument `findAnchors` from *inside* that file rather than
+    from a fresh one, and compare.
+
+  This matters beyond P15: if a scan's result depends on what a previous scan
+  mounted, detection is load-bearing on side effects, and that would be a real
+  defect in the thing that decides where buy buttons appear.
 
 `scripts/diagnose-social.js` checks the selectors on a live page.
