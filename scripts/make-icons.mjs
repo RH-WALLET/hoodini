@@ -1,104 +1,100 @@
 /**
- * scripts/make-icons.mjs — generate placeholder toolbar icons.
+ * scripts/make-icons.mjs — rasterise the toolbar icons from `assets/icon.svg`.
  *
- * Not branding. Rory owns the real artwork; this exists because an action with
- * no icon has nowhere to render a badge, so the pending-trade signal silently
- * did nothing. A placeholder that works beats a blocker that waits.
+ * This script used to *generate* placeholder icons: a flat mark on a dark tile,
+ * deliberately plain so it read as unfinished. Rory has since supplied real
+ * artwork, so a script that writes placeholders over it would be a loaded gun
+ * left in the drawer. It now renders the committed source instead.
  *
- * Deliberately plain — a flat mark on a dark tile, no wordmark, no logo — so
- * that it reads as unfinished rather than as a design decision somebody made.
+ * It does not rasterise here. There is no image dependency in this repo and
+ * adding one to draw three icons would be worse than the alternative: it writes
+ * a page that draws the SVG onto a canvas at each size, which is the browser's
+ * own rasteriser and needs nothing installed.
  *
- * No image dependency: a PNG is a signature, three chunks and a CRC, and
- * pulling in a library to draw two rectangles would be worse.
+ * Per size, not downsampled from one bitmap. `assets/icon.svg` carries two
+ * variants — the full mark, and a simplified one for 16px where the flap's
+ * outline is thinner than a pixel and degrades to a smudge.
  *
  *   node scripts/make-icons.mjs
+ *   → open the printed URL, then follow the on-page instructions
  */
 
-import { deflateSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../apps/extension/public/icons');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const svg = readFileSync(resolve(root, 'assets/icon.svg'), 'utf8')
+  .replace(/<!--[\s\S]*?-->/g, '')
+  .trim();
 
-const BG = [10, 10, 11, 255]; // near-black, matches the overlay panel
-const FG = [123, 241, 168, 255]; // the overlay's green
+/** 16 uses the simplified variant; everything above it uses the full mark. */
+const SIZES = [
+  { size: 128, use: 'mark' },
+  { size: 48, use: 'mark' },
+  { size: 16, use: 'mark-small' },
+];
 
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
+const out = resolve(root, 'apps/extension/dist');
+mkdirSync(out, { recursive: true });
 
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
+const page = `<!doctype html><meta charset="utf-8"><title>Hoodini icons</title>
+<body style="background:#141a16;margin:0;padding:28px;font:13px/1.6 ui-monospace,monospace;color:#8fa89a">
+<h1 style="font-size:15px;color:#e9eef7;margin:0 0 4px">Toolbar icons</h1>
+<p style="margin:0 0 20px">Rendered from <code>assets/icon.svg</code>. Each is drawn at its own size.</p>
+<div id="strip" style="display:flex;gap:26px;align-items:flex-end;margin-bottom:24px"></div>
+<p style="margin:0 0 8px">Copy the hex below and write the files:</p>
+<pre style="user-select:all;background:#0d1310;border:1px solid #24322b;border-radius:7px;padding:12px;overflow:auto;max-height:160px;font-size:11px" id="hex">rendering…</pre>
+<p style="margin:12px 0 0;color:#5f7a6b">Hex rather than base64: these travel through a shell on the way to disk,
+and base64's <code>+ / =</code> are exactly the characters that get mangled en route. Verify the CRC of every chunk
+after writing — a corrupt IDAT still looks like a PNG to <code>file(1)</code>.</p>
+<script>
+const SVG = ${JSON.stringify(svg)};
+const SIZES = ${JSON.stringify(SIZES)};
+const strip = document.getElementById('strip');
+const hexes = {};
+
+function render({ size, use }) {
+  return new Promise((res) => {
+    const src = SVG
+      .replace('width="128" height="128"', 'width="' + size + '" height="' + size + '"')
+      .replace('<use href="#mark"', '<use href="#' + use + '"');
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const x = c.getContext('2d');
+      x.imageSmoothingQuality = 'high';
+      x.drawImage(img, 0, 0, size, size);
+      const bin = atob(c.toDataURL('image/png').split(',')[1]);
+      let h = '';
+      for (let i = 0; i < bin.length; i++) h += bin.charCodeAt(i).toString(16).padStart(2, '0');
+      hexes[size] = h;
+
+      const p = document.createElement('canvas');
+      const scale = Math.max(1, Math.round(160 / size));
+      p.width = p.height = size * scale;
+      const px = p.getContext('2d');
+      px.imageSmoothingEnabled = false;
+      px.drawImage(c, 0, 0, size * scale, size * scale);
+      p.style.cssText = 'image-rendering:pixelated;border:1px solid #24322b;border-radius:4px';
+      const cell = document.createElement('div');
+      cell.appendChild(p);
+      cell.insertAdjacentHTML('beforeend', '<div style="margin-top:6px">' + size + 'px</div>');
+      strip.appendChild(cell);
+      res();
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+  });
 }
 
-function chunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
-  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(body));
-  return Buffer.concat([len, body, crc]);
-}
+(async () => {
+  for (const s of SIZES) await render(s);
+  document.getElementById('hex').textContent = JSON.stringify(hexes, null, 1);
+})();
+</script>`;
 
-function png(size, pixel) {
-  // One filter byte (0 = none) per scanline, then RGBA.
-  const raw = Buffer.alloc(size * (1 + size * 4));
-  let o = 0;
-  for (let y = 0; y < size; y++) {
-    raw[o++] = 0;
-    for (let x = 0; x < size; x++) {
-      const [r, g, b, a] = pixel(x, y, size);
-      raw[o++] = r;
-      raw[o++] = g;
-      raw[o++] = b;
-      raw[o++] = a;
-    }
-  }
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 6; // colour type: RGBA
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw, { level: 9 })),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
-
-/** A rounded tile with a bold H cut out of it. Legible at 16px, which is the bar. */
-function draw(x, y, size) {
-  const r = size * 0.22; // corner radius
-  const inset = 0;
-  const dx = Math.min(x - inset, size - 1 - inset - x);
-  const dy = Math.min(y - inset, size - 1 - inset - y);
-  // Outside the rounded corner → transparent.
-  if (dx < r && dy < r) {
-    const cx = dx < r ? r : dx;
-    const cy = dy < r ? r : dy;
-    if (Math.hypot(cx - dx, cy - dy) > r) return [0, 0, 0, 0];
-  }
-
-  const u = x / size;
-  const v = y / size;
-  const barTop = v > 0.24 && v < 0.76;
-  const leftBar = u > 0.26 && u < 0.4 && barTop;
-  const rightBar = u > 0.6 && u < 0.74 && barTop;
-  const cross = v > 0.43 && v < 0.57 && u > 0.26 && u < 0.74;
-
-  return leftBar || rightBar || cross ? FG : BG;
-}
-
-mkdirSync(OUT, { recursive: true });
-for (const size of [16, 48, 128]) {
-  const file = resolve(OUT, `icon-${size}.png`);
-  writeFileSync(file, png(size, draw));
-  console.log(`wrote ${file}`);
-}
-console.log('\nPlaceholders. Replace with real artwork before submitting to the Chrome Web Store.');
+writeFileSync(resolve(out, 'icons-preview.html'), page);
+console.log('wrote apps/extension/dist/icons-preview.html');
+console.log('serve apps/extension/dist and open icons-preview.html, then write the hex to');
+console.log('apps/extension/public/icons/icon-{16,48,128}.png — validating every chunk CRC.');

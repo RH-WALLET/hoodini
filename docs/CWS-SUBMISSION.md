@@ -96,7 +96,7 @@ Privacy policy URL: point at the hosted copy of `PRIVACY.md`.
 
 ## Assets still needed
 
-- [ ] Icon 128×128 (plus 48 and 16) — **placeholders exist** (`scripts/make-icons.mjs`); replace with real artwork
+- [x] Icon 128×128 (plus 48 and 16) — real artwork, source at `assets/icon.svg`
 - [ ] At least one 1280×800 screenshot
 - [x] Hosted privacy policy URL — `https://rh-wallet.github.io/hoodini/privacy.html`
       (paste this into the listing's Privacy policy field; it is linked from the

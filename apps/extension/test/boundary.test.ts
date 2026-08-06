@@ -719,6 +719,20 @@ describe('trade.quote — the sell-availability probe', () => {
   });
 });
 
+
+/**
+ * PNG chunk CRC-32. Node has `zlib.crc32` only from 22.2, and this file has to
+ * run wherever the suite runs, so the table is built here — it is eight lines.
+ */
+function crc32(buf: Buffer): number {
+  let c = ~0;
+  for (const byte of buf) {
+    c ^= byte;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  }
+  return ~c >>> 0;
+}
+
 describe('toolbar icon', () => {
   it('declares icons, without which a badge has nowhere to render', () => {
     // Not a cosmetic assertion. The pending-trade badge set successfully and
@@ -730,6 +744,42 @@ describe('toolbar icon', () => {
     for (const size of ['16', '48', '128']) {
       expect(m.icons?.[size], `manifest icons is missing ${size}`).toBeDefined();
       expect(m.action?.default_icon?.[size], `action.default_icon is missing ${size}`).toBeDefined();
+    }
+  });
+
+  /**
+   * A declared icon that is not a readable PNG is the same as no icon.
+   *
+   * Not hypothetical: the artwork was rasterised in a browser and moved to disk
+   * as text, and one of the three arrived with a corrupt IDAT. It had a valid
+   * signature, a valid header, the right dimensions, and `file(1)` called it a
+   * PNG — it simply rendered as half an image. Every chunk's CRC is the check
+   * that caught it, so every chunk's CRC is the check that stays.
+   */
+  it('ships icons that are real PNGs at the sizes they claim', () => {
+    const dir = resolve(fileURLToPath(import.meta.url), '../../public/icons');
+    const SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+    for (const size of [16, 48, 128]) {
+      const png = readFileSync(resolve(dir, `icon-${size}.png`));
+      expect(png.subarray(0, 8).equals(SIGNATURE), `icon-${size} is not a PNG`).toBe(true);
+      expect(png.readUInt32BE(16), `icon-${size} width`).toBe(size);
+      expect(png.readUInt32BE(20), `icon-${size} height`).toBe(size);
+
+      let offset = 8;
+      let sawPixels = false;
+      while (offset < png.length) {
+        const length = png.readUInt32BE(offset);
+        const type = png.subarray(offset + 4, offset + 8).toString('latin1');
+        const crc = png.readUInt32BE(offset + 8 + length);
+        const actual = crc32(png.subarray(offset + 4, offset + 8 + length));
+        expect(crc, `icon-${size}: ${type} chunk is corrupt`).toBe(actual);
+        if (type === 'IDAT') sawPixels = true;
+        offset += 12 + length;
+        if (type === 'IEND') break;
+      }
+      expect(sawPixels, `icon-${size} carries no pixel data`).toBe(true);
+      expect(offset, `icon-${size} has trailing bytes after IEND`).toBe(png.length);
     }
   });
 
