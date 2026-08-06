@@ -17,6 +17,7 @@ import {
   withdrawApi,
   consentApi,
   balanceApi,
+  accountsApi,
   chainApi,
   historyApi,
   approvalsApi,
@@ -143,6 +144,7 @@ export function App(): React.JSX.Element {
 function AccountBar({ status, busy, run }: { status: WalletStatus; busy: boolean; run: RunFn }): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const [armed, setArmed] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const load = () => void consentApi.status().then((c) => setArmed(c.armed)).catch(() => setArmed(false));
@@ -159,11 +161,18 @@ function AccountBar({ status, busy, run }: { status: WalletStatus; busy: boolean
     setTimeout(() => setCopied(false), 1400);
   };
 
+  const active = status.accounts[status.activeIndex];
+  const name = active?.label ?? `Wallet ${status.activeIndex + 1}`;
+
   return (
     <div className="acct">
-      <div className="avatar"><TopHat size={22} /></div>
+      <button className="avatar" title="Switch wallet" onClick={() => setOpen((o) => !o)}>
+        <TopHat size={22} />
+      </button>
       <div className="acct-id">
-        <div className="acct-name">Hoodini</div>
+        <button className="acct-name" onClick={() => setOpen((o) => !o)}>
+          {name} {status.accounts.length > 1 ? <span className="caret">▾</span> : null}
+        </button>
         <button className="acct-addr" onClick={() => void copy()} title="Copy address">
           {status.address ? short(status.address) : ''} {copied ? <Icon.check /> : <Icon.copy />}
         </button>
@@ -176,6 +185,97 @@ function AccountBar({ status, busy, run }: { status: WalletStatus; busy: boolean
           <Icon.lock />
         </button>
       </div>
+      {open && <WalletPicker status={status} onDone={() => setOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * Choosing which wallet signs, and adding another.
+ *
+ * Switching needs no password: the set was unlocked with one and every key is
+ * already resident, so asking again would make multi-wallet unusable for the
+ * thing it exists for. Adding one does ask, because the session holds keys
+ * rather than the password and a new vault cannot be encrypted without
+ * re-deriving (D-070).
+ */
+function WalletPicker({ status, onDone }: { status: WalletStatus; onDone: () => void }): React.JSX.Element {
+  const [adding, setAdding] = useState(false);
+  const [password, setPassword] = useState('');
+  const [importKey, setImportKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const act = async (fn: () => Promise<unknown>, close = true) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      // The whole popup reads from wallet.status, so a change has to reach it.
+      chrome.runtime.sendMessage({ type: 'wallet.changed' }).catch(() => {});
+      if (close) onDone();
+      location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'that did not work');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="picker">
+      {status.accounts.map((a, i) => (
+        <button
+          key={a.address}
+          className={i === status.activeIndex ? 'pick on' : 'pick'}
+          disabled={busy}
+          onClick={() => void act(() => accountsApi.select(i))}
+        >
+          <span className="pick-n">{a.label ?? `Wallet ${i + 1}`}</span>
+          <span className="pick-a">{short(a.address)}</span>
+          {i === status.activeIndex && <Icon.check />}
+        </button>
+      ))}
+
+      {!adding ? (
+        <button className="ghost small" disabled={busy} onClick={() => setAdding(true)}>
+          + Add a wallet
+        </button>
+      ) : (
+        <div className="stack" style={{ padding: '8px 2px 2px' }}>
+          <p className="note">
+            Your password again — it encrypts the new wallet. Leave the key blank to generate a fresh one.
+          </p>
+          <input
+            type="password"
+            placeholder="Password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <input
+            className="mono"
+            placeholder="0x… private key (optional)"
+            value={importKey}
+            onChange={(e) => setImportKey(e.target.value)}
+          />
+          <button
+            className="primary small"
+            disabled={busy || !password || (importKey !== '' && !/^0x[0-9a-fA-F]{64}$/.test(importKey.trim()))}
+            onClick={() =>
+              void act(() =>
+                accountsApi.add(password, importKey.trim() ? (importKey.trim() as Hex) : undefined),
+              )
+            }
+          >
+            {busy ? '…' : importKey.trim() ? 'Import it' : 'Create it'}
+          </button>
+          <button className="ghost small" disabled={busy} onClick={() => { setAdding(false); setImportKey(''); setPassword(''); }}>
+            Cancel
+          </button>
+        </div>
+      )}
+      {error && <div className="error" style={{ margin: '8px 0 0' }}>{error}</div>}
     </div>
   );
 }

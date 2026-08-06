@@ -123,12 +123,18 @@ export function createRouter(deps: RouterDeps) {
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
 
   async function status(): Promise<WalletStatus> {
-    const vault = await store.read();
+    const set = await store.readSet();
     return {
-      hasVault: vault !== null,
-      address: vault?.address ?? null,
+      hasVault: set !== null,
+      // The active account, which is what every caller of this has always
+      // meant. Readable while locked, because the UI names the wallet you are
+      // about to unlock.
+      address: set?.vaults[set.activeIndex]?.address ?? null,
       isUnlocked: session.isUnlocked,
       autoLockMs,
+      accounts:
+        set?.vaults.map((v, i) => ({ address: v.address, label: set.labels?.[i] ?? null })) ?? [],
+      activeIndex: set?.activeIndex ?? 0,
     };
   }
 
@@ -167,9 +173,11 @@ export function createRouter(deps: RouterDeps) {
         }
 
         case 'wallet.unlock': {
-          const vault = await store.read();
-          if (!vault) return fail('NO_VAULT', 'no wallet has been created yet');
-          const address = await session.unlock(vault, request.password);
+          const set = await store.readSet();
+          if (!set) return fail('NO_VAULT', 'no wallet has been created yet');
+          // Every wallet at once, with the one password that protects them, so
+          // switching account afterwards needs nothing (D-070).
+          const address = await session.unlock(set.vaults, request.password, set.activeIndex);
           // Auto-approval rides on the session rather than on a separate switch
           // (D-063): the password is the authorisation, and it lasts exactly as
           // long as the unlock does. Nothing is armed if the user turned it off,
@@ -451,6 +459,65 @@ export function createRouter(deps: RouterDeps) {
             }
             return toError(e);
           }
+        }
+
+        case 'wallet.select': {
+          const set = await store.readSet();
+          if (!set) return fail('NO_VAULT', 'no wallet has been created yet');
+          const { index } = request;
+          if (!Number.isInteger(index) || index < 0 || index >= set.vaults.length) {
+            return fail('NOT_FOUND', 'no such wallet');
+          }
+          // Persisted so the choice survives a lock and a worker restart, and
+          // applied to the live session when there is one. A page cannot reach
+          // this: choosing who signs is a spending decision.
+          await store.writeSet({ ...set, activeIndex: index });
+          if (session.isUnlocked) session.select(index);
+          return { ok: true, data: await status() };
+        }
+
+        case 'wallet.addAccount': {
+          const set = await store.readSet();
+          if (!set) return fail('NO_VAULT', 'create a wallet first');
+          // The password again, deliberately. The session holds private keys,
+          // not the password, so a new vault cannot be encrypted without
+          // re-deriving — and asking is better than keeping the password
+          // resident for the convenience of a rare action.
+          const active = set.vaults[set.activeIndex];
+          if (!active) return fail('NO_VAULT', 'no wallet has been created yet');
+          try {
+            await exportPrivateKey(active, request.password);
+          } catch {
+            return fail('BAD_PASSWORD', 'that password does not match this wallet');
+          }
+          const vault = request.privateKey
+            ? await createVault(request.privateKey, request.password, kdf)
+            : (await createRandomVault(request.password, kdf)).vault;
+          if (set.vaults.some((v) => v.address.toLowerCase() === vault.address.toLowerCase())) {
+            return fail('VAULT_EXISTS', 'that wallet is already here');
+          }
+          const vaults = [...set.vaults, vault];
+          const index = vaults.length - 1;
+          await store.writeSet({ ...set, vaults, activeIndex: index });
+          // Re-unlocked as a set so the new key is usable immediately rather
+          // than after a lock cycle nobody would understand the need for.
+          if (session.isUnlocked) await session.unlock(vaults, request.password, index);
+          return { ok: true, data: await status() };
+        }
+
+        case 'wallet.rename': {
+          const set = await store.readSet();
+          if (!set) return fail('NO_VAULT', 'no wallet has been created yet');
+          const { index } = request;
+          if (!Number.isInteger(index) || index < 0 || index >= set.vaults.length) {
+            return fail('NOT_FOUND', 'no such wallet');
+          }
+          const label = request.label.trim().slice(0, 24);
+          const labels = { ...(set.labels ?? {}) };
+          if (label) labels[index] = label;
+          else delete labels[index];
+          await store.writeSet({ ...set, labels });
+          return { ok: true, data: await status() };
         }
 
         case 'consent.arm': {

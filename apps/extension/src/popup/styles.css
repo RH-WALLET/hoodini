@@ -297,3 +297,28 @@ button.small { padding: 8px 12px; font-size: 12.5px; }
   background: var(--surface); border: 1px solid var(--line); color: var(--faint);
 }
 .profiles button.on { background: rgba(77, 163, 255, 0.13); border-color: var(--signal); color: var(--signal); }
+
+/* ── wallet picker ──────────────────────────────────────────────────────── */
+.acct { position: relative; flex-wrap: wrap; }
+button.avatar { padding: 0; cursor: pointer; }
+button.acct-name {
+  width: auto; padding: 0; background: none; border: 0; border-radius: 0;
+  color: var(--text); font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 4px; cursor: pointer;
+}
+button.acct-name:hover { background: none; border: 0; color: var(--signal); }
+.caret { color: var(--faint); font-size: 9px; }
+.picker {
+  width: 100%; margin-top: 10px; padding: 6px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.pick {
+  width: 100%; display: flex; align-items: center; gap: 8px; text-align: left;
+  padding: 9px 10px; border-radius: 9px; border: 1px solid transparent;
+  background: transparent; font-weight: 500;
+}
+.pick:hover { background: var(--raised); border-color: transparent; }
+.pick.on { background: rgba(77, 163, 255, 0.1); border-color: rgba(77, 163, 255, 0.3); }
+.pick-n { font-size: 13px; font-weight: 560; flex: none; }
+.pick-a { font-family: var(--mono); font-size: 11px; color: var(--faint); flex: 1; }
+.pick.on .pick-n { color: var(--signal); }

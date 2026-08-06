@@ -1979,3 +1979,66 @@ that is most of the card. It is now one continuous strip divided by hairlines,
 The panel dropped its outlined buttons for tinted glass and its loose tabs for a
 segmented control. At that size a border on every button is most of the ink, and
 the colour already says which side you are on.
+
+---
+
+### D-069 — A panel decides whether it can trade, not whether it exists
+
+Three rounds went into "the coin-page panel is not showing", and the cause was
+the gate: whether the panel *appeared* was made conditional on a chain probe
+succeeding. When the answer was no, nothing appeared and nothing explained why,
+which is indistinguishable from a broken extension.
+
+Whether a panel exists is not a question the chain gets to answer. It opens as
+soon as a route names a coin. The probe then annotates the panel that is already
+there: no Robinhood Chain venue gets a plain amber line saying so, and every
+button disabled.
+
+On a multi-chain terminal that answer is frequently and legitimately no — an EVM
+address on an Axiom coin page can be a BNB or Ethereum token — so this is the
+normal case being made visible rather than an error path being handled.
+
+The wider lesson is the one D-052 keeps teaching: this project's recurring bug
+is not wrong logic, it is correct logic that fails silently. A UI that declines
+to exist is the loudest version of that.
+
+Also adds `data-hoodini-build` on `documentElement`. Content scripts inject on
+page load and never again, so reloading the extension leaves open tabs on the
+previous build — which has now twice looked exactly like a real bug.
+
+---
+
+### D-070 — More than one wallet
+
+**One password protects the set.** Each vault is separately encrypted but from a
+key derived from the same password, so unlocking decrypts all of them and
+switching account afterwards costs nothing. Decrypt-on-demand was the
+alternative and it would ask for a password every time somebody changed wallet,
+which defeats the feature.
+
+**Adding a wallet does ask for the password again.** The session holds private
+keys, not the password, and a new vault cannot be encrypted without re-deriving.
+Keeping the password resident to avoid one prompt on a rare action would be a
+poor trade.
+
+**`session.address` stayed singular.** Twenty-one call sites ask it to decide
+who is about to sign, and every one means "the active account" — so multi-wallet
+changes what the answer is, not what the question is. That is why this landed
+without touching the engine, the withdrawer or the trade path at all.
+
+**A vault that will not decrypt fails the whole unlock**, rather than being
+skipped. A set where one wallet silently vanished would have somebody trading
+from a different account than the one they think they selected.
+
+**Selecting an index that does not exist is refused**, never rounded to zero.
+Silently signing from a different wallet than the one asked for is the worst
+outcome available here.
+
+**Storage migrates on read, not on write.** The single-vault key this extension
+shipped with is still read, as a set of one, and nothing is rewritten until
+something writes anyway. A rollback or a half-finished upgrade therefore cannot
+leave somebody unable to open a wallet that still exists.
+
+**All three messages are popup-only and on the never-page-accessible list.**
+Choosing which wallet signs is a spending decision; a page that could make it
+could move funds from an account the user was not even looking at.

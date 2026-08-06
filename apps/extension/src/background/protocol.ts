@@ -17,12 +17,20 @@ import type { Address, Hex } from 'viem';
 /** Where a message came from. Derived from the sender, never from the message. */
 export type Surface = 'popup' | 'page';
 
+export interface WalletAccount {
+  readonly address: Address;
+  readonly label: string | null;
+}
+
 export interface WalletStatus {
   readonly hasVault: boolean;
-  /** Present whenever a vault exists — the UI names the account while locked. */
+  /** The active account. Present whenever a vault exists, locked or not. */
   readonly address: Address | null;
   readonly isUnlocked: boolean;
   readonly autoLockMs: number;
+  /** Every wallet this installation holds, in order (D-070). */
+  readonly accounts: readonly WalletAccount[];
+  readonly activeIndex: number;
 }
 
 export type Request =
@@ -34,6 +42,15 @@ export type Request =
   | { readonly type: 'wallet.export'; readonly password: string }
   | { readonly type: 'wallet.changePassword'; readonly currentPassword: string; readonly newPassword: string }
   | { readonly type: 'wallet.reset'; readonly password: string }
+  /**
+   * Multi-wallet (D-070). All popup-only: which account signs is a spending
+   * decision, and a page that could switch it could move funds from a wallet
+   * the user was not looking at.
+   */
+  | { readonly type: 'wallet.select'; readonly index: number }
+  /** Add another wallet. Needs the password again — see the handler. */
+  | { readonly type: 'wallet.addAccount'; readonly password: string; readonly privateKey?: Hex }
+  | { readonly type: 'wallet.rename'; readonly index: number; readonly label: string }
   | {
       readonly type: 'trade.quote';
       readonly side: 'buy' | 'sell';
@@ -188,6 +205,9 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   'wallet.export': ['popup'],
   'wallet.changePassword': ['popup'],
   'wallet.reset': ['popup'],
+  'wallet.select': ['popup'],
+  'wallet.addAccount': ['popup'],
+  'wallet.rename': ['popup'],
   'trade.quote': ['popup', 'page'],
   // Warming is a quote with everything interesting removed: no price comes
   // back, no calldata, no signal at all. A page that may quote may obviously
@@ -238,6 +258,10 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
 
 /** Capabilities a page may never hold, whatever else changes. */
 export const NEVER_PAGE_ACCESSIBLE: readonly RequestType[] = [
+  // Choosing which wallet signs is a spending decision. A page that could do it
+  // could move funds from an account the user was not even looking at.
+  'wallet.select',
+  'wallet.addAccount',
   // Revoking signs and broadcasts. A page holding it could burn gas at will and
   // strip the allowances a user's other tools depend on.
   'approvals.revoke',

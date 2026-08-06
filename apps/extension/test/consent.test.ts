@@ -463,3 +463,112 @@ describe('unlocking is the authorisation (D-063)', () => {
     expect(status.data.armed).toBe(false);
   });
 });
+
+describe('multi-wallet (D-070)', () => {
+  const PW = 'correct horse battery staple';
+  const KEY_A = '0x4c0883a69102937d6231471b5dbb6204fe512961708279a1e0f4dc4c8b0b0f1f' as const;
+  const KEY_B = '0x8da4ef21b864d2cc526dbdb2a120bd2874c36c9d0a1fb7f8c63d7f7a8b41de8f' as const;
+
+  const router = () => {
+    const area = memoryArea();
+    const session = new KeystoreSession();
+    return {
+      area,
+      session,
+      handle: createRouter({ store: new VaultStore(area), session, kdf: TEST_KDF }),
+    };
+  };
+
+  it('starts as a set of one and grows', async () => {
+    const r = router();
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    const added = (await r.handle({ type: 'wallet.addAccount', password: PW, privateKey: KEY_B }, 'popup')) as {
+      ok: true; data: { accounts: unknown[]; activeIndex: number };
+    };
+    expect(added.data.accounts).toHaveLength(2);
+    // The new wallet becomes active: adding one and then having to go and
+    // select it would be a step nobody wants.
+    expect(added.data.activeIndex).toBe(1);
+  });
+
+  it('switches which account signs, with no password', async () => {
+    const r = router();
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    await r.handle({ type: 'wallet.addAccount', password: PW, privateKey: KEY_B }, 'popup');
+    const second = r.session.address;
+
+    await r.handle({ type: 'wallet.select', index: 0 }, 'popup');
+    expect(r.session.address).not.toBe(second);
+    expect(r.session.isUnlocked).toBe(true);
+  });
+
+  it('unlocking opens every wallet at once, so switching needs nothing', async () => {
+    const r = router();
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    await r.handle({ type: 'wallet.addAccount', password: PW, privateKey: KEY_B }, 'popup');
+    r.session.lock();
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    expect(r.session.addresses).toHaveLength(2);
+  });
+
+  it('refuses to add the same wallet twice', async () => {
+    const r = router();
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    const again = (await r.handle({ type: 'wallet.addAccount', password: PW, privateKey: KEY_A }, 'popup')) as {
+      ok: false; error: { code: string };
+    };
+    expect(again.ok).toBe(false);
+    expect(again.error.code).toBe('VAULT_EXISTS');
+  });
+
+  it('refuses to add one on a wrong password', async () => {
+    const r = router();
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    const res = (await r.handle({ type: 'wallet.addAccount', password: 'wrong', privateKey: KEY_B }, 'popup')) as {
+      ok: false; error: { code: string };
+    };
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('BAD_PASSWORD');
+  });
+
+  it('refuses an index that does not exist rather than falling back to zero', async () => {
+    // Silently signing from a different wallet than the one asked for is the
+    // worst outcome available here.
+    const r = router();
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    const res = (await r.handle({ type: 'wallet.select', index: 7 }, 'popup')) as { ok: false; error: { code: string } };
+    expect(res.ok).toBe(false);
+    expect(res.error.code).toBe('NOT_FOUND');
+  });
+
+  it('reads a pre-multi-wallet vault as a set of one', async () => {
+    // Upgrading must not hide a wallet somebody already has funds in.
+    const r = router();
+    await r.handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    const stored = r.area.data['hoodini.vaults.v2'] as { vaults: unknown[] };
+    // Move it back to the old single-vault shape, as an existing install has it.
+    delete r.area.data['hoodini.vaults.v2'];
+    r.area.data['hoodini.vault.v1'] = stored.vaults[0];
+
+    const st = (await r.handle({ type: 'wallet.status' }, 'popup')) as { ok: true; data: { hasVault: boolean; accounts: unknown[] } };
+    expect(st.data.hasVault).toBe(true);
+    expect(st.data.accounts).toHaveLength(1);
+    await r.handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    expect(r.session.isUnlocked).toBe(true);
+  });
+
+  it('keeps every multi-wallet message off the page', async () => {
+    const r = router();
+    for (const type of ['wallet.select', 'wallet.addAccount', 'wallet.rename'] as const) {
+      expect(ALLOWED_SURFACES[type]).toEqual(['popup']);
+    }
+    expect(NEVER_PAGE_ACCESSIBLE).toContain('wallet.select');
+    const res = (await r.handle({ type: 'wallet.select', index: 0 }, 'page')) as { ok: false; error: { code: string } };
+    expect(res.error.code).toBe('FORBIDDEN');
+  });
+});

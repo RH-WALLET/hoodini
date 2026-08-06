@@ -12,7 +12,7 @@
  */
 
 import type { Address, Hex } from 'viem';
-import { KeystoreError, type EncryptedVault } from './types.js';
+import { KeystoreError, type EncryptedVault, type UnlockedAccount } from './types.js';
 import { unlockVault } from './vault.js';
 
 /**
@@ -38,8 +38,16 @@ export interface SessionOptions {
 }
 
 export class KeystoreSession {
-  #privateKey: Hex | null = null;
-  #address: Address | null = null;
+  /**
+   * Every account this session unlocked, in vault order.
+   *
+   * All of them, not just the one in use: one password protects the set, so
+   * decrypting the rest costs nothing extra and switching account then needs no
+   * password. The alternative — decrypt on demand — would ask for the password
+   * every time somebody changed wallet, which defeats the feature (D-070).
+   */
+  #accounts: UnlockedAccount[] = [];
+  #active = 0;
   #handle: unknown = null;
   #unlockedAt = 0;
 
@@ -58,27 +66,71 @@ export class KeystoreSession {
   }
 
   get isUnlocked(): boolean {
-    return this.#privateKey !== null;
+    return this.#accounts.length > 0;
   }
 
-  /** Address of the unlocked account, or null. Never reveals the key. */
+  /**
+   * Address of the account in use, or null. Never reveals the key.
+   *
+   * Deliberately still singular. Twenty-one call sites ask this question to
+   * decide who is about to sign, and every one of them means "the active
+   * account" — so multi-wallet changes what the answer is, not what the
+   * question is.
+   */
   get address(): Address | null {
-    return this.#address;
+    return this.#accounts[this.#active]?.address ?? null;
+  }
+
+  /** Every unlocked address, in vault order. Addresses only; never keys. */
+  get addresses(): readonly Address[] {
+    return this.#accounts.map((a) => a.address);
+  }
+
+  get activeIndex(): number {
+    return this.#active;
   }
 
   get unlockedAt(): number | null {
-    return this.#privateKey ? this.#unlockedAt : null;
+    return this.isUnlocked ? this.#unlockedAt : null;
   }
 
-  async unlock(vault: EncryptedVault, password: string): Promise<Address> {
-    const account = await unlockVault(vault, password);
-    // Replacing an existing session must not leave the previous key resident.
-    this.#clear();
-    this.#privateKey = account.privateKey;
-    this.#address = account.address;
-    this.#unlockedAt = this.#now();
+  /**
+   * Choose which account signs.
+   *
+   * No password: the set was already unlocked with one, and every key here is
+   * already resident. Refuses an index that does not exist rather than falling
+   * back to zero — silently signing from a different wallet than the one asked
+   * for is the worst outcome available here.
+   */
+  select(index: number): Address {
+    if (!this.isUnlocked) throw new KeystoreError('keystore is locked', 'LOCKED');
+    const account = this.#accounts[index];
+    if (!account) throw new KeystoreError('no such account', 'NOT_FOUND');
+    this.#active = index;
     this.#arm();
     return account.address;
+  }
+
+  /**
+   * Unlock every vault in the set with one password.
+   *
+   * A vault that will not decrypt fails the whole unlock rather than being
+   * skipped: a set where one wallet silently vanished would have the user
+   * trading from a different account than the one they think they picked.
+   */
+  async unlock(vaults: EncryptedVault | readonly EncryptedVault[], password: string, active = 0): Promise<Address> {
+    const list = Array.isArray(vaults) ? vaults : [vaults as EncryptedVault];
+    const accounts: UnlockedAccount[] = [];
+    for (const vault of list) accounts.push(await unlockVault(vault, password));
+    if (accounts.length === 0) throw new KeystoreError('no wallet to unlock', 'NO_VAULT');
+
+    // Replacing an existing session must not leave the previous keys resident.
+    this.#clear();
+    this.#accounts = accounts;
+    this.#active = active >= 0 && active < accounts.length ? active : 0;
+    this.#unlockedAt = this.#now();
+    this.#arm();
+    return this.#accounts[this.#active]!.address;
   }
 
   lock(): void {
@@ -95,11 +147,10 @@ export class KeystoreSession {
    * Using the key counts as activity and pushes the auto-lock timer out.
    */
   async withKey<T>(fn: (privateKey: Hex, address: Address) => Promise<T> | T): Promise<T> {
-    if (!this.#privateKey || !this.#address) {
-      throw new KeystoreError('keystore is locked', 'LOCKED');
-    }
+    const account = this.#accounts[this.#active];
+    if (!account) throw new KeystoreError('keystore is locked', 'LOCKED');
     this.#arm();
-    return await fn(this.#privateKey, this.#address);
+    return await fn(account.privateKey, account.address);
   }
 
   /** Extend the idle window — call on user interaction, not on background polling. */
@@ -121,11 +172,12 @@ export class KeystoreSession {
       this.#clearTimer(this.#handle);
       this.#handle = null;
     }
-    // Strings are immutable in JS, so the old value cannot be overwritten in
-    // place; dropping the reference is the most that can be done. This is why
-    // the auto-lock window matters — it bounds how long the engine may keep it.
-    this.#privateKey = null;
-    this.#address = null;
+    // Strings are immutable in JS, so the old values cannot be overwritten in
+    // place; dropping the references is the most that can be done. This is why
+    // the auto-lock window matters — it bounds how long the engine may keep
+    // them, and with a set it bounds that for every wallet at once.
+    this.#accounts = [];
+    this.#active = 0;
     this.#unlockedAt = 0;
   }
 }

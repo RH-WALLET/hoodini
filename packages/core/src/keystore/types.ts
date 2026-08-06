@@ -38,6 +38,24 @@ export interface EncryptedVault {
   readonly createdAt: string;
 }
 
+/**
+ * Every wallet this installation holds, and which one is in use.
+ *
+ * One password protects the set. Each vault is separately encrypted, but with a
+ * key derived from the same password, so unlocking decrypts all of them at once
+ * and switching accounts costs nothing — asking for a password to change
+ * account would make multi-wallet unusable for the thing it is for, which is
+ * moving between wallets quickly (D-070).
+ */
+export interface VaultSet {
+  readonly version: 2;
+  readonly vaults: readonly EncryptedVault[];
+  /** Always a valid index into `vaults`. Normalised on read. */
+  readonly activeIndex: number;
+  /** Optional user labels, by index. Absent entries fall back to the address. */
+  readonly labels?: Readonly<Record<number, string>>;
+}
+
 /** An unlocked account. The private key exists only inside this object. */
 export interface UnlockedAccount {
   readonly address: Address;
@@ -47,7 +65,7 @@ export interface UnlockedAccount {
 export class KeystoreError extends Error {
   constructor(
     message: string,
-    readonly code: 'BAD_PASSWORD' | 'CORRUPT_VAULT' | 'LOCKED' | 'INVALID_KEY' | 'WEAK_PASSWORD',
+    readonly code: 'BAD_PASSWORD' | 'CORRUPT_VAULT' | 'LOCKED' | 'INVALID_KEY' | 'WEAK_PASSWORD' | 'NO_VAULT' | 'NOT_FOUND',
   ) {
     super(message);
     this.name = 'KeystoreError';

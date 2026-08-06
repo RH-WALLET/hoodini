@@ -58,6 +58,7 @@ export {
   TEST_KDF,
   DEFAULT_AUTO_LOCK_MS,
   type EncryptedVault,
+  type VaultSet,
   type KdfParams,
   type UnlockedAccount,
 } from './keystore/index.js';

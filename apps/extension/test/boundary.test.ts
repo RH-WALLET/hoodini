@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_SETTINGS, KeystoreSession, TEST_KDF, type Settings } from '@hoodini/core';
 import { createRouter } from '../src/background/router.js';
 import { SettingsStore } from '../src/background/settingsStore.js';
-import { VaultStore, VAULT_KEY, type StorageArea } from '../src/background/storage.js';
+import { VaultStore, VAULT_KEY, VAULT_SET_KEY, type StorageArea } from '../src/background/storage.js';
 import {
   ALLOWED_SURFACES,
   NEVER_PAGE_ACCESSIBLE,
@@ -326,7 +326,8 @@ describe('wallet lifecycle', () => {
   it('creates, persists, unlocks and locks', async () => {
     const created = await r.handle({ type: 'wallet.create', password: PW }, 'popup');
     expect(created.ok).toBe(true);
-    expect(r.area.data[VAULT_KEY]).toBeDefined();
+    // Written as a set since D-070; the single-vault key is only ever read.
+    expect(r.area.data[VAULT_SET_KEY]).toBeDefined();
 
     const before = await r.handle({ type: 'wallet.status' }, 'popup');
     expect(before).toMatchObject({ ok: true, data: { hasVault: true, isUnlocked: false } });
@@ -374,11 +375,12 @@ describe('wallet lifecycle', () => {
 
     const denied = await r.handle({ type: 'wallet.reset', password: 'guessing' }, 'popup');
     expect(denied).toMatchObject({ ok: false, error: { code: 'BAD_PASSWORD' } });
-    expect(r.area.data[VAULT_KEY]).toBeDefined();
+    // Written as a set since D-070; the single-vault key is only ever read.
+    expect(r.area.data[VAULT_SET_KEY]).toBeDefined();
 
     const ok = await r.handle({ type: 'wallet.reset', password: PW }, 'popup');
     expect(ok.ok).toBe(true);
-    expect(r.area.data[VAULT_KEY]).toBeUndefined();
+    expect(r.area.data[VAULT_SET_KEY]).toBeUndefined();
     expect(r.session.isUnlocked).toBe(false);
   });
 

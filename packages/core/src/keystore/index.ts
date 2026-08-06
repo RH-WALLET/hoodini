@@ -5,7 +5,7 @@
  * but the caller's own storage (CLAUDE.md invariant 1).
  */
 
-export type { EncryptedVault, KdfParams, UnlockedAccount } from './types.js';
+export type { EncryptedVault, VaultSet, KdfParams, UnlockedAccount } from './types.js';
 export { KeystoreError } from './types.js';
 export {
   createVault,

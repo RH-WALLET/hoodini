@@ -68,6 +68,13 @@ export interface ApprovalRow {
   readonly unlimited: boolean;
 }
 
+export const accountsApi = {
+  select: (index: number) => send<WalletStatus>({ type: 'wallet.select', index }),
+  add: (password: string, privateKey?: Hex) =>
+    send<WalletStatus>({ type: 'wallet.addAccount', password, ...(privateKey ? { privateKey } : {}) }),
+  rename: (index: number, label: string) => send<WalletStatus>({ type: 'wallet.rename', index, label }),
+};
+
 export const chainApi = {
   stats: () => send<ChainStats>({ type: 'chain.stats' }),
 };
