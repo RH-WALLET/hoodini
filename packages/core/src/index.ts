@@ -76,6 +76,7 @@ export { loadPositions, summarise, type Position, type PositionsOptions } from '
 export {
   DEFAULT_SETTINGS,
   PROFILE_COUNT,
+  DEFAULT_SELL_PERCENTS,
   normaliseSettings,
   validateSettings,
   isValidPreset,

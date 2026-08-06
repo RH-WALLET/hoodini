@@ -154,7 +154,7 @@ describe('validateSettings', () => {
   it.each([
     [{ buyPresets: [], slippageBps: 100 }, 'buyPresets'],
     [{ buyPresets: ['0.01', '0.01'], slippageBps: 100 }, 'buyPresets'],
-    [{ buyPresets: ['0.01', '0.02', '0.03', '0.04', '0.05'], slippageBps: 100 }, 'buyPresets'],
+    [{ buyPresets: ['0.01', '0.02', '0.03', '0.04', '0.05', '0.06', '0.07'], slippageBps: 100 }, 'buyPresets'],
     [{ buyPresets: ['0.01'], slippageBps: 0 }, 'slippageBps'],
     [{ buyPresets: ['0.01'], slippageBps: 9999 }, 'slippageBps'],
     [{ buyPresets: ['0.01'], slippageBps: Number.NaN }, 'slippageBps'],

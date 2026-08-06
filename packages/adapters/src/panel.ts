@@ -54,6 +54,9 @@ export interface PanelOptions {
   readonly onClose?: () => void;
   /** Where it opened last. Clamped into view, so a stale value cannot strand it. */
   readonly position?: PanelPosition;
+  /** How wide it was left. Clamped between the panel's own bounds. */
+  readonly width?: number;
+  readonly onResize?: (width: number) => void;
   readonly onMove?: (position: PanelPosition) => void;
   /**
    * Save edited buy amounts for the profile on screen.
@@ -64,6 +67,12 @@ export interface PanelOptions {
    * values rather than from what was typed (D-071).
    */
   readonly onEditPresets?: (profileIndex: number, buyPresets: string[]) => Promise<readonly string[]>;
+  /**
+   * Wallet names and which is in use. Names only, never addresses (D-073).
+   */
+  readonly wallets?: { readonly names: readonly string[]; readonly activeIndex: number };
+  /** Switch wallet. The worker disarms standing consent when a page does this. */
+  readonly onSelectWallet?: (index: number) => Promise<void>;
   /** Current network gas in gwei, shown under each side. Omit for an em dash. */
   readonly gasGwei?: number | null;
 }
@@ -93,11 +102,15 @@ export function setPanelStatus(doc: Document, message: string | null): void {
 }
 
 const WIDTH = 300;
+/** Narrow enough for a sidebar, wide enough for six columns. */
+const MIN_WIDTH = 250;
+const MAX_WIDTH = 560;
 
 const STYLE = `
   :host { all: initial; }
   .panel {
-    position: fixed; z-index: 2147483000; width: ${WIDTH}px;
+    position: fixed; z-index: 2147483000;
+    min-width: ${MIN_WIDTH}px; max-width: ${MAX_WIDTH}px;
     background: rgba(8, 11, 17, 0.94);
     color: #e9eef7;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -161,6 +174,26 @@ const STYLE = `
   .cfg b { color: #8e99ab; font-weight: 650; }
   .cfg .zero { color: #74e6a4; font-weight: 650; }
 
+  /* Drag the right edge to widen. More width means more columns, which means
+     more of the profile's presets are reachable without the pencil (D-072). */
+  .wal { position: relative; }
+  .wal > button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 4px;
+                  font-size: 10.5px; font-weight: 650; color: #8e99ab;
+                  background: rgba(255,255,255,.05); border-radius: 6px; padding: 3px 7px; }
+  .wal > button:hover { color: #e9eef7; }
+  .wal-list { position: absolute; top: 100%; right: 0; margin-top: 4px; z-index: 2;
+              background: #0d131d; border: 1px solid rgba(255,255,255,.1); border-radius: 9px;
+              padding: 4px; min-width: 130px; box-shadow: 0 10px 26px -8px rgba(0,0,0,.8); }
+  .wal-list button { all: unset; cursor: pointer; display: block; padding: 6px 9px; border-radius: 6px;
+                     font-size: 11px; color: #8e99ab; width: calc(100% - 18px); }
+  .wal-list button:hover { background: rgba(255,255,255,.06); color: #e9eef7; }
+  .wal-list button.on { color: #7fb4f5; }
+
+  .grab { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+  .grab::after { content: ''; position: absolute; top: 50%; right: 2px; width: 2px; height: 22px;
+                 margin-top: -11px; border-radius: 2px; background: rgba(255,255,255,.12); }
+  .grab:hover::after { background: #7fb4f5; }
+
   .edit { all: unset; cursor: pointer; color: #4a5364; padding: 1px 3px; font-size: 11px; line-height: 1; }
   .edit:hover, .edit.on { color: #7fb4f5; }
   .fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; }
@@ -185,6 +218,18 @@ const STYLE = `
             border-top: 1px solid rgba(255, 180, 84, .22); }
   .status[hidden] { display: none; }
 `;
+
+/**
+ * How many columns a row of `n` buttons should use at the current width.
+ *
+ * Widening the panel is the way to see more of a profile at once: at 300px four
+ * fit comfortably, at 560px six do. Capped at what is actually there, so a
+ * two-preset profile never spreads two buttons across six columns (D-072).
+ */
+function columnsFor(width: number, n: number): number {
+  const fits = Math.max(2, Math.floor((width - 24) / 62));
+  return Math.max(1, Math.min(n, fits));
+}
 
 /** Keep the panel on screen whatever was stored or however the window changed. */
 function clamp(position: PanelPosition, view: { width: number; height: number }): PanelPosition {
@@ -216,7 +261,9 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   panel.className = 'panel';
 
   const view = { width: doc.defaultView?.innerWidth ?? 1280, height: doc.defaultView?.innerHeight ?? 800 };
-  let at = clamp(options.position ?? { x: view.width - WIDTH - 24, y: 96 }, view);
+  let width = Math.min(Math.max(options.width ?? WIDTH, MIN_WIDTH), MAX_WIDTH);
+  panel.style.width = `${width}px`;
+  let at = clamp(options.position ?? { x: view.width - width - 24, y: 96 }, view);
   panel.style.left = `${at.x}px`;
   panel.style.top = `${at.y}px`;
 
@@ -260,6 +307,46 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   });
   tabButtons.forEach((b, j) => b.classList.toggle('on', j === active));
   hd.appendChild(tabs);
+
+  // ── wallet, by name only ─────────────────────────────────────────────────
+  if (options.wallets && options.wallets.names.length > 0) {
+    const wal = doc.createElement('span');
+    wal.className = 'wal';
+    const current = doc.createElement('button');
+    const paint = (i: number) => {
+      current.textContent = `${options.wallets!.names[i] ?? `Wallet ${i + 1}`}${
+        options.wallets!.names.length > 1 ? ' ▾' : ''
+      }`;
+    };
+    paint(options.wallets.activeIndex);
+    current.title = 'Switch wallet — this also turns auto-approve off';
+    const list = doc.createElement('span');
+    list.className = 'wal-list';
+    list.hidden = true;
+
+    options.wallets.names.forEach((name, i) => {
+      const b = doc.createElement('button');
+      b.textContent = name;
+      if (i === options.wallets!.activeIndex) b.classList.add('on');
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        list.hidden = true;
+        paint(i);
+        [...list.children].forEach((c, j) => (c as HTMLElement).classList.toggle('on', j === i));
+        void options.onSelectWallet?.(i);
+      });
+      list.appendChild(b);
+    });
+
+    current.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      list.hidden = !list.hidden;
+    });
+    wal.append(current, list);
+    hd.appendChild(wal);
+  }
 
   let editing = false;
   const pencil = doc.createElement('button');
@@ -338,6 +425,8 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
     return row;
   }
 
+  const columns = (n: number): number => columnsFor(width, n);
+
   function render(): void {
     const profile = profiles[active] ?? { buyPresets: [], slippageBps: 100 };
 
@@ -350,7 +439,7 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
     // Fit the columns to the profile. A fixed four leaves a hole beside a
     // three-preset profile and squeezes a two-preset one into quarter-width
     // buttons; both look like a mistake rather than a configuration.
-    bg.style.gridTemplateColumns = `repeat(${Math.max(1, Math.min(4, profile.buyPresets.length))}, 1fr)`;
+    bg.style.gridTemplateColumns = `repeat(${columns(profile.buyPresets.length)}, 1fr)`;
     bg.style.gap = '5px';
     for (const amount of profile.buyPresets) {
       const b = doc.createElement('button');
@@ -433,7 +522,10 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
     sl.textContent = 'Sell · % of holding';
     const sg = doc.createElement('div');
     sg.className = 'grid sell';
-    for (const percent of options.sellPercents ?? [25, 50, 75, 100]) {
+
+    const percents = options.sellPercents ?? [10, 25, 50, 75, 90, 100];
+    sg.style.gridTemplateColumns = `repeat(${columns(percents.length)}, 1fr)`;
+    for (const percent of percents) {
       const b = doc.createElement('button');
       b.textContent = `${percent}%`;
       b.addEventListener('click', (e) => {
@@ -537,6 +629,35 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   };
   hd.addEventListener('pointerup', end);
   hd.addEventListener('pointercancel', end);
+
+  // ── resizing ─────────────────────────────────────────────────────────────
+  const grab = doc.createElement('div');
+  grab.className = 'grab';
+  grab.title = 'Drag to widen';
+  let from2: { x: number; w: number } | null = null;
+  grab.addEventListener('pointerdown', (e) => {
+    from2 = { x: e.clientX, w: width };
+    grab.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  grab.addEventListener('pointermove', (e) => {
+    if (!from2) return;
+    width = Math.min(Math.max(from2.w + (e.clientX - from2.x), MIN_WIDTH), MAX_WIDTH);
+    panel.style.width = `${width}px`;
+    // Redrawn rather than reflowed: the number of columns is a function of the
+    // width, so the rows have to be rebuilt to use it.
+    render();
+  });
+  const stop = (e: PointerEvent) => {
+    if (!from2) return;
+    from2 = null;
+    grab.releasePointerCapture?.(e.pointerId);
+    options.onResize?.(width);
+  };
+  grab.addEventListener('pointerup', stop);
+  grab.addEventListener('pointercancel', stop);
+  panel.appendChild(grab);
 
   shadow.appendChild(panel);
   doc.body.appendChild(host);

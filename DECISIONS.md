@@ -2077,3 +2077,46 @@ later panel built from that object would draw. It was found because one test's
 save appeared in the next test's assertions, which is precisely the shape the
 production failure would have taken. The panel now copies the profiles it is
 given.
+
+---
+
+### D-072 — Six presets, and a panel you can widen
+
+`MAX_PRESETS` goes 4 → 6, and the sell side gets a matching six
+(10/25/50/75/90/100). The row strip still shows two — it decorates somebody
+else's card and has no room — while the panel shows the lot.
+
+**Width is the control.** Dragging the right edge widens the panel between 250
+and 560px, and the number of columns is a function of that width: roughly one
+per 62px, capped at how many presets actually exist so a two-preset profile
+never spreads two buttons across six columns. Widening is therefore how you see
+more of a profile at once, which is what "more space shows more" should mean.
+
+Resizing re-renders rather than reflowing, because the column count is computed
+rather than declared. The width is remembered the same way the position is: on
+pointer release, in extension storage.
+
+---
+
+### D-073 — A page may know wallet names, never addresses
+
+The panel needed the wallet switcher the popup has. It could not simply reuse
+`wallet.status`, which is popup-only and carries every address: an injected
+panel has an open shadow root, so anything it draws the site can read, and
+handing over the full list would link all of someone's wallets together for
+every terminal they visit.
+
+**So `wallet.brief` returns names and an index, and nothing else.** A test greps
+the entire reply for anything address-shaped, so a future field leaking one
+fails without anyone having to remember this.
+
+**Switching from a page is allowed, and it disarms standing consent.** That is
+the trade that makes it safe. A site that could silently point somebody at their
+largest wallet and then propose a buy would be a genuine escalation while
+auto-approve is armed and uncapped (D-059, D-063). Making the switch cost the
+arming removes the escalation completely: a page can change which wallet signs,
+but the next trade then has to meet a human.
+
+The popup keeps `wallet.status`, `wallet.select`, `wallet.addAccount` and
+`wallet.rename`, all popup-only. Page capabilities went 6 → 8, and the pinned
+exact-list test carries the reasoning for both new entries.

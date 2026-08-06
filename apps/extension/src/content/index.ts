@@ -34,7 +34,7 @@ const CHAIN_ID = 4663;
  * Bumped whenever the content script changes in a way a stale tab would hide.
  * Read from the page with `document.documentElement.dataset.hoodiniBuild`.
  */
-const BUILD_MARKER = 'panel-4';
+const BUILD_MARKER = 'panel-5';
 const DEFAULT_BUY_WEI = 10n ** 15n; // 0.001 ETH
 
 /**
@@ -332,8 +332,22 @@ function syncPanel(detected: readonly TokenRef[]): void {
  * and submits, and nothing else: it does not persist, and it cannot reach the
  * popup or another tab.
  */
+/** Wallet names and which is active. Names only — never addresses (D-073). */
+async function readWallets(): Promise<{ names: string[]; activeIndex: number } | null> {
+  try {
+    const res = (await chrome.runtime.sendMessage({ type: 'wallet.brief' })) as
+      | { ok?: boolean; data?: { names?: string[]; activeIndex?: number } }
+      | undefined;
+    const names = res?.data?.names;
+    if (!res?.ok || !Array.isArray(names) || names.length === 0) return null;
+    return { names, activeIndex: res.data?.activeIndex ?? 0 };
+  } catch {
+    return null;
+  }
+}
+
 function openPanel(token: TokenRef): void {
-  void Promise.all([readPanelPosition(), readGas()]).then(([position, gasGwei]) => {
+  void Promise.all([readPanelPosition(), readGas(), readWallets()]).then(([position, gasGwei, wallets]) => {
     const host = mountPanel(document, token, {
       profiles: settings.profiles,
       activeProfile: settings.activeProfile,
@@ -341,7 +355,7 @@ function openPanel(token: TokenRef): void {
       probeSell,
       // The panel is a surface you opened on purpose, so it can afford the
       // graded sells the row strip cannot (D-068).
-      sellPercents: [25, 50, 75, 100],
+      sellPercents: [10, 25, 50, 75, 90, 100],
       ...(gasGwei != null ? { gasGwei } : {}),
       ...(position ? { position } : {}),
       /**
@@ -349,6 +363,13 @@ function openPanel(token: TokenRef): void {
        * slippage is not editable from a page, because it is the one setting a
        * site could widen without anyone seeing it change (D-071).
        */
+      ...(wallets ? { wallets } : {}),
+      onSelectWallet: async (index) => {
+        await chrome.runtime.sendMessage({ type: 'wallet.selectFromPage', index });
+        // Switching disarms standing consent by design (D-073), so the badge
+        // and the popup have to hear about it.
+        console.warn('[hoodini] wallet switched from the page — auto-approve is now off');
+      },
       onEditPresets: async (_profileIndex, buyPresets) => {
         const res = (await chrome.runtime.sendMessage({ type: 'settings.setPresets', buyPresets })) as
           | { ok: boolean; data?: Settings; error?: { message?: string } }

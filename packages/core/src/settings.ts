@@ -79,7 +79,15 @@ export const DEFAULT_SETTINGS: Settings = {
 
 /** At least one button, and few enough to fit a terminal card. */
 export const MIN_PRESETS = 1;
-export const MAX_PRESETS = 4;
+export const MAX_PRESETS = 6;
+
+/**
+ * Sell fractions a profile may carry, most-used first.
+ *
+ * Six, matching the buy side. The row strip still shows two — it decorates
+ * somebody else's card and has no room — while the panel shows the lot (D-072).
+ */
+export const DEFAULT_SELL_PERCENTS: readonly number[] = [10, 25, 50, 75, 90, 100];
 
 /**
  * Bounds on a single preset, in ETH.

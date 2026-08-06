@@ -52,8 +52,8 @@ describe('what it puts on screen', () => {
     expect(open({ activeProfile: -3 }).buys().map((b) => b.textContent)).toEqual(['0.001', '0.01']);
   });
 
-  it('offers quarters for the sell side', () => {
-    expect(open().sells().map((b) => b.textContent)).toEqual(['25%', '50%', '75%', '100%']);
+  it('offers six sell fractions, which a wide panel can show at once', () => {
+    expect(open().sells().map((b) => b.textContent)).toEqual(['10%', '25%', '50%', '75%', '90%', '100%']);
   });
 
   it('never renders a balance, because a page could read it', () => {
@@ -75,7 +75,7 @@ describe('what it puts on screen', () => {
     // Every number here is a preset, a percentage or the slippage — all values
     // the user configured, none of them a holding.
     const numbers = text.match(/[\d.]+/g) ?? [];
-    const allowed = new Set(['0.001', '0.01', '25', '50', '75', '100', '1', '0']);
+    const allowed = new Set(['0.001', '0.01', '10', '25', '50', '75', '90', '100', '1', '0']);
     for (const n of numbers) expect(allowed.has(n), `unexpected number "${n}"`).toBe(true);
     expect(p.shadow.querySelector('.tok')?.textContent).toContain('0x1A46');
   });
@@ -108,7 +108,7 @@ describe('what a click carries', () => {
 
   it('emits a sell as a fraction and never as an amount', () => {
     const p = open();
-    p.sells()[2]!.dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    p.sells()[3]!.dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
     expect(p.seen).toEqual([{ side: 'sell', token: TOKEN, percent: 75 }]);
     expect(p.seen[0]).not.toHaveProperty('amount');
   });
@@ -134,7 +134,9 @@ describe('what a click carries', () => {
 describe('the sell probe', () => {
   it('refuses only the size that was refused', async () => {
     const p = open({ probeSell: async (_t, percent) => (percent === 100 ? { reason: 'too big' } : null) });
-    const [quarter, , , whole] = p.sells();
+    const sells = p.sells();
+    const quarter = sells[1]!;
+    const whole = sells[sells.length - 1]!;
     whole!.dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
     await vi.waitFor(() => expect(whole!.disabled).toBe(true));
     expect(whole!.title).toBe('too big');
@@ -146,7 +148,7 @@ describe('the sell probe', () => {
     const p = open({ probeSell: async () => null });
     p.sells()[0]!.dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
     await vi.waitFor(() => expect(p.seen).toHaveLength(1));
-    expect(p.seen[0]).toMatchObject({ side: 'sell', percent: 25 });
+    expect(p.seen[0]).toMatchObject({ side: 'sell', percent: 10 });
   });
 
   it('re-enables when the probe itself fails, rather than blaming the venue', async () => {
@@ -154,7 +156,7 @@ describe('the sell probe', () => {
     const b = p.sells()[0]!;
     b.dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
     await vi.waitFor(() => expect(b.disabled).toBe(false));
-    expect(b.textContent).toBe('25%');
+    expect(b.textContent).toBe('10%');
     expect(p.seen).toEqual([]);
   });
 });

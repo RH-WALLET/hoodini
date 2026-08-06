@@ -572,3 +572,56 @@ describe('multi-wallet (D-070)', () => {
     expect(res.error.code).toBe('FORBIDDEN');
   });
 });
+
+describe('the panel may name wallets, never addresses (D-073)', () => {
+  const PW = 'correct horse battery staple';
+  const KEY_A = '0x4c0883a69102937d6231471b5dbb6204fe512961708279a1e0f4dc4c8b0b0f1f' as const;
+  const KEY_B = '0x8da4ef21b864d2cc526dbdb2a120bd2874c36c9d0a1fb7f8c63d7f7a8b41de8f' as const;
+
+  const built = async () => {
+    const area = memoryArea();
+    const session = new KeystoreSession();
+    const consent = new StandingConsent(area);
+    const handle = createRouter({ store: new VaultStore(area), session, kdf: TEST_KDF, consent });
+    await handle({ type: 'wallet.import', password: PW, privateKey: KEY_A }, 'popup');
+    await handle({ type: 'wallet.unlock', password: PW }, 'popup');
+    await handle({ type: 'wallet.addAccount', password: PW, privateKey: KEY_B }, 'popup');
+    return { handle, session, consent };
+  };
+
+  it('gives a page names and an index, and no address anywhere', async () => {
+    const { handle } = await built();
+    const res = (await handle({ type: 'wallet.brief' }, 'page')) as { ok: true; data: unknown };
+    // The strong form: grep the whole reply. An address leaking in some future
+    // field would fail this without anyone having to think of it.
+    expect(JSON.stringify(res)).not.toMatch(/0x[0-9a-fA-F]{40}/);
+    expect(JSON.stringify(res)).toContain('Wallet 1');
+  });
+
+  it('still refuses the popup-only status, which does carry addresses', async () => {
+    const { handle } = await built();
+    const res = (await handle({ type: 'wallet.status' }, 'page')) as { ok: false; error: { code: string } };
+    expect(res.error.code).toBe('FORBIDDEN');
+  });
+
+  it('a page switching wallet disarms standing consent', async () => {
+    // The whole reason this is safe to expose. Without it a site could point
+    // someone at their largest wallet and propose a buy with nothing on screen.
+    const { handle, consent, session } = await built();
+    await handle({ type: 'consent.arm' }, 'popup');
+    expect(consent.armed).toBe(true);
+
+    await handle({ type: 'wallet.selectFromPage', index: 0 }, 'page');
+    expect(consent.armed).toBe(false);
+    // ...and it really did switch, so the feature works.
+    expect(session.activeIndex).toBe(0);
+  });
+
+  it('refuses an index that does not exist', async () => {
+    const { handle } = await built();
+    const res = (await handle({ type: 'wallet.selectFromPage', index: 9 }, 'page')) as {
+      ok: false; error: { code: string };
+    };
+    expect(res.error.code).toBe('NOT_FOUND');
+  });
+});

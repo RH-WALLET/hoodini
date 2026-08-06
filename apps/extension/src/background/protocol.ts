@@ -51,6 +51,26 @@ export type Request =
   /** Add another wallet. Needs the password again — see the handler. */
   | { readonly type: 'wallet.addAccount'; readonly password: string; readonly privateKey?: Hex }
   | { readonly type: 'wallet.rename'; readonly index: number; readonly label: string }
+  /**
+   * Wallet *names* and which is active. Page-allowed; addresses are not.
+   *
+   * A panel injected into a page has an open shadow root, so anything it draws
+   * the site can read. Handing over every address would link all of someone's
+   * wallets together for any terminal they visit — a disclosure the popup-only
+   * `wallet.status` exists to prevent. Labels alone let the panel say which
+   * wallet is in use and offer the others, and tell the site nothing it can
+   * follow on chain (D-073).
+   */
+  | { readonly type: 'wallet.brief' }
+  /**
+   * Switch wallet from a page.
+   *
+   * Allowed, but it **disarms standing consent**. A page that could silently
+   * point the user at their largest wallet and then propose a buy would be a
+   * real escalation with auto-approve armed; making the switch cost the arming
+   * removes it entirely, and the next trade meets a human.
+   */
+  | { readonly type: 'wallet.selectFromPage'; readonly index: number }
   | {
       readonly type: 'trade.quote';
       readonly side: 'buy' | 'sell';
@@ -222,6 +242,8 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   'wallet.select': ['popup'],
   'wallet.addAccount': ['popup'],
   'wallet.rename': ['popup'],
+  'wallet.brief': ['popup', 'page'],
+  'wallet.selectFromPage': ['popup', 'page'],
   'trade.quote': ['popup', 'page'],
   // Warming is a quote with everything interesting removed: no price comes
   // back, no calldata, no signal at all. A page that may quote may obviously

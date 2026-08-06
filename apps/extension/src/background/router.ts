@@ -492,6 +492,36 @@ export function createRouter(deps: RouterDeps) {
           return { ok: true, data: await status() };
         }
 
+        case 'wallet.brief': {
+          const set = await store.readSet();
+          return {
+            ok: true,
+            data: {
+              // Names only. Never addresses — see the type.
+              names: set?.vaults.map((_, i) => set.labels?.[i] ?? `Wallet ${i + 1}`) ?? [],
+              activeIndex: set?.activeIndex ?? 0,
+              isUnlocked: session.isUnlocked,
+            },
+          };
+        }
+
+        case 'wallet.selectFromPage': {
+          const set = await store.readSet();
+          if (!set) return fail('NO_VAULT', 'no wallet has been created yet');
+          const { index } = request;
+          if (!Number.isInteger(index) || index < 0 || index >= set.vaults.length) {
+            return fail('NOT_FOUND', 'no such wallet');
+          }
+          await store.writeSet({ ...set, activeIndex: index });
+          if (session.isUnlocked) session.select(index);
+          // The whole reason this is safe to expose: a page may change which
+          // wallet signs, but doing so costs the standing approval, so the next
+          // trade has to meet a human (D-073).
+          consent?.disarm();
+          onConsentChange?.(false);
+          return { ok: true, data: { activeIndex: index } };
+        }
+
         case 'wallet.addAccount': {
           const set = await store.readSet();
           if (!set) return fail('NO_VAULT', 'create a wallet first');

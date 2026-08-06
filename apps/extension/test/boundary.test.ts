@@ -189,7 +189,7 @@ describe('classifySender', () => {
 });
 
 describe('surface policy', () => {
-  it('grants a page exactly six capabilities, none of which move money', () => {
+  it('grants a page exactly eight capabilities, none of which move money', () => {
     // Pinned as an exact list rather than a count, so widening it is always a
     // deliberate edit here with reasoning attached. Each entry earns its place
     // by being unable to spend:
@@ -216,6 +216,15 @@ describe('surface policy', () => {
     //                  a page changing one cannot cause a spend nobody saw —
     //                  the button would read the new number. Slippage has no
     //                  such property and stays popup-only (D-071).
+    //   wallet.brief   wallet NAMES and which is active. Never addresses: an
+    //                  injected panel has an open shadow root, so handing over
+    //                  every address would link all of someone's wallets
+    //                  together for any terminal they visit (D-073).
+    //   wallet.selectFromPage
+    //                  switches wallet — and disarms standing consent by doing
+    //                  so. A page that could silently point someone at their
+    //                  largest wallet and then propose a buy would be a real
+    //                  escalation; making the switch cost the arming removes it.
     const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
     expect(pageAllowed).toEqual([
       'chain.stats',
@@ -224,6 +233,8 @@ describe('surface policy', () => {
       'trade.quote',
       'trade.request',
       'trade.warm',
+      'wallet.brief',
+      'wallet.selectFromPage',
     ]);
   });
 
