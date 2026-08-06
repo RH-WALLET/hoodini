@@ -10,7 +10,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_SETTINGS, KeystoreSession, TEST_KDF, type Settings } from '@hoodini/core';
+import { DEFAULT_SETTINGS, KeystoreSession, TEST_KDF, normaliseSettings, type Settings } from '@hoodini/core';
 import { createRouter } from '../src/background/router.js';
 import { SettingsStore } from '../src/background/settingsStore.js';
 import { VaultStore, VAULT_KEY, VAULT_SET_KEY, type StorageArea } from '../src/background/storage.js';
@@ -772,5 +772,134 @@ describe('the shipped build must be dry-run', () => {
         `${file} bakes VITE_LIVE_TRADING="true" into its env — rebuild without the flag`,
       ).toBe(false);
     }
+  });
+});
+
+/**
+ * Where the fee cap comes from (P14).
+ *
+ * Slippage rides on the message because the caller is the one accepting the
+ * price. The gas price a wallet signs is not the same kind of thing: a page
+ * that could set it could make every trade overpay, or set it low enough to
+ * strand one. So it is read from storage in the worker and put on the plan, and
+ * these tests pin that a message cannot reach it.
+ */
+describe('the fee cap is read from settings, never from the message', () => {
+  const TOKEN = '0xB84e494158976B4e14da155d1cdaE16EB6D1C477';
+
+  function withPlanSpy(stored?: unknown) {
+    const plans: { maxFeePerGas?: bigint }[] = [];
+    const area = memoryArea();
+    const session = { address: TOKEN, isUnlocked: true, lock() {} } as unknown as KeystoreSession;
+    const handle = createRouter({
+      store: new VaultStore(area),
+      session,
+      kdf: TEST_KDF,
+      ...(stored !== undefined
+        ? { settings: { async read() { return normaliseSettings(stored); }, async write(s: unknown) { return normaliseSettings(s); } } }
+        : {}),
+      trade: {
+        venues: {
+          resolve: async () => ({
+            adapter: {
+              id: 'test-venue',
+              async quoteBuy(_t: unknown, amountIn: bigint) {
+                return { venueId: 'test-venue', state: 'open', amountIn, amountOut: 1n, quoteAsset: 'ETH', feeBps: 0 };
+              },
+              async buildBuy() { return { to: TOKEN, data: '0x', value: 0n }; },
+            },
+            via: 'registry',
+          }),
+        } as never,
+        engine: {
+          async execute(plan: { maxFeePerGas?: bigint }) {
+            plans.push(plan);
+            return { status: 'simulated', steps: [] };
+          },
+        } as never,
+        chainId: 4663,
+        client: {} as never,
+        watchlist: { async list() { return []; }, async add() {} },
+      },
+    });
+    return { handle, plans };
+  }
+
+  const execute = (extra: Record<string, unknown> = {}) =>
+    ({ type: 'trade.execute', side: 'buy', token: TOKEN, amount: '1000', slippageBps: 100, ...extra }) as never;
+
+  it('puts the stored cap on the plan, in wei per gas', async () => {
+    const { handle, plans } = withPlanSpy({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '0.5' }] });
+    await handle(execute(), 'popup');
+    expect(plans[0]!.maxFeePerGas).toBe(500_000_000n);
+  });
+
+  it('leaves it absent when the profile sets none', async () => {
+    const { handle, plans } = withPlanSpy({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100 }] });
+    await handle(execute(), 'popup');
+    expect(plans[0]!.maxFeePerGas).toBeUndefined();
+  });
+
+  it('ignores a cap in the message — a caller does not choose the gas price', async () => {
+    const { handle, plans } = withPlanSpy({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100 }] });
+    await handle(execute({ maxFeeGwei: '400', maxFeePerGas: '400000000000' }), 'popup');
+    expect(plans[0]!.maxFeePerGas).toBeUndefined();
+  });
+
+  it('a message cannot override the stored cap either', async () => {
+    const { handle, plans } = withPlanSpy({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '0.5' }] });
+    await handle(execute({ maxFeeGwei: '400' }), 'popup');
+    expect(plans[0]!.maxFeePerGas).toBe(500_000_000n);
+  });
+
+  it('reads the ACTIVE profile’s cap, not the first one', async () => {
+    const { handle, plans } = withPlanSpy({
+      profiles: [
+        { buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '0.5' },
+        { buyPresets: ['0.01'], slippageBps: 300, maxFeeGwei: '2' },
+        { buyPresets: ['0.1'], slippageBps: 500 },
+      ],
+      activeProfile: 1,
+    });
+    await handle(execute(), 'popup');
+    expect(plans[0]!.maxFeePerGas).toBe(2_000_000_000n);
+  });
+
+  it('a settings read that fails does not stop the trade', async () => {
+    // Reading a preference must never be what refuses a send. Absent means the
+    // node's suggestion, which is the behaviour that predates the field.
+    const plans: { maxFeePerGas?: bigint }[] = [];
+    const handle = createRouter({
+      store: new VaultStore(memoryArea()),
+      session: { address: TOKEN, isUnlocked: true, lock() {} } as unknown as KeystoreSession,
+      kdf: TEST_KDF,
+      settings: { async read(): Promise<never> { throw new Error('storage is gone'); }, async write(): Promise<never> { throw new Error('no'); } },
+      trade: {
+        venues: {
+          resolve: async () => ({
+            adapter: {
+              id: 'v', async quoteBuy(_t: unknown, amountIn: bigint) {
+                return { venueId: 'v', state: 'open', amountIn, amountOut: 1n, quoteAsset: 'ETH', feeBps: 0 };
+              },
+              async buildBuy() { return { to: TOKEN, data: '0x', value: 0n }; },
+            },
+            via: 'registry',
+          }),
+        } as never,
+        engine: { async execute(p: { maxFeePerGas?: bigint }) { plans.push(p); return { status: 'simulated', steps: [] }; } } as never,
+        chainId: 4663, client: {} as never,
+        watchlist: { async list() { return []; }, async add() {} },
+      },
+    });
+    const res = await handle(execute(), 'popup');
+    expect(res.ok).toBe(true);
+    expect(plans[0]!.maxFeePerGas).toBeUndefined();
+  });
+
+  it('a cap that storage should never have held is dropped, not signed', async () => {
+    // Storage is not a trusted input, and this number is about to be signed.
+    const { handle, plans } = withPlanSpy({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '99999' }] });
+    await handle(execute(), 'popup');
+    expect(plans[0]!.maxFeePerGas).toBeUndefined();
   });
 });

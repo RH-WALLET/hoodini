@@ -23,6 +23,17 @@ export const CANARY_MAX_WEI = 5_000_000_000_000_000n;
 /** Permit2 needs two grants; more than that means something is wrong. */
 const MAX_APPROVAL_ROUNDS = 3;
 
+/**
+ * Wei per gas as gwei, for a message a user can act on.
+ *
+ * Trimmed rather than fixed-width: this chain charges 0.025 gwei, and a refusal
+ * reading "0.0250000000" invites the reader to wonder what the zeros mean.
+ */
+function gwei(wei: bigint): string {
+  const s = (Number(wei) / 1e9).toFixed(9).replace(/0+$/, '').replace(/\.$/, '');
+  return s === '' ? '0' : s;
+}
+
 export type ExecutionOutcome =
   | { readonly status: 'simulated'; readonly steps: readonly SimulatedStep[] }
   | { readonly status: 'sent'; readonly receipts: readonly TransactionReceipt[] };
@@ -39,7 +50,14 @@ export interface SimulatedStep {
 export class TradeRefused extends Error {
   constructor(
     message: string,
-    readonly code: 'NOT_LIVE' | 'OVER_LIMIT' | 'LOCKED' | 'WRONG_ACCOUNT' | 'STUCK_APPROVALS' | 'IN_FLIGHT',
+    readonly code:
+      | 'NOT_LIVE'
+      | 'OVER_LIMIT'
+      | 'LOCKED'
+      | 'WRONG_ACCOUNT'
+      | 'STUCK_APPROVALS'
+      | 'IN_FLIGHT'
+      | 'FEE_CAP_TOO_LOW',
   ) {
     super(message);
     this.name = 'TradeRefused';
@@ -150,18 +168,18 @@ export class TradeEngine {
       if (++rounds > MAX_APPROVAL_ROUNDS) {
         throw new TradeRefused('approvals did not converge; refusing to keep sending', 'STUCK_APPROVALS');
       }
-      for (const step of remaining) receipts.push(await this.#sendStep(step, owner));
+      for (const step of remaining) receipts.push(await this.#sendStep(step, owner, plan.maxFeePerGas));
       const next = await this.#d.nextApproval?.(plan, owner);
       remaining = next ? [next] : [];
     }
 
     const swap = plan.steps.find((s) => s.kind === 'swap');
-    if (swap) receipts.push(await this.#sendStep(swap, owner));
+    if (swap) receipts.push(await this.#sendStep(swap, owner, plan.maxFeePerGas));
 
     return { status: 'sent', receipts };
   }
 
-  async #sendStep(step: TradeStep, owner: Address): Promise<TransactionReceipt> {
+  async #sendStep(step: TradeStep, owner: Address, cap?: bigint): Promise<TransactionReceipt> {
     const { client, session, journal } = this.#d;
 
     // Read the nonce immediately before signing. Anything cached from earlier
@@ -169,11 +187,19 @@ export class TradeEngine {
     // Three independent reads, so they go together. Sequentially this was three
     // round trips before a single byte could be signed; none of them depends on
     // the others, and the nonce is still read immediately before signing.
-    const [nonce, gas, fees] = await Promise.all([
+    const [nonce, gas, fees, block] = await Promise.all([
       client.getTransactionCount({ address: owner, blockTag: 'pending' }),
       client.estimateGas({ account: owner, to: step.tx.to, data: step.tx.data, value: step.tx.value }),
       client.estimateFeesPerGas(),
+      // Only read when there is a cap to check it against, so a profile that
+      // sets none makes exactly the three calls it always made — the claim that
+      // it behaves identically is then true at the wire, not just in effect.
+      // Concurrent with the others when it is needed, so it costs no extra
+      // round trip either (D-057).
+      cap === undefined ? null : client.getBlock({ blockTag: 'latest' }).catch(() => null),
     ]);
+
+    const { maxFeePerGas, maxPriorityFeePerGas } = this.#fees(cap, fees, block?.baseFeePerGas ?? null);
 
     const signed = await session.withKey(async (privateKey, address) => {
       // The session could have been swapped between planning and signing.
@@ -188,8 +214,8 @@ export class TradeEngine {
         gas: (gas * 12n) / 10n,
         nonce,
         chainId: this.#d.chainId,
-        maxFeePerGas: fees.maxFeePerGas,
-        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
         type: 'eip1559',
       });
     });
@@ -203,6 +229,55 @@ export class TradeEngine {
     const receipt = await client.waitForTransactionReceipt({ hash });
     await journal.resolve(id, hash);
     return receipt;
+  }
+
+  /**
+   * What this step signs as its gas price.
+   *
+   * With no cap, exactly what it has always been: the node's suggestion. A
+   * profile that sets none is therefore unchanged, byte for byte.
+   *
+   * With a cap, two things have to happen and neither is optional:
+   *
+   * **The priority is clamped down to the cap.** EIP-1559 requires
+   * `maxPriorityFeePerGas <= maxFeePerGas`; a cap below the node's suggested tip
+   * would otherwise produce a transaction the network rejects as malformed —
+   * a cap that broke trading rather than bounding it.
+   *
+   * **A cap under the base fee is refused, here, with both numbers.** Such a
+   * transaction is not slow, it is unmineable: it would sign, broadcast, and sit
+   * pending forever. Worse, it would sit pending *in the journal*, and the next
+   * trade would be refused with IN_FLIGHT until somebody worked out why. A
+   * control that silently strands the thing it was meant to protect is the
+   * failure this project keeps finding (D-052, D-069), so the cap states its
+   * own refusal instead.
+   *
+   * The base fee is read from the latest block rather than derived from
+   * `estimateFeesPerGas`, whose relationship to it is a viem implementation
+   * detail. When the block cannot be read the cap is honoured without the check
+   * — a network too unwell to answer is not grounds to refuse a trade the user
+   * configured, and the node will reject an underpriced transaction anyway.
+   */
+  #fees(
+    cap: bigint | undefined,
+    suggested: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
+    baseFeePerGas: bigint | null,
+  ): { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint } {
+    if (cap === undefined) return suggested;
+
+    if (baseFeePerGas !== null && cap < baseFeePerGas) {
+      throw new TradeRefused(
+        `fee cap ${gwei(cap)} gwei is below the current base fee of ${gwei(baseFeePerGas)} gwei — ` +
+          'this transaction could not be mined. Raise the cap in the profile, or clear it.',
+        'FEE_CAP_TOO_LOW',
+      );
+    }
+
+    return {
+      maxFeePerGas: cap,
+      maxPriorityFeePerGas:
+        suggested.maxPriorityFeePerGas < cap ? suggested.maxPriorityFeePerGas : cap,
+    };
   }
 
   /**

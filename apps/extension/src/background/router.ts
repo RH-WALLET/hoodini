@@ -16,6 +16,7 @@ import {
   DEFAULT_AUTO_LOCK_MS,
   DEFAULT_SETTINGS,
   validateSettings,
+  isValidMaxFeeGwei,
   WithdrawalRefused,
 } from '@hoodini/core';
 import { loadPositions, planBuy, planSell, summarise, UnsupportedVenueError, type KdfParams, type VenueRouter } from '@hoodini/core';
@@ -24,7 +25,7 @@ import { loadPositions, planBuy, planSell, summarise, UnsupportedVenueError, typ
 const ERC20_BALANCE_ABI = [
   { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'a', type: 'address' }], outputs: [{ type: 'uint256' }] },
 ] as const;
-import { encodeFunctionData, getAddress, type Address } from 'viem';
+import { encodeFunctionData, getAddress, parseGwei, type Address } from 'viem';
 import type { VaultStore } from './storage.js';
 import type { TradeEngine } from './engine.js';
 import { isAllowed, type Request, type Response, type Surface, type WalletStatus } from './protocol.js';
@@ -109,6 +110,30 @@ export interface RouterDeps {
 
 function fail(code: string, message: string): Response<never> {
   return { ok: false, error: { code, message } };
+}
+
+/**
+ * The active profile's fee cap, in wei per gas, or undefined for "no cap".
+ *
+ * Total: a store that is absent, unreadable, or holds a profile that sets no
+ * cap all mean the same thing — sign what the node suggests, which is what
+ * every trade did before P14. A settings read must never be what stops a trade.
+ *
+ * `parseGwei` rather than arithmetic on a float, because the value is a string
+ * for exactly that reason and 0.025 gwei does not survive the round trip.
+ */
+async function feeCapWei(
+  settings: { read(): Promise<Settings> } | undefined,
+): Promise<bigint | undefined> {
+  if (!settings) return undefined;
+  try {
+    const cap = (await settings.read()).maxFeeGwei;
+    // Read back through the validator: storage is not a trusted input, and this
+    // number is about to be signed.
+    return isValidMaxFeeGwei(cap) ? parseGwei(cap) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Never let an internal message reach the UI verbatim — it may quote inputs. */
@@ -777,10 +802,19 @@ export function createRouter(deps: RouterDeps) {
 
             // Executing does need the account, for allowances.
             if (!owner) return fail('LOCKED', 'unlock to trade');
+
+            // The fee cap is read here and put on the plan, never read by the
+            // thing that signs. It comes from *storage*, not from the message:
+            // slippage is the caller's business because the caller is the one
+            // accepting the price, but the gas price a wallet signs is not
+            // something a page gets to choose (D-053). A profile that sets none
+            // leaves it absent, and the engine then does exactly what it always
+            // did.
+            const cap = await feeCapWei(settings);
             const plan =
               request.side === 'buy'
-                ? await planBuy(trade.venues, ref, amount, request.slippageBps)
-                : await planSell(trade.venues, ref, amount, request.slippageBps, owner);
+                ? await planBuy(trade.venues, ref, amount, request.slippageBps, cap)
+                : await planSell(trade.venues, ref, amount, request.slippageBps, owner, cap);
 
             const outcome = await trade.engine.execute(plan);
             // The canary has now happened by hand, so standing consent may

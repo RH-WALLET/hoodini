@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { getAddress, parseEther } from 'viem';
+import { getAddress, parseEther, parseTransaction } from 'viem';
 import { KeystoreSession, createVault, TEST_KDF } from '@hoodini/core';
 import { Withdrawer, WithdrawRefused } from '../src/background/withdrawer.js';
 import { TradeJournal } from '../src/background/journal.js';
@@ -36,12 +36,12 @@ function area(): StorageArea {
   };
 }
 
-async function setup(opts: { liveTrading: boolean; balance?: bigint }) {
+async function setup(opts: { liveTrading: boolean; balance?: bigint; feeCap?: bigint }) {
   const session = new KeystoreSession();
   const vault = await createVault(KEY, PW, TEST_KDF);
   await session.unlock(vault, PW);
 
-  const sendRawTransaction = vi.fn(async () => '0xhash' as const);
+  const sendRawTransaction = vi.fn(async (_args: { serializedTransaction: `0x${string}` }) => '0xhash' as const);
   const client = {
     getBalance: vi.fn(async () => opts.balance ?? parseEther('0.01')),
     estimateFeesPerGas: vi.fn(async () => ({ maxFeePerGas: FEE, maxPriorityFeePerGas: 1n })),
@@ -57,6 +57,7 @@ async function setup(opts: { liveTrading: boolean; balance?: bigint }) {
     journal,
     chainId: 4663,
     liveTrading: opts.liveTrading,
+    ...(opts.feeCap !== undefined ? { feeCap: async () => opts.feeCap } : {}),
   });
   return { withdrawer, sendRawTransaction, journal, session };
 }
@@ -130,5 +131,76 @@ describe('the journal', () => {
     expect(stuck?.kind).toBe('withdraw');
     expect(stuck?.hash).toBeUndefined();
     expect(stuck?.nonce).toBe(7);
+  });
+});
+
+/**
+ * A profile fee cap and the sweep (P14, against D-056).
+ *
+ * The invariant is that the fee reserved by `planWithdrawal` and the fee signed
+ * into the transaction are the same number. Core cannot enforce it — only this
+ * file passing one variable to both can — so these read the signed bytes back
+ * and compare them against the amount the plan decided to leave behind.
+ */
+describe('fee cap on a withdrawal', () => {
+  /** 0.5 gwei, twenty-odd times the chain's observed price. */
+  const RAISED = 500_000_000n;
+
+  it('signs the cap instead of the node’s suggestion', async () => {
+    const { withdrawer, sendRawTransaction } = await setup({ liveTrading: true, feeCap: RAISED });
+    await withdrawer.withdraw({ to: TO, amount: parseEther('0.001').toString() });
+    const tx = parseTransaction(sendRawTransaction.mock.calls[0]![0]!.serializedTransaction);
+    expect(tx.maxFeePerGas).toBe(RAISED);
+  });
+
+  it('sweeps at the cap it signs — the whole of D-056 in one assertion', async () => {
+    const balance = parseEther('0.01');
+    const { withdrawer, sendRawTransaction } = await setup({
+      liveTrading: true,
+      balance,
+      feeCap: RAISED,
+    });
+    const out = await withdrawer.withdraw({ to: TO, amount: 'max' });
+    const tx = parseTransaction(sendRawTransaction.mock.calls[0]![0]!.serializedTransaction);
+
+    // What was left behind is exactly what the signed cap can cost, to the wei.
+    // Reserving at the node's lower estimate here would strand the sweep.
+    expect(BigInt(out.valueWei) + GAS * tx.maxFeePerGas!).toBe(balance);
+    expect(tx.value).toBe(BigInt(out.valueWei));
+  });
+
+  it('a raised cap sweeps less than an unset one, by the difference', async () => {
+    const balance = parseEther('0.01');
+    const plain = await setup({ liveTrading: true, balance });
+    const capped = await setup({ liveTrading: true, balance, feeCap: RAISED });
+    const a = await plain.withdrawer.withdraw({ to: TO, amount: 'max' });
+    const b = await capped.withdrawer.withdraw({ to: TO, amount: 'max' });
+    expect(BigInt(a.valueWei) - BigInt(b.valueWei)).toBe(GAS * (RAISED - FEE));
+  });
+
+  it('clamps the priority to the cap here too', async () => {
+    // The node suggests 1 wei of tip in this fixture, so use a cap below it.
+    const { withdrawer, sendRawTransaction } = await setup({ liveTrading: true, feeCap: 1n });
+    await withdrawer.withdraw({ to: TO, amount: parseEther('0.000000001').toString() });
+    const tx = parseTransaction(sendRawTransaction.mock.calls[0]![0]!.serializedTransaction);
+    expect(tx.maxPriorityFeePerGas! <= tx.maxFeePerGas!).toBe(true);
+  });
+
+  it('refuses rather than sweeping when the cap alone exceeds the balance', async () => {
+    const { withdrawer, sendRawTransaction } = await setup({
+      liveTrading: true,
+      balance: 1_000_000n,
+      feeCap: RAISED,
+    });
+    await expect(withdrawer.withdraw({ to: TO, amount: 'max' })).rejects.toThrow(/network fee/i);
+    expect(sendRawTransaction).not.toHaveBeenCalled();
+  });
+
+  it('with no cap, behaves exactly as it did before P14', async () => {
+    const { withdrawer, sendRawTransaction } = await setup({ liveTrading: true });
+    await withdrawer.withdraw({ to: TO, amount: parseEther('0.001').toString() });
+    const tx = parseTransaction(sendRawTransaction.mock.calls[0]![0]!.serializedTransaction);
+    expect(tx.maxFeePerGas).toBe(FEE);
+    expect(tx.maxPriorityFeePerGas).toBe(1n);
   });
 });

@@ -38,6 +38,20 @@ export interface TradePlan {
    * built in one pass.
    */
   readonly mayNeedMoreApprovals: boolean;
+  /**
+   * Ceiling on the gas price every step of this plan will sign, in wei per gas.
+   * Absent means "whatever the node suggests" (P14).
+   *
+   * On the *plan*, not read from storage by the thing that signs. Two reasons,
+   * and the second is the one that was learned the hard way. Core exports no
+   * broadcast path and the engine holds no storage, so a fee that arrived from
+   * settings at signing time would put storage inside the signer. And D-061:
+   * a field that is decided in one place and re-derived in another is a field
+   * that can differ between what was shown and what was signed — which is
+   * exactly how a required-but-optional argument silently changed a trade once
+   * already. The number here is the number that goes in the transaction.
+   */
+  readonly maxFeePerGas?: bigint;
 }
 
 export class UnsupportedVenueError extends Error {
@@ -57,6 +71,7 @@ export async function planBuy(
   token: TokenRef,
   ethIn: bigint,
   slippageBps: number,
+  maxFeePerGas?: bigint,
 ): Promise<TradePlan> {
   const resolution = await router.resolve(token);
   if (!resolution) throw new UnsupportedVenueError(token.address);
@@ -75,6 +90,7 @@ export async function planBuy(
     minOut: minOutOf(quote.amountOut, slippageBps),
     steps: [{ kind: 'swap', tx }],
     mayNeedMoreApprovals: false,
+    ...(maxFeePerGas !== undefined ? { maxFeePerGas } : {}),
   };
 }
 
@@ -89,6 +105,7 @@ export async function planSell(
   amountIn: bigint,
   slippageBps: number,
   owner: Address,
+  maxFeePerGas?: bigint,
 ): Promise<TradePlan> {
   const resolution = await router.resolve(token);
   if (!resolution) throw new UnsupportedVenueError(token.address);
@@ -112,6 +129,7 @@ export async function planSell(
     minOut: minOutOf(quote.amountOut, slippageBps),
     steps,
     mayNeedMoreApprovals: approval !== null,
+    ...(maxFeePerGas !== undefined ? { maxFeePerGas } : {}),
   };
 }
 

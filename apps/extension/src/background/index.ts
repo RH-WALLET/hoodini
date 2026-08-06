@@ -10,7 +10,8 @@
  * state must always be reconstructible from a password and never assumed.
  */
 
-import { KeystoreSession } from '@hoodini/core';
+import { KeystoreSession, isValidMaxFeeGwei } from '@hoodini/core';
+import { parseGwei } from 'viem';
 import { VaultStore, chromeLocalArea } from './storage.js';
 import { SettingsStore } from './settingsStore.js';
 import { StandingConsent } from './consent.js';
@@ -87,11 +88,13 @@ function paintBadge(): void {
   }
 }
 
+const settingsStore = new SettingsStore(area);
+
 const handle = createRouter({
   store: new VaultStore(area),
   session,
   consent,
-  settings: new SettingsStore(area),
+  settings: settingsStore,
   // In worker memory, not storage: a proposal that outlived a worker restart
   // would be a confirmation for something the user has long since scrolled
   // past, and MV3 restarts constantly.
@@ -130,6 +133,16 @@ const handle = createRouter({
     journal: new TradeJournal(area),
     chainId,
     liveTrading: LIVE_TRADING,
+    // Read per withdrawal, not captured once: a sweep must reserve at the cap
+    // the profile holds *now*, or Max leaves the wrong amount behind (D-056).
+    feeCap: async () => {
+      try {
+        const cap = (await settingsStore.read()).maxFeeGwei;
+        return isValidMaxFeeGwei(cap) ? parseGwei(cap) : undefined;
+      } catch {
+        return undefined;
+      }
+    },
   }),
   trade: {
     venues,

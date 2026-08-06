@@ -45,6 +45,14 @@ export interface WithdrawerDeps {
   readonly chainId: number;
   /** Build constant. Injected only so this is testable without a build. */
   readonly liveTrading: boolean;
+  /**
+   * The active profile's fee cap in wei per gas, or undefined for none (P14).
+   *
+   * A function rather than a value: the withdrawer is constructed once at
+   * worker start and a profile can be switched at any time after, so a snapshot
+   * would reserve at whatever was set when the extension woke up.
+   */
+  readonly feeCap?: () => Promise<bigint | undefined>;
 }
 
 export interface WithdrawOutcome {
@@ -72,11 +80,25 @@ export class Withdrawer {
       client.estimateFeesPerGas(),
     ]);
 
+    /**
+     * The one fee number this withdrawal uses, derived once.
+     *
+     * D-056's invariant is that a sweep reserves the fee at the *cap that will
+     * be signed*, and that is only true if the reserve and the signature read
+     * the same variable. A profile cap that reached the signature but not
+     * `planWithdrawal` would make Max sweep too much and strand the wallet
+     * exactly at the moment somebody was trying to empty it — the failure the
+     * withdrawal tests now state in wei.
+     */
+    const maxFeePerGas = (await this.#d.feeCap?.()) ?? fees.maxFeePerGas;
+    const maxPriorityFeePerGas =
+      fees.maxPriorityFeePerGas < maxFeePerGas ? fees.maxPriorityFeePerGas : maxFeePerGas;
+
     // Throws WithdrawalRefused with a reason naming the field to fix.
     const plan = planWithdrawal(request, {
       balanceWei,
       gasLimit: TRANSFER_GAS,
-      maxFeePerGas: fees.maxFeePerGas,
+      maxFeePerGas,
       from,
     });
 
@@ -98,8 +120,8 @@ export class Withdrawer {
         gas: TRANSFER_GAS,
         nonce,
         chainId,
-        maxFeePerGas: fees.maxFeePerGas,
-        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
         type: 'eip1559',
       });
     });

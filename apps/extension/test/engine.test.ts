@@ -9,6 +9,7 @@
 
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { KeystoreSession, TEST_KDF, createVault, type TradePlan } from '@hoodini/core';
+import { parseTransaction } from 'viem';
 import type { Address, Hex } from 'viem';
 import { CANARY_MAX_WEI, TradeEngine, TradeRefused } from '../src/background/engine.js';
 import { TradeJournal, JOURNAL_KEY } from '../src/background/journal.js';
@@ -422,5 +423,135 @@ describe('TradeRefused', () => {
     const e = new TradeRefused('nope', 'NOT_LIVE');
     expect(e).toBeInstanceOf(Error);
     expect(e.code).toBe('NOT_LIVE');
+  });
+});
+
+/**
+ * The profile fee cap (P14).
+ *
+ * This is the only feature that changes the bytes that get signed, so the tests
+ * read the signed transaction back rather than trusting that the right value was
+ * passed along. `parseTransaction` is the ground truth: it decodes what would
+ * actually have gone on the wire.
+ */
+describe('fee cap', () => {
+  let session: KeystoreSession;
+  beforeEach(async () => {
+    session = await unlockedSession();
+  });
+
+  /** Sign for real, then decode what was signed. */
+  async function signedWith(
+    capWei: bigint | undefined,
+    over: Record<string, unknown> = {},
+  ): Promise<ReturnType<typeof parseTransaction>> {
+    const { client, sent } = fakeClient(over);
+    const engine = new TradeEngine({
+      client,
+      session,
+      journal: new TradeJournal(memoryArea()),
+      liveTrading: true,
+      chainId: 4663,
+    });
+    await engine.execute(plan(capWei === undefined ? {} : { maxFeePerGas: capWei }));
+    return parseTransaction(sent[0]!);
+  }
+
+  it('with no cap, signs exactly the node’s suggestion — unchanged from before', async () => {
+    const tx = await signedWith(undefined);
+    expect(tx.maxFeePerGas).toBe(1_000_000n);
+    expect(tx.maxPriorityFeePerGas).toBe(100_000n);
+  });
+
+  it('with no cap, does not even read a block', async () => {
+    // The claim is that a profile setting no cap behaves identically. That is
+    // only honest if it also makes the same calls.
+    const getBlock = vi.fn(async () => ({ baseFeePerGas: 500_000n }));
+    await signedWith(undefined, { getBlock });
+    expect(getBlock).not.toHaveBeenCalled();
+  });
+
+  it('signs the cap, not the suggestion', async () => {
+    const tx = await signedWith(800_000n, { getBlock: async () => ({ baseFeePerGas: 500_000n }) });
+    expect(tx.maxFeePerGas).toBe(800_000n);
+  });
+
+  it('clamps the priority down to the cap, or the transaction is malformed', async () => {
+    // EIP-1559 requires maxPriorityFeePerGas <= maxFeePerGas. A cap under the
+    // node's suggested tip would otherwise produce a transaction the network
+    // rejects outright — a cap that broke trading rather than bounding it.
+    const tx = await signedWith(60_000n, { getBlock: async () => ({ baseFeePerGas: 50_000n }) });
+    expect(tx.maxFeePerGas).toBe(60_000n);
+    expect(tx.maxPriorityFeePerGas).toBe(60_000n);
+    expect(tx.maxPriorityFeePerGas! <= tx.maxFeePerGas!).toBe(true);
+  });
+
+  it('leaves a priority that already fits alone', async () => {
+    const tx = await signedWith(800_000n, { getBlock: async () => ({ baseFeePerGas: 500_000n }) });
+    expect(tx.maxPriorityFeePerGas).toBe(100_000n);
+  });
+
+  it('refuses a cap under the base fee, naming both numbers', async () => {
+    // Such a transaction is not slow, it is unmineable: it would sign,
+    // broadcast, and sit pending forever — and sit pending in the journal,
+    // blocking the next trade with IN_FLIGHT until somebody worked out why.
+    const sendRawTransaction = vi.fn();
+    await expect(
+      signedWith(400_000n, { getBlock: async () => ({ baseFeePerGas: 500_000n }), sendRawTransaction }),
+    ).rejects.toThrow(TradeRefused);
+    expect(sendRawTransaction).not.toHaveBeenCalled();
+  });
+
+  it('the refusal says what to do about it', async () => {
+    let err: TradeRefused | null = null;
+    try {
+      await signedWith(400_000n, { getBlock: async () => ({ baseFeePerGas: 500_000n }) });
+    } catch (e) {
+      err = e as TradeRefused;
+    }
+    expect(err).toBeInstanceOf(TradeRefused);
+    err = err as TradeRefused;
+    expect(err.code).toBe('FEE_CAP_TOO_LOW');
+    expect(err.message).toContain('0.0004');
+    expect(err.message).toContain('0.0005');
+    expect(err.message).toMatch(/raise the cap|clear it/i);
+  });
+
+  it('a cap exactly at the base fee is allowed', async () => {
+    const tx = await signedWith(500_000n, { getBlock: async () => ({ baseFeePerGas: 500_000n }) });
+    expect(tx.maxFeePerGas).toBe(500_000n);
+  });
+
+  it('honours the cap when the block cannot be read', async () => {
+    // A network too unwell to answer is not grounds to refuse a trade the user
+    // configured, and the node rejects an underpriced transaction anyway.
+    const tx = await signedWith(800_000n, {
+      getBlock: async () => {
+        throw new Error('no');
+      },
+    });
+    expect(tx.maxFeePerGas).toBe(800_000n);
+  });
+
+  it('applies to every step, not only the swap', async () => {
+    const { client, sent } = fakeClient({ getBlock: async () => ({ baseFeePerGas: 50_000n }) });
+    const engine = new TradeEngine({
+      client,
+      session,
+      journal: new TradeJournal(memoryArea()),
+      liveTrading: true,
+      chainId: 4663,
+    });
+    await engine.execute(
+      plan({
+        maxFeePerGas: 700_000n,
+        steps: [
+          { kind: 'approve', tx: { to: ROUTER, data: '0x01', value: 0n, description: 'approve' } },
+          { kind: 'swap', tx: { to: ROUTER, data: '0x02', value: 10n ** 15n, description: 'buy' } },
+        ],
+      }),
+    );
+    expect(sent).toHaveLength(2);
+    for (const raw of sent) expect(parseTransaction(raw).maxFeePerGas).toBe(700_000n);
   });
 });
