@@ -360,3 +360,36 @@ canary paid **0.025 gwei**, and the whole buy-and-sell round trip cost about
 1/84th of a cent (D-060, D-062). A priority control here is real but buys very
 little; the honest version of this feature may be a fee *cap* for safety rather
 than a fee *bid* for speed.
+
+## [ ] P15 — X and Telegram: panel, not a strip
+
+Verified against real markup for the first time (Rory, on an X community post).
+**The selectors work** — `article[data-testid="tweet"]` matched, the address was
+found, and the control mounted with the right presets. What fails is placement:
+X's layout stretches the injected strip into a tall column of squeezed buttons.
+No selector tuning fixes that, because the container is not ours to shape.
+
+Two things point the same way, so they should be fixed together:
+
+- **A post gives nothing to chain-gate on.** Every terminal adapter refuses
+  non-Robinhood rows (D-050); a tweet never says which chain it means, and an
+  address is not chain-specific, so a post about a Base token names an address
+  that may be a *different* token on Robinhood Chain. Decorating it offers a buy
+  for something the post was not about.
+- **The panel solves both.** It floats, so no layout can distort it, and its
+  gate asks the chain before offering anything (D-069).
+
+**The change:** a `panelOnly` flag on the X and Telegram site configs so they
+detect but never `mount`, plus a fallback in `syncPanel` — the route names no
+token on a social page, so use "the adapter found exactly one", which is what a
+single post is.
+
+**Attempted and reverted.** The source change is three lines and worked; two
+tests in `packages/adapters/test/sites.test.ts` then failed, including
+`X > falls back to shape when the testid is gone`, which asserts anchor
+resolution and should not depend on whether `mount` does anything. That is not
+understood, and a suppressed test on the surface that decides where buttons
+appear is worse than the bug. Diagnose that first — it may be a real coupling
+between mounting and anchor resolution, which would be worth knowing regardless.
+
+`scripts/diagnose-social.js` checks the selectors on a live page.
