@@ -8,6 +8,45 @@
       name="description"
       content="A Chrome extension that puts buy and sell buttons on the pages you already watch. 0% fee, keys never leave your device, no backend, open source."
     />
+
+    <!--
+      Link previews. This project is handed around as a URL pasted into X and
+      Telegram — the two sites the extension itself runs on — so a blank preview
+      card is the first impression most people will ever get of it.
+
+      Absolute URLs, because a crawler does not resolve relative ones.
+    -->
+    <link rel="canonical" href="https://rh-wallet.github.io/hoodini/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Hoodini" />
+    <meta property="og:url" content="https://rh-wallet.github.io/hoodini/" />
+    <meta property="og:title" content="Trade Robinhood Chain at 0%, from the page you're already on." />
+    <meta
+      property="og:description"
+      content="A Chrome extension that puts buy and sell buttons onto the terminals you already watch. Your keys never leave your device. No backend, no account, open source."
+    />
+    <meta property="og:image" content="https://rh-wallet.github.io/hoodini/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Hoodini — 0% non-custodial trading for Robinhood Chain." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Trade Robinhood Chain at 0%, from the page you're already on." />
+    <meta
+      name="twitter:description"
+      content="Buy and sell buttons on the terminals you already watch. Keys never leave your device. No backend, no account, open source."
+    />
+    <meta name="twitter:image" content="https://rh-wallet.github.io/hoodini/og.png" />
+    <meta name="theme-color" content="#07080b" />
+
+    <!--
+      Inlined rather than fetched, so the page keeps its property of making zero
+      network requests of its own — which is the same claim the extension makes,
+      and it would be odd for the page describing it not to hold to it.
+    -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307080b'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%234da3ff'/%3E%3C/svg%3E"
+    />
     <style>
       /* ── instrument palette ──────────────────────────────────────────────
          Dark is chosen from the use scene rather than the category: this
@@ -98,7 +137,11 @@
       .chainstat { font-family: var(--mono); font-size: 11.5px; color: var(--faint); letter-spacing: 0.06em; }
       .chainstat b { color: var(--dim); font-weight: 500; }
 
-      .hero-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 40px 0 34px; }
+      /* The horizontal value is `var(--gutter)`, not 0. This is a `.wrap`, and
+         the shorthand here was quietly cancelling the padding that class exists
+         to apply — invisible above 1120px, where centring supplies the margin
+         instead, and a headline flush against the screen edge below it. */
+      .hero-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 40px var(--gutter) 34px; }
       h1 {
         font-size: clamp(38px, 6.6vw, 80px);
         line-height: 1.04;
@@ -141,6 +184,11 @@
       .figure-body { padding: 22px 18px; overflow-x: auto; }
       figcaption { padding: 0 18px 18px; color: var(--faint); font-size: 13px; max-width: 74ch; }
       svg { display: block; max-width: 100%; height: auto; }
+      /* The trust diagram carries 12 labels at 11px in a 760-unit viewBox. Left
+         to shrink to a phone it renders them at about 4px, which is a picture of
+         text rather than text. It scrolls inside the figure instead — the same
+         thing the comparison table already does. */
+      #safety svg { min-width: 660px; }
       .lbl { font-family: var(--mono); font-size: 10.5px; fill: var(--faint); letter-spacing: 0.05em; }
       .lbl-hi { fill: var(--dim); }
       .wire { stroke-width: 1; fill: none; }
@@ -226,6 +274,11 @@
       @media (max-width: 620px) {
         .track { grid-template-columns: 74px minmax(0, 1fr) 66px; }
         .lane { grid-template-columns: 96px minmax(0, 1fr) 60px; }
+        /* "Robinhood" is one unbreakable 9-character word, so at the clamp's
+           38px floor the first line runs past the gutter and the headline reads
+           as clipped. The measure is what has to give on a narrow screen, not
+           the margin. */
+        h1 { font-size: clamp(31px, 8.4vw, 44px); max-width: none; }
       }
     </style>
   </head>
@@ -268,7 +321,7 @@
           <p class="prose">
             The part of Hoodini that runs inside a trading site runs in that site's world, so anything a hostile
             page can make it send, it will send. That is why the extension does not decide what to trust by
-            asking nicely. It grants a page a fixed list of four capabilities and refuses everything else at the
+            asking nicely. It grants a page an exact list of nine capabilities and refuses everything else at the
             boundary, including any ability to unlock a wallet or move funds.
           </p>
           <figure class="figure">
@@ -277,55 +330,90 @@
               <span class="figure-note">hover or focus a capability</span>
             </div>
             <div class="figure-body">
-              <svg viewBox="0 0 760 306" role="img" aria-label="Diagram of the extension trust boundary: four capabilities a page may use, and two that are permanently refused">
-                <rect x="8" y="30" width="290" height="256" rx="8" class="zone" />
-                <rect x="462" y="30" width="290" height="256" rx="8" class="zone" />
+              <svg viewBox="0 0 760 548" role="img" aria-label="Diagram of the extension trust boundary: the nine capabilities a page may use, and examples of those permanently refused">
+                <rect x="8" y="30" width="382" height="484" rx="8" class="zone" />
+                <rect x="470" y="30" width="282" height="246" rx="8" class="zone" />
                 <text x="20" y="20" class="lbl lbl-hi">WEBSITE · UNTRUSTED</text>
-                <text x="474" y="20" class="lbl lbl-hi">SERVICE WORKER · TRUSTED</text>
+                <text x="482" y="20" class="lbl lbl-hi">SERVICE WORKER · TRUSTED</text>
 
-                <line x1="380" y1="14" x2="380" y2="292" class="barrier" />
-                <text x="380" y="303" class="lbl" text-anchor="middle" style="fill: var(--signal)">TRUST BOUNDARY</text>
+                <line x1="410" y1="14" x2="410" y2="524" class="barrier" />
+                <text x="410" y="542" class="lbl" text-anchor="middle" style="fill: var(--signal)">TRUST BOUNDARY</text>
 
+                <text x="26" y="54" class="lbl">MAY CROSS · 9</text>
                 <g class="cap" tabindex="0" role="button" data-cap="quote" aria-label="trade.quote, allowed">
-                  <rect x="26" y="48" width="180" height="30" />
-                  <text x="38" y="68">trade.quote</text>
-                  <path d="M214 63 L366 63" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                  <rect x="26" y="66" width="228" height="26" />
+                  <text x="38" y="83">trade.quote</text>
+                  <path d="M262 79 L396 79" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
                 </g>
                 <g class="cap" tabindex="0" role="button" data-cap="warm" aria-label="trade.warm, allowed">
-                  <rect x="26" y="88" width="180" height="30" />
-                  <text x="38" y="108">trade.warm</text>
-                  <path d="M214 103 L366 103" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                  <rect x="26" y="98" width="228" height="26" />
+                  <text x="38" y="115">trade.warm</text>
+                  <path d="M262 111 L396 111" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
                 </g>
                 <g class="cap" tabindex="0" role="button" data-cap="request" aria-label="trade.request, allowed">
-                  <rect x="26" y="128" width="180" height="30" />
-                  <text x="38" y="148">trade.request</text>
-                  <path d="M214 143 L366 143" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                  <rect x="26" y="130" width="228" height="26" />
+                  <text x="38" y="147">trade.request</text>
+                  <path d="M262 143 L396 143" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
                 </g>
                 <g class="cap" tabindex="0" role="button" data-cap="settings" aria-label="settings.get, allowed">
-                  <rect x="26" y="168" width="180" height="30" />
-                  <text x="38" y="188">settings.get</text>
-                  <path d="M214 183 L366 183" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                  <rect x="26" y="162" width="228" height="26" />
+                  <text x="38" y="179">settings.get</text>
+                  <path d="M262 175 L396 175" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
                 </g>
-                <g class="cap deny" tabindex="0" role="button" data-cap="unlock" aria-label="wallet.unlock, permanently refused">
-                  <rect x="26" y="216" width="180" height="30" />
-                  <text x="38" y="236">wallet.unlock</text>
-                  <path d="M214 231 L350 231" class="wire" style="stroke: rgba(255,180,84,.45)" />
-                  <path d="M356 224 L372 238 M372 224 L356 238" style="stroke: var(--cost); stroke-width: 1.7; fill: none" />
+                <g class="cap" tabindex="0" role="button" data-cap="presets" aria-label="settings.setPresets, allowed">
+                  <rect x="26" y="194" width="228" height="26" />
+                  <text x="38" y="211">settings.setPresets</text>
+                  <path d="M262 207 L396 207" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
                 </g>
-                <g class="cap deny" tabindex="0" role="button" data-cap="withdraw" aria-label="wallet.withdraw, permanently refused">
-                  <rect x="26" y="252" width="180" height="30" />
-                  <text x="38" y="272">wallet.withdraw</text>
-                  <path d="M214 267 L350 267" class="wire" style="stroke: rgba(255,180,84,.45)" />
-                  <path d="M356 260 L372 274 M372 260 L356 274" style="stroke: var(--cost); stroke-width: 1.7; fill: none" />
+                <g class="cap" tabindex="0" role="button" data-cap="stats" aria-label="chain.stats, allowed">
+                  <rect x="26" y="226" width="228" height="26" />
+                  <text x="38" y="243">chain.stats</text>
+                  <path d="M262 239 L396 239" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                </g>
+                <g class="cap" tabindex="0" role="button" data-cap="meta" aria-label="token.meta, allowed">
+                  <rect x="26" y="258" width="228" height="26" />
+                  <text x="38" y="275">token.meta</text>
+                  <path d="M262 271 L396 271" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                </g>
+                <g class="cap" tabindex="0" role="button" data-cap="brief" aria-label="wallet.brief, allowed">
+                  <rect x="26" y="290" width="228" height="26" />
+                  <text x="38" y="307">wallet.brief</text>
+                  <path d="M262 303 L396 303" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
+                </g>
+                <g class="cap" tabindex="0" role="button" data-cap="select" aria-label="wallet.selectFromPage, allowed">
+                  <rect x="26" y="322" width="228" height="26" />
+                  <text x="38" y="339">wallet.selectFromPage</text>
+                  <path d="M262 335 L396 335" class="wire" style="stroke: rgba(77,163,255,.5)" marker-end="url(#ok)" />
                 </g>
 
-                <text x="486" y="68" class="lbl lbl-hi">RESOLVE VENUE · QUOTE PRICE</text>
-                <text x="486" y="108" class="lbl lbl-hi">CACHE THE POOL KEY</text>
-                <text x="486" y="148" class="lbl lbl-hi">QUEUE ONE PROPOSAL</text>
-                <text x="486" y="188" class="lbl lbl-hi">READ THE BUY PRESETS</text>
-                <rect x="482" y="212" width="250" height="70" rx="6" style="fill: rgba(255,180,84,.05); stroke: rgba(255,180,84,.25)" />
-                <text x="496" y="240" class="lbl" style="fill: var(--cost)">ENCRYPTED KEYS · AES-GCM</text>
-                <text x="496" y="264" class="lbl" style="fill: var(--cost)">SIGNING · APPROVAL UI</text>
+                <line x1="26" y1="372" x2="368" y2="372" style="stroke: var(--line-strong)" />
+                <text x="26" y="396" class="lbl" style="fill: var(--cost)">NEVER, WHATEVER ELSE CHANGES</text>
+                <g class="cap deny" tabindex="0" role="button" data-cap="unlock" aria-label="wallet.unlock, permanently refused">
+                  <rect x="26" y="412" width="228" height="26" />
+                  <text x="38" y="429">wallet.unlock</text>
+                  <path d="M262 425 L378 425" class="wire" style="stroke: rgba(255,180,84,.45)" />
+                  <path d="M384 418 L400 432 M400 418 L384 432" style="stroke: var(--cost); stroke-width: 1.7; fill: none" />
+                </g>
+                <g class="cap deny" tabindex="0" role="button" data-cap="withdraw" aria-label="wallet.withdraw, permanently refused">
+                  <rect x="26" y="444" width="228" height="26" />
+                  <text x="38" y="461">wallet.withdraw</text>
+                  <path d="M262 457 L378 457" class="wire" style="stroke: rgba(255,180,84,.45)" />
+                  <path d="M384 450 L400 464 M400 450 L384 464" style="stroke: var(--cost); stroke-width: 1.7; fill: none" />
+                </g>
+                <g class="cap deny" tabindex="0" role="button" data-cap="execute" aria-label="trade.execute, permanently refused">
+                  <rect x="26" y="476" width="228" height="26" />
+                  <text x="38" y="493">trade.execute</text>
+                  <path d="M262 489 L378 489" class="wire" style="stroke: rgba(255,180,84,.45)" />
+                  <path d="M384 482 L400 496 M400 482 L384 496" style="stroke: var(--cost); stroke-width: 1.7; fill: none" />
+                </g>
+
+                <text x="486" y="62" class="lbl lbl-hi">HOLDS, AND NEVER HANDS OVER</text>
+                <rect x="486" y="76" width="250" height="164" rx="6" style="fill: rgba(255,180,84,.05); stroke: rgba(255,180,84,.25)" />
+                <text x="500" y="100" class="lbl" style="fill: var(--cost)">ENCRYPTED KEYS · AES-GCM</text>
+                <text x="500" y="132" class="lbl" style="fill: var(--cost)">THE SIGNING PATH</text>
+                <text x="500" y="164" class="lbl" style="fill: var(--cost)">THE APPROVAL SHEET</text>
+                <text x="500" y="196" class="lbl" style="fill: var(--cost)">EVERY WALLET ADDRESS</text>
+                <text x="500" y="228" class="lbl" style="fill: var(--cost)">THE WITHDRAW PATH</text>
                 <defs>
                   <marker id="ok" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
                     <path d="M0 0 L7 3.5 L0 7 z" fill="rgba(77,163,255,.7)" />
@@ -335,8 +423,9 @@
             </div>
             <div id="cap-detail">Pick any capability above to see what it can and cannot do.</div>
             <figcaption>
-              The four on the left are the complete list a page holds. It is pinned as an exact list in the test
-              suite, so widening it fails the build until someone writes down why.
+              The nine on the left are the complete list a page holds, and the three below them are examples of a
+              longer never-list. Both are pinned as exact lists in the test suite, so widening either fails the
+              build until someone writes down why.
             </figcaption>
           </figure>
         </div>
@@ -699,9 +788,15 @@ pnpm --filter @hoodini/extension build</pre>
         quote: '<b>trade.quote — allowed.</b> Reads a price from public chain data. It touches no key and returns no calldata, so a site button can show a number and nothing more.',
         warm: '<b>trade.warm — allowed.</b> Caches which venue trades a token. It carries no amount and answers identically whatever happens, so it cannot be used to probe which tokens are tradeable.',
         request: '<b>trade.request — allowed.</b> Proposes a trade and moves nothing. Only one may be outstanding, and approval happens in extension UI a website cannot reach. The worst a hostile site achieves is a prompt you dismiss.',
-        settings: '<b>settings.get — allowed.</b> Reads your buy presets so the overlay can draw its buttons. Writing them is refused: a preset is a spend amount, and a page that could set it could widen it and wait to be clicked.',
+        settings: '<b>settings.get — allowed.</b> Reads your buy presets and slippage so the overlay can draw its buttons and say what a click will submit with. Reading them tells a site nothing it could not see in a trade you made anyway.',
+        presets: '<b>settings.setPresets — allowed, and the reasoning is not symmetric.</b> It edits the buy amounts of the active profile, and only those, because a preset is drawn on the button it sets: a page that changed one to 5 ETH would produce a button reading 5, so it cannot cause a spend nobody saw. Slippage has no such property — it is a number nobody would notice changing — so it stays popup-only.',
+        stats: '<b>chain.stats — allowed.</b> Network gas and block height, so the panel can print them beside the buttons. No address appears in the request or the reply, the figures are identical for every visitor, and they are on every block explorer already.',
+        meta: '<b>token.meta — allowed.</b> A token\'s own ERC-20 symbol, read from the contract. It exists so the panel never takes a ticker from the page: a post is text anyone can write, and \u201c$USDC\u201d typed beside an address that is a different token is exactly the swap this extension refuses to help with.',
+        brief: '<b>wallet.brief — allowed, and deliberately thin.</b> Wallet names and which one is active. Never addresses: an injected panel has an open shadow root, so anything it draws the site can read, and handing over the full list would link all of someone\'s wallets together for every terminal they visit. A test greps the whole reply for anything address-shaped.',
+        select: '<b>wallet.selectFromPage — allowed, and it costs the page something.</b> Switching wallet from the panel disarms standing approval by doing so. That is the trade that makes it safe: a site that could quietly point you at your largest wallet and then propose a buy would be a real escalation, and making the switch cost the arming removes it — the next trade has to meet a human.',
         unlock: '<b>wallet.unlock — refused, permanently.</b> A page that could unlock could drain a wallet without you ever seeing a prompt. It sits on a list of capabilities that may never be granted to a page, whatever else changes.',
         withdraw: '<b>wallet.withdraw — refused, permanently.</b> The most direct theft available if it were ever reachable: no venue, no quote, no approval, just an address and an amount. It is popup-only, and a test asserts a page cannot reach it.',
+        execute: '<b>trade.execute — refused, permanently.</b> The one that actually signs and broadcasts. A page may propose a trade and nothing more; approval is re-dispatched through here from extension UI, so the confirm sheet cannot be skipped by anything a website does.',
       };
       const detail = document.getElementById('cap-detail');
       document.querySelectorAll('.cap').forEach((g) => {
