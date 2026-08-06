@@ -35,7 +35,7 @@ const CHAIN_ID = 4663;
  * Bumped whenever the content script changes in a way a stale tab would hide.
  * Read from the page with `document.documentElement.dataset.hoodiniBuild`.
  */
-const BUILD_MARKER = 'panel-6';
+const BUILD_MARKER = 'panel-7';
 const DEFAULT_BUY_WEI = 10n ** 15n; // 0.001 ETH
 
 /**
@@ -212,20 +212,31 @@ async function readPanelPosition(): Promise<PanelPosition | undefined> {
 }
 
 /**
- * The token whose panel is currently open, lowercased. Null when none is.
+ * The coin the panel is currently pointed at, lowercased. Null when none is.
  *
- * Tracked so a rescan does not tear the panel down and rebuild it underneath
- * the user mid-drag, or reset the profile tab they just chose.
+ * Distinct from `panelKey`: on a feed the panel can be open over five addresses
+ * with none of them picked, and the chain gate's answer belongs to whichever
+ * one is picked rather than to the panel as a whole.
  */
 let panelToken: string | null = null;
 
 /**
- * A token whose panel the user closed.
+ * Identity of what the panel is showing — one address, or the whole candidate
+ * set on a page with several.
+ *
+ * Tracked so a rescan does not tear the panel down and rebuild it underneath
+ * the user mid-drag, or reset the profile tab they just chose. It has to be the
+ * *set* rather than the chosen coin, because a feed gains and loses addresses
+ * as it scrolls and the list has to follow.
+ */
+let panelKey: string | null = null;
+
+/**
+ * A page-state whose panel the user closed.
  *
  * Without this, the next scan reopens what was just dismissed — and scans run
  * on every mutation, so the panel would come straight back. Cleared when the
- * page moves to a different token, because dismissing one coin's panel says
- * nothing about the next.
+ * page moves on, because dismissing one panel says nothing about the next.
  */
 let dismissed: string | null = null;
 
@@ -287,41 +298,33 @@ function panelOnlyToken(detected: readonly TokenRef[]): Address | null {
   return detected.length === 1 ? detected[0]!.address : null;
 }
 
-function syncPanel(detected: readonly TokenRef[]): void {
-  const address = pageTokenAddress(location.href) ?? panelOnlyToken(detected);
-  // Every branch below says what it decided. A panel that silently does not
-  // appear is indistinguishable from one that is broken, and this project has
-  // now spent three rounds on exactly that confusion (D-052).
-  if (!address) {
-    if (panelToken !== null) console.warn('[hoodini] panel closed: this page names no single token');
-    // Not a coin's page at all. Close anything left over from one.
-    if (panelToken !== null) {
-      unmountPanel(document);
-      panelToken = null;
-    }
-    return;
-  }
+/**
+ * Every token a panel-only page is showing.
+ *
+ * On a terminal this is empty: the route names the coin, and "what else is on
+ * the page" is a holders table or a sidebar of related cards (D-067). On a feed
+ * or a chat there is no route to read and any number of posts, so the whole set
+ * goes to the panel and the user says which one they meant (D-077).
+ */
+function panelCandidates(detected: readonly TokenRef[]): readonly TokenRef[] {
+  if (!(adapter instanceof ConfigurableSiteAdapter && adapter.panelOnly)) return [];
+  return detected;
+}
 
+/** Identity of what the panel is showing, so a rescan can tell if it changed. */
+const keyOf = (tokens: readonly TokenRef[]): string =>
+  tokens.map((t) => t.address.toLowerCase()).sort().join(',');
+
+/**
+ * Ask whether this coin trades on Robinhood Chain, and say so in the panel.
+ *
+ * On a multi-chain terminal the honest answer is often no — an EVM address on a
+ * coin page can be a BNB or Ethereum token — and on a post it is the only thing
+ * that can answer the question at all, because a tweet never says which chain
+ * it means (D-069, D-074).
+ */
+function probeChain(address: Address): void {
   const key = address.toLowerCase();
-  if (key === panelToken || key === dismissed || key === deciding) return;
-
-  // Open immediately. The panel's existence is not a question the chain gets to
-  // answer: a panel that waits for a round trip before deciding whether to
-  // appear is one that silently never appears when the answer is no, which
-  // looks exactly like a broken extension (D-069).
-  const known = pageToken(location.href, detected);
-  dismissed = null;
-  panelToken = key;
-  openPanel(known ?? { address, chainId: CHAIN_ID });
-
-  // The adapter already found it, so the chain gate has run and nothing is
-  // outstanding.
-  if (known) return;
-
-  // Otherwise ask whether this coin trades here, and say so in the panel. On a
-  // multi-chain terminal the honest answer is often no — an EVM address on a
-  // coin page can be a BNB or Ethereum token — and "no" belongs on screen
-  // rather than expressed as an absence.
   deciding = key;
   void chrome.runtime
     .sendMessage({
@@ -334,8 +337,18 @@ function syncPanel(detected: readonly TokenRef[]): void {
     .then((res: { ok?: boolean; error?: { code?: string; message?: string } } | undefined) => {
       if (deciding !== key) return;
       deciding = null;
-      // The route may have moved on; do not annotate a panel for another coin.
-      if (pageTokenAddress(location.href)?.toLowerCase() !== key) return;
+      /**
+       * The panel may have moved on — a route change, or the user picking
+       * another coin out of the list. Compared against what the panel is
+       * *showing*, not against the route.
+       *
+       * This was a route comparison, and on a social page `pageTokenAddress`
+       * answers null by definition — so every answer was discarded and the
+       * chain gate silently never appeared on X or Telegram. Shipped in P15 and
+       * found while wiring the picker; the panel opened correctly and then said
+       * nothing, which is the exact failure D-069 exists to prevent.
+       */
+      if (panelToken !== key) return;
       if (res?.ok) return setPanelStatus(document, null);
       setPanelStatus(
         document,
@@ -349,6 +362,62 @@ function syncPanel(detected: readonly TokenRef[]): void {
       setPanelStatus(document, 'Could not reach the extension. Try reloading the page.');
     });
 }
+
+function syncPanel(detected: readonly TokenRef[]): void {
+  const routeAddress = pageTokenAddress(location.href);
+  const candidates = routeAddress ? [] : panelCandidates(detected);
+
+  // A route that names a coin wins outright. Otherwise a single candidate is
+  // the subject of the page, and several means the page is ambiguous — which is
+  // a thing to show rather than a reason to disappear (D-077).
+  const only = candidates.length === 1 ? candidates[0]!.address : null;
+  const address = routeAddress ?? only;
+
+  // Every branch below says what it decided. A panel that silently does not
+  // appear is indistinguishable from one that is broken, and this project has
+  // now spent three rounds on exactly that confusion (D-052).
+  if (!address && candidates.length === 0) {
+    if (panelKey !== null) {
+      console.warn('[hoodini] panel closed: this page names no token');
+      unmountPanel(document);
+      panelKey = null;
+      panelToken = null;
+    }
+    return;
+  }
+
+  const key = address ? address.toLowerCase() : keyOf(candidates);
+  if (key === panelKey || key === dismissed) return;
+
+  /**
+   * A pick survives a rescan.
+   *
+   * Feeds mutate constantly, so the candidate set changes whenever a post
+   * loads and the panel has to be rebuilt around the new list. Carrying the
+   * chosen coin across means somebody who picked one does not lose it because
+   * a stranger posted an address — but only while it is still on the page,
+   * since a panel pointed at a coin the page no longer shows would be pointing
+   * at nothing anybody can see.
+   */
+  const stillThere = candidates.find((c) => c.address.toLowerCase() === panelToken) ?? null;
+  const known = routeAddress ? pageToken(location.href, detected) : null;
+  const opening: TokenRef | null = address
+    ? (known ?? { address, chainId: CHAIN_ID })
+    : stillThere;
+
+  dismissed = null;
+  panelKey = key;
+  panelToken = opening?.address.toLowerCase() ?? null;
+  openPanel(opening, candidates);
+
+  // Nothing picked yet, so there is nothing to ask the chain about.
+  if (!opening) return;
+  // The adapter already found it through its own chain gate (D-050), so the
+  // question is already answered and nothing is outstanding.
+  if (known) return;
+  probeChain(opening.address);
+}
+
 
 /**
  * Open the focused panel on a token.
@@ -372,13 +441,35 @@ async function readWallets(): Promise<{ names: string[]; activeIndex: number } |
   }
 }
 
-function openPanel(token: TokenRef): void {
+function openPanel(token: TokenRef | null, candidates: readonly TokenRef[] = []): void {
   void Promise.all([readPanelPosition(), readGas(), readWallets()]).then(([position, gasGwei, wallets]) => {
     const host = mountPanel(document, token, {
       profiles: settings.profiles,
       activeProfile: settings.activeProfile,
       onIntent,
       probeSell,
+      ...(candidates.length > 1 ? { candidates } : {}),
+      /**
+       * A ticker, from the contract rather than from the post.
+       *
+       * The panel draws this beside a buy button. A page saying "$USDC" next to
+       * an address that is a different token entirely is the substitution the
+       * per-row chain gates exist to stop, and a scraped ticker would help it
+       * along (D-050, D-076).
+       */
+      meta: async (t) => {
+        const res = (await chrome.runtime.sendMessage({ type: 'token.meta', token: t.address })) as
+          | { ok?: boolean; data?: { symbol?: string | null } }
+          | undefined;
+        return res?.ok ? { symbol: res.data?.symbol ?? null } : null;
+      },
+      // Picking a coin is picking what the buttons spend on, so the chain gate
+      // has to be re-run for it — the previous answer was about another token.
+      onSelect: (t) => {
+        panelToken = t.address.toLowerCase();
+        dismissed = null;
+        probeChain(t.address);
+      },
       // The panel is a surface you opened on purpose, so it can afford the
       // graded sells the row strip cannot (D-068).
       sellPercents: [10, 25, 50, 75, 90, 100],
@@ -413,9 +504,12 @@ function openPanel(token: TokenRef): void {
         });
       },
       onClose: () => {
-        // Remembered, so the next scan does not reopen what was just dismissed.
+        // Remembered against the page-state, not the coin: on a feed the panel
+        // is dismissed as a whole, and keying it to whichever coin happened to
+        // be picked would let the next scan reopen it under another one.
+        dismissed = panelKey;
+        panelKey = null;
         panelToken = null;
-        dismissed = token.address.toLowerCase();
       },
     });
     // Reported so "it never opened" and "it opened somewhere I cannot see" are

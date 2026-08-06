@@ -49,7 +49,7 @@ writeFileSync(
   `export {
      createXAdapter, createDexScreenerAdapter, ConfigurableSiteAdapter,
      mountOverlay, mountPanel, unmountPanel, setPanelStatus,
-     pageTokenAddress, pageToken, HOST_ATTR, PANEL_ATTR,
+     pageTokenAddress, pageToken, HOST_ATTR, PANEL_ATTR, detectTokensIn,
    } from '@hoodini/adapters';\n`,
 );
 
@@ -84,6 +84,18 @@ const TWEET = (id) => `
     <div class="col">
       <div class="who"><b>hood dev</b> <span class="at">@hooddev · 2h</span></div>
       <div class="body">new one just launched on RH chain ${TOKEN} — early</div>
+      <div class="actions"><span>reply</span><span>repost</span><span>like</span></div>
+    </div>
+  </article>`;
+
+/** A second post, naming a different coin — the ambiguous case (D-077). */
+const TOKEN2 = '0xfF5eD17855d6A4915A63643fe95E3f882AceE887';
+const TWEET2 = (id) => `
+  <article data-testid="tweet" class="tweet" id="${id}">
+    <div class="avatar"></div>
+    <div class="col">
+      <div class="who"><b>alpha caller</b> <span class="at">@caller · 5m</span></div>
+      <div class="body">different coin entirely ${TOKEN2} do your own research</div>
       <div class="actions"><span>reply</span><span>repost</span><span>like</span></div>
     </div>
   </article>`;
@@ -127,7 +139,7 @@ const html = `<!doctype html>
   <div class="side">
     <h2>after — panelOnly on: no strip, floating panel</h2>
     <div class="verdict" id="v-after">measuring…</div>
-    <div class="timeline" id="after">${TWEET('t-after')}</div>
+    <div class="timeline" id="after">${TWEET('t-after')}${TWEET2('t-after-2')}</div>
   </div>
 </div>
 
@@ -160,16 +172,28 @@ for (const a of anchors) x.mount(a, detected[0]);
  * The panel's token, by the same rule the content script now uses: the route
  * names nothing on a social page, so "the adapter found exactly one" stands in.
  */
-const inScope = x.detectTokens(scope);
-const panelToken = x.panelOnly && inScope.length === 1 ? inScope[0] : null;
+const candidates = x.detectTokens(scope);
+// The rule the content script now uses: a route names nothing on a social page,
+// so one coin is the subject and several is an ambiguity to show (D-077).
+const panelToken = x.panelOnly && candidates.length === 1 ? candidates[0] : null;
 
+// Tickers from the "chain" — stubbed here, read over RPC through token.meta
+// for real. The point of the whole feature is that they never come from the
+// post: notice that the second tweet does not say PONS anywhere.
+const CHAIN_SYMBOLS = new Map([
+  ['${TOKEN}'.toLowerCase(), 'YEW'],
+  ['${TOKEN2}'.toLowerCase(), 'PONS'],
+]);
+
+mountPanel(document, panelToken, {
+  profiles: [{ name: 'Main', buyPresets: PRESETS, slippageBps: 100, maxFeeGwei: '0.5' }],
+  sellPercents: [10, 25, 50, 75, 90, 100],
+  onIntent: () => {},
+  position: { x: 980, y: 240 },
+  ...(candidates.length > 1 ? { candidates } : {}),
+  meta: async (t) => ({ symbol: CHAIN_SYMBOLS.get(t.address.toLowerCase()) ?? null }),
+});
 if (panelToken) {
-  mountPanel(document, panelToken, {
-    profiles: [{ name: 'Main', buyPresets: PRESETS, slippageBps: 100, maxFeeGwei: '0.5' }],
-    sellPercents: [10, 25, 50, 75, 90, 100],
-    onIntent: () => {},
-    position: { x: 980, y: 300 },
-  });
   // The gate a post cannot answer for itself (D-069).
   setPanelStatus(document, 'No Robinhood Chain venue trades this token. It is probably on another chain.');
 }
@@ -200,6 +224,7 @@ window.__p15 = {
   beforeStripBox: strip && { w: Math.round(strip.width), h: Math.round(strip.height) },
   afterStrips: document.querySelectorAll('#t-after [' + HOST_ATTR + ']').length,
   afterAnchors: anchors.length,
+  candidates: candidates.length,
   panelToken: panelToken?.address ?? null,
   panelPosition: stretched,
   panelBox: panelBox && { w: Math.round(panelBox.width), h: Math.round(panelBox.height) },

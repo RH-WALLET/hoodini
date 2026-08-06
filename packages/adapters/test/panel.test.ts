@@ -349,3 +349,196 @@ describe('the fee cap on the config strip', () => {
     expect(cfg(p.shadow)).toContain('3 gwei');
   });
 });
+
+
+/**
+ * The panel names its coin, and asks which one when the page shows several
+ * (P16, D-076, D-077).
+ *
+ * Two properties matter more than the rest. A ticker is *never* taken from the
+ * page — it arrives through `meta`, which the caller answers from the chain —
+ * because this string is drawn beside a buy button. And nothing is preselected
+ * when the page is ambiguous, because preselecting is guessing which coin
+ * somebody meant, and the guess would be wired to a spend.
+ */
+describe('naming the coin', () => {
+  const B = { address: '0xfF5eD17855d6A4915A63643fe95E3f882AceE887', chainId: 4663 } as const;
+  const head = (s: ShadowRoot) => s.querySelector('.hd')!.textContent ?? '';
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  it('shows the truncated address before any ticker has arrived', () => {
+    const p = open();
+    expect(head(p.shadow)).toContain(`${TOKEN.address.slice(0, 6)}…${TOKEN.address.slice(-4)}`);
+  });
+
+  it('carries the full address for a copy, not the truncation on screen', () => {
+    const p = open();
+    expect(p.shadow.querySelector('.tok')!.getAttribute('title')).toBe(TOKEN.address);
+  });
+
+  it('draws the ticker once the chain answers', async () => {
+    const p = open({ meta: async () => ({ symbol: 'YEW' }) });
+    await settle();
+    expect(p.shadow.querySelector('.sym')!.textContent).toBe('YEW');
+    // The address stays visible beside it. The two disagreeing is the thing
+    // worth noticing, and hiding one of them would remove the ability to.
+    expect(head(p.shadow)).toContain('…');
+  });
+
+  it('asks for a ticker once per address however often it redraws', async () => {
+    const asked: string[] = [];
+    const p = open({ meta: async (t) => { asked.push(t.address); return { symbol: 'YEW' }; } });
+    await settle();
+    p.tabs()[1]!.click();
+    p.tabs()[2]!.click();
+    await settle();
+    expect(asked).toEqual([TOKEN.address]);
+  });
+
+  it('shows the address alone when the token has no symbol', async () => {
+    // Honest: the address is what was actually on the page.
+    const p = open({ meta: async () => ({ symbol: null }) });
+    await settle();
+    expect(p.shadow.querySelector('.sym')!.textContent).toBe('—');
+    expect(head(p.shadow)).toContain('…');
+  });
+
+  it('survives a meta lookup that fails outright', async () => {
+    const p = open({ meta: async () => { throw new Error('offline'); } });
+    await settle();
+    expect(p.shadow.querySelector('.tok')!.textContent).toContain('…');
+  });
+});
+
+describe('several coins on one page', () => {
+  const A = { address: '0xB84e494158976B4e14da155d1cdaE16EB6D1C477', chainId: 4663 } as const;
+  const B = { address: '0xfF5eD17855d6A4915A63643fe95E3f882AceE887', chainId: 4663 } as const;
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  const picks = (s: ShadowRoot) => [...s.querySelectorAll('.pick button')] as HTMLButtonElement[];
+
+  const many = (over: Record<string, unknown> = {}) =>
+    open({ candidates: [A, B], ...over });
+
+  it('draws no picker when the page shows one coin', () => {
+    const p = open({ candidates: [A] });
+    expect(p.shadow.querySelector('.pick')!.hidden).toBe(true);
+  });
+
+  it('lists every coin on the page when there are several', () => {
+    const p = many();
+    expect(picks(p.shadow)).toHaveLength(2);
+    expect(p.shadow.querySelector('.pick')!.hidden).toBe(false);
+  });
+
+  it('preselects nothing, and says so in words the user can act on', () => {
+    const p = mountPanel(doc, null, { profiles: PROFILES, onIntent: () => {}, candidates: [A, B] });
+    const shadow = p.shadowRoot!;
+    expect(shadow.querySelector('.pick .lbl')!.textContent).toMatch(/choose one/i);
+    expect(shadow.querySelector('.sym')!.textContent).toMatch(/select a coin/i);
+    expect([...shadow.querySelectorAll('.pick button.on')]).toHaveLength(0);
+  });
+
+  it('disables every buy and sell until one is picked', () => {
+    const host = mountPanel(doc, null, { profiles: PROFILES, onIntent: () => {}, candidates: [A, B] });
+    const shadow = host.shadowRoot!;
+    for (const b of shadow.querySelectorAll('.grid button')) {
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it('a click with nothing picked cannot emit an intent', () => {
+    const seen: OverlayIntent[] = [];
+    const host = mountPanel(doc, null, {
+      profiles: PROFILES, onIntent: (i) => seen.push(i), candidates: [A, B],
+    });
+    // Fired past the disabled attribute, which a page can remove from a shadow
+    // node it can reach. There is nothing to spend on, so there is no intent.
+    for (const b of host.shadowRoot!.querySelectorAll('.grid button')) {
+      (b as HTMLButtonElement).disabled = false;
+      (b as HTMLButtonElement).click();
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it('picking one arms the panel and points it at that coin', () => {
+    const seen: OverlayIntent[] = [];
+    const host = mountPanel(doc, null, {
+      profiles: PROFILES, onIntent: (i) => seen.push(i), candidates: [A, B],
+    });
+    const shadow = host.shadowRoot!;
+    (shadow.querySelectorAll('.pick button')[1] as HTMLButtonElement).click();
+    expect(shadow.querySelectorAll('.pick button.on')).toHaveLength(1);
+    (shadow.querySelector('.buy button') as HTMLButtonElement).click();
+    expect(seen[0]!.token.address).toBe(B.address);
+  });
+
+  it('tells the caller, so the chain gate can be re-run for the new coin', () => {
+    const chosen: string[] = [];
+    const host = mountPanel(doc, null, {
+      profiles: PROFILES, onIntent: () => {}, candidates: [A, B],
+      onSelect: (t) => chosen.push(t.address),
+    });
+    (host.shadowRoot!.querySelectorAll('.pick button')[1] as HTMLButtonElement).click();
+    expect(chosen).toEqual([B.address]);
+  });
+
+  it('switching coins buys the new one, never the old', () => {
+    const seen: OverlayIntent[] = [];
+    const host = mountPanel(doc, A, {
+      profiles: PROFILES, onIntent: (i) => seen.push(i), candidates: [A, B],
+    });
+    const shadow = host.shadowRoot!;
+    (shadow.querySelector('.buy button') as HTMLButtonElement).click();
+    (shadow.querySelectorAll('.pick button')[1] as HTMLButtonElement).click();
+    (shadow.querySelector('.buy button') as HTMLButtonElement).click();
+    expect(seen.map((i) => i.token.address)).toEqual([A.address, B.address]);
+  });
+
+  it('clears one coin’s chain gate when another is picked', () => {
+    const host = mountPanel(doc, A, { profiles: PROFILES, onIntent: () => {}, candidates: [A, B] });
+    setPanelStatus(doc, 'No Robinhood Chain venue trades this token.');
+    expect((host.shadowRoot!.querySelector('.status') as HTMLElement).hidden).toBe(false);
+    (host.shadowRoot!.querySelectorAll('.pick button')[1] as HTMLButtonElement).click();
+    // That answer was about the other coin. Leaving it up would attach one
+    // token's refusal to another.
+    expect((host.shadowRoot!.querySelector('.status') as HTMLElement).hidden).toBe(true);
+  });
+
+  it('clearing a chain gate does not arm a panel with nothing picked', () => {
+    // Two independent reasons to be dead. The chain does not get to answer the
+    // other one.
+    const host = mountPanel(doc, null, { profiles: PROFILES, onIntent: () => {}, candidates: [A, B] });
+    setPanelStatus(doc, null);
+    for (const b of host.shadowRoot!.querySelectorAll('.grid button')) {
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it('keeps the buttons dead when a profile is switched under a refusal', () => {
+    // `render` rebuilds these buttons, so switching profile used to hand back a
+    // live Buy underneath the sentence saying the coin cannot be traded here.
+    const host = mountPanel(doc, A, { profiles: PROFILES, onIntent: () => {} });
+    setPanelStatus(doc, 'No Robinhood Chain venue trades this token.');
+    (host.shadowRoot!.querySelectorAll('.tabs button')[1] as HTMLButtonElement).click();
+    for (const b of host.shadowRoot!.querySelectorAll('.grid button')) {
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it('names each coin in the list once the chain answers', async () => {
+    const p = many({ meta: async (t: { address: string }) =>
+      ({ symbol: t.address === A.address ? 'YEW' : 'PONS' }) });
+    await settle();
+    const text = [...picks(p.shadow)].map((b) => b.textContent ?? '');
+    expect(text[0]).toContain('YEW');
+    expect(text[1]).toContain('PONS');
+  });
+
+  it('says "unnamed" rather than nothing for a coin with no symbol', async () => {
+    const p = many({ meta: async () => ({ symbol: null }) });
+    await settle();
+    expect(picks(p.shadow)[0]!.textContent).toContain('unnamed');
+    // And still shows its address, which is the part that identifies it.
+    expect(picks(p.shadow)[0]!.textContent).toContain('…');
+  });
+});

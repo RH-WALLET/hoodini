@@ -389,6 +389,54 @@ call in session; the cap is the half that is real (D-075).
       transaction with a cap set; the dry-run path and the decoded signed bytes
       are what has been checked.
 
+## [x] P16 — The panel names its coin, and asks which one
+
+Prompted by two questions from Rory in the same breath: put the CA and the
+ticker on the panel, and what happens when a post or a chat is showing several
+addresses at once.
+
+### [x] P16a — `token.meta`
+- [x] Page-allowed message reading the ERC-20 `symbol()` and `decimals()` off
+      the contract. **Never scraped from the page** — a post is
+      attacker-controlled text, and "$USDC" beside an address that is something
+      else is the substitution the chain gates exist to stop (D-050, D-076).
+- [x] A symbol is whatever a contract returns: control characters stripped,
+      truncated to 24, blank becomes null. It is drawn into a DOM the site can
+      read.
+- [x] A non-token answers null rather than failing; the panel then shows the
+      address alone, which is what was actually on the page.
+- [x] Cached per router, not per module — a module-level map would make one
+      router's answers depend on another's, the defect D-074 just removed from
+      detection. Caught by three tests reading the first one's cached symbol.
+- [x] Page capabilities 8 → 9, pinned list updated with the reasoning.
+
+### [x] P16b/c — the header and the picker
+- [x] Header: ticker, address beside it, copy button for the full thing. The
+      two disagreeing is the thing worth noticing, so neither is hidden.
+- [x] Several coins on the page → the panel opens anyway and lists them, with
+      **nothing preselected** and every button dead until one is picked (D-077).
+      Preselecting is guessing which coin somebody meant, wired to a spend.
+- [x] A pick survives a rescan while the coin is still on the page, so a feed
+      loading a new post does not cost somebody their choice.
+- [x] Picking clears the previous coin's chain gate; clearing a chain gate does
+      not arm a panel with nothing picked.
+- [x] `BUILD_MARKER` → `panel-7`
+- [x] **Two live bugs found on the way**, both recorded in D-077: `render`
+      rebuilt the buttons, so switching profile under a refusal handed back a
+      live Buy; and the chain probe compared staleness against the *route*,
+      which is null on every social page — so the amber gate line silently never
+      appeared on X or Telegram at all. Both shipped in P15.
+- [x] Five mutations. Four failed the suite; the fifth **hung** it — the
+      ticker-lookup guard turns out to prevent an infinite render loop, not a
+      duplicate read. The comment says so now.
+- [x] **Verified in a browser 2026-08-06** — two posts naming two coins gives
+      `Select a coin`, `2 coins on this page — choose one`, both buttons dead;
+      picking PONS arms the panel and names it, and the second post never says
+      "PONS" anywhere, so the ticker demonstrably came from the chain.
+
+- [ ] **Not yet seen on live X or Telegram.** Same gap as P15 — the preview
+      drives the real modules from localhost.
+
 ## [x] P15 — X and Telegram: panel, not a strip
 
 Verified against real markup for the first time (Rory, on an X community post).

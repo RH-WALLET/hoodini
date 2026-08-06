@@ -2255,3 +2255,102 @@ Ten mutations across the three layers, all caught.
 `scripts/social-preview.mjs` and `scripts/popup-preview.mjs` render the three
 surfaces that show the cap — the settings field, the confirm sheet row, and the
 panel's config strip — against the real built modules.
+
+---
+
+### D-076 — A ticker comes from the chain, never from the page
+
+The panel now names its coin: ticker first, address beside it, and a copy
+button for the full thing. The interesting decision is not that it shows a
+ticker, it is where the ticker comes from.
+
+**A post is attacker-controlled text.** "$USDC" typed next to an address that is
+a different token entirely is precisely the substitution the per-row chain gates
+exist to stop (D-050, D-074) — and a panel that scraped the name off the page
+and printed it beside a buy button would be *helping*. So a new page-allowed
+`token.meta` reads the ERC-20 `symbol()` off the contract, and the panel draws
+that. Where the post and the contract disagree, the panel now shows the
+disagreement, which is worth more than showing nothing at all.
+
+**The address stays on screen next to it**, rather than behind a tooltip. The
+ticker is what a person recognises; the address is what actually gets traded,
+and the two disagreeing is the thing worth noticing. Hiding either removes the
+ability to notice.
+
+**A symbol is whatever the contract chooses to return**, and it lands in a DOM
+the site can read. So it is stripped of control characters — right-to-left
+overrides and zero-width joiners are how one ticker is made to read as another —
+truncated to 24 characters, and a blank one becomes null rather than an empty
+label. A contract that is not an ERC-20 answers null and the panel shows the
+address alone, which is honest: the address is what was on the page.
+
+**Page-allowed, and the pinned list carries why.** The reply is public chain data
+about an address the page is already displaying, so it names no wallet and says
+nothing about who asked — the same argument that made `trade.quote` and
+`chain.stats` page-readable. Page capabilities 8 → 9.
+
+**Cached per router, not per module.** One worker builds one router, so the
+lifetime is identical — but a module-level map would make one router's answers
+depend on what a *different* router had been asked, which is a read whose result
+depends on an earlier read's side effects. That is the defect D-074 had just
+finished removing from detection, and it was caught here the same way: three
+tests reading a symbol the first test had cached.
+
+---
+
+### D-077 — When the page shows several coins, ask
+
+P15 opened the panel on a social page when the adapter found exactly one
+address, and closed it otherwise. On a feed that is most of the time: two posts
+with two addresses and the panel vanishes, which is the "declines to exist"
+failure D-069 spent three rounds on.
+
+**So the panel opens whenever there is at least one, and lists them.** The header
+reads `Select a coin`, the list gives each address its chain-read ticker, and a
+line says `4 coins on this page — choose one`. Every buy and sell button is dead
+until one is picked.
+
+**Nothing is preselected, and that is the whole decision.** Preselecting is
+guessing which coin somebody meant, and the guess would be wired to a spend. The
+alternatives were considered and rejected on the same grounds: binding to the
+post nearest the middle of the screen rebinds *while you are reaching for the
+button*, so a scroll at the wrong moment buys a different coin; and a marker
+beside each address on the page is the decoration P15 removed from X, facing the
+layout problem that caused it.
+
+**The list stays open rather than collapsing to a dropdown.** On a feed, seeing
+every address on screen at once is the useful thing and switching between them
+is the normal action. Collapsing it would hide that the page is ambiguous, which
+is the fact most worth showing.
+
+**A pick survives a rescan, but only while the coin is still on the page.**
+Feeds mutate constantly, so the candidate set changes whenever a post loads and
+the panel is rebuilt around the new list; carrying the choice across means
+nobody loses it because a stranger posted an address. A choice pointing at a
+coin the page no longer shows is dropped, because a panel aimed at something
+nobody can see is aimed at nothing.
+
+**Two independent reasons the buttons can be dead, kept from undoing each
+other.** A chain gate saying "no venue trades this" and "no coin is picked" are
+different answers, so clearing the first does not enable a panel that still has
+no coin. Picking a coin clears the other one's refusal, because that answer was
+about a different token.
+
+**Two live bugs found while building it.**
+
+`render` rebuilds the buy and sell buttons, so switching profile tab while the
+panel said *no Robinhood Chain venue trades this token* handed back a live Buy
+button underneath that sentence. It predates the picker and is now re-applied on
+every render rather than only when the message arrives.
+
+And the chain probe's staleness check compared against `pageTokenAddress`, which
+answers null on every social page by definition — so on X and Telegram every
+answer was discarded and the amber gate line silently never appeared. Shipped in
+P15 four commits earlier, and exactly the bug D-069 exists to prevent, reached
+by a different route. It now compares against what the panel is *showing*.
+
+**A guard that turned out to be load-bearing in a way its comment did not say.**
+`wantSymbol` records an address before its answer arrives. Mutating that check
+away did not fail the suite, it hung it: `render` asks for every visible ticker
+and each answer calls `render`, so the two call each other forever. The comment
+now says so.

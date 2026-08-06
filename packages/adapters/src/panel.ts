@@ -48,6 +48,27 @@ export interface PanelPosition {
 
 export interface PanelOptions {
   readonly profiles: readonly PanelProfile[];
+  /**
+   * Every token the page is showing, when there is more than one.
+   *
+   * A coin's own page names one in its route and passes nothing here. A feed or
+   * a chat can be showing five, and which one somebody means is not something
+   * this code can work out — so it lists them and asks. Nothing is preselected,
+   * because preselecting is guessing, and the guess would be attached to a buy
+   * button (D-077).
+   */
+  readonly candidates?: readonly TokenRef[];
+  /** Told when the user picks one, so the caller can re-run its chain gate. */
+  readonly onSelect?: (token: TokenRef) => void;
+  /**
+   * A token's ticker, read from the chain by the caller.
+   *
+   * Never scraped: the panel draws this beside a buy button, and a post saying
+   * "$USDC" next to some other address is the substitution the chain gates
+   * exist to stop (D-050, D-076). Absent, or resolving to null, shows the
+   * address alone — which is honest, because the address is what was on screen.
+   */
+  readonly meta?: (token: TokenRef) => Promise<{ symbol: string | null } | null>;
   /** Which profile opens selected. Clamped, so a bad index cannot blank the rows. */
   readonly activeProfile?: number;
   readonly sellPercents?: readonly number[];
@@ -97,9 +118,12 @@ export function setPanelStatus(doc: Document, message: string | null): void {
   bar.textContent = message ?? '';
   bar.hidden = message === null;
   // Nothing here can be traded while the message stands, so nothing here
-  // pretends it can.
+  // pretends it can. Clearing the message does not enable a panel that has no
+  // coin picked yet — those are two different reasons to be dead, and the
+  // chain gate does not get to answer the other one (D-077).
+  const unchosen = shadow.querySelector('.panel')?.hasAttribute('data-unchosen') ?? false;
   for (const b of shadow.querySelectorAll('.grid button')) {
-    (b as HTMLButtonElement).disabled = message !== null;
+    (b as HTMLButtonElement).disabled = message !== null || unchosen;
   }
 }
 
@@ -128,9 +152,40 @@ const STYLE = `
         cursor: grab; user-select: none; }
   .hd.drag { cursor: grabbing; }
   .grip { color: #39415170; font-size: 9px; letter-spacing: 1px; }
+  .id { display: flex; align-items: baseline; gap: 6px; flex: 1; min-width: 0; }
+  /* The ticker leads, because it is what a person recognises. The address is
+     what actually gets traded, so it stays visible beside it rather than behind
+     a tooltip — the two disagreeing is the thing worth noticing. */
+  .sym { font-size: 12px; font-weight: 700; color: #e9eef7; letter-spacing: -.01em;
+         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+  .sym.none { color: #4a5364; font-weight: 600; font-size: 11px; }
   .tok { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px;
-         color: #6d7789; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+         color: #6d7789; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
          letter-spacing: .01em; }
+  .cp { all: unset; cursor: pointer; color: #4a5364; font-size: 9.5px; padding: 1px 3px;
+        border-radius: 4px; line-height: 1; }
+  .cp:hover { color: #e9eef7; background: rgba(255,255,255,.07); }
+  .cp.done { color: #74e6a4; }
+
+  /* The picker. A list rather than a dropdown: on a feed the useful thing is
+     seeing every coin on screen at once, and switching between them is the
+     normal action rather than a rare one. */
+  .pick { border-top: 1px solid rgba(255,255,255,.05); padding: 9px 11px 10px; }
+  .pick .lbl { margin-bottom: 5px; }
+  .pick .list { display: flex; flex-direction: column; gap: 2px; max-height: 132px; overflow-y: auto; }
+  .pick button {
+    all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: 7px;
+    align-items: baseline; padding: 5px 7px; border-radius: 7px;
+    background: rgba(255,255,255,.03);
+  }
+  .pick button:hover { background: rgba(255,255,255,.08); }
+  .pick button.on { background: rgba(127, 180, 245, .16); }
+  .pick button .s { font-size: 11px; font-weight: 700; color: #e9eef7; }
+  .pick button.on .s { color: #b6d6ff; }
+  .pick button .s.none { color: #5d6472; font-weight: 600; }
+  .pick button .a { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                    font-size: 9.5px; color: #6d7789; margin-left: auto; }
+  .pick button:focus-visible { outline: 1px solid #7fb4f5; outline-offset: -2px; }
   .tabs { display: flex; gap: 1px; background: rgba(255,255,255,.05); border-radius: 6px; padding: 1px; }
   .tabs button { all: unset; cursor: pointer; padding: 3px 8px; border-radius: 5px;
                  font-size: 10px; font-weight: 650; color: #6d7789; letter-spacing: .02em; }
@@ -249,7 +304,12 @@ function clamp(position: PanelPosition, view: { width: number; height: number })
  * One at a time by construction: two panels would mean two configurations on
  * screen and no way to tell which a click used.
  */
-export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions): HTMLElement {
+export function mountPanel(
+  doc: Document,
+  /** The coin to open on, or null when the page shows several and none is picked. */
+  token: TokenRef | null,
+  options: PanelOptions,
+): HTMLElement {
   unmountPanel(doc);
 
   const host = doc.createElement('div');
@@ -275,11 +335,75 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   const grip = doc.createElement('span');
   grip.className = 'grip';
   grip.textContent = '⣿';
+  /**
+   * What the panel is currently pointed at.
+   *
+   * Mutable, because the picker changes it. Every buy and sell closure is
+   * rebuilt by `render`, so they read this rather than capturing a token once —
+   * a stale capture here would be a button that spends on the coin the panel
+   * used to be showing.
+   */
+  let chosen: TokenRef | null = token;
+
+  /** Tickers already read from the chain, keyed by address. */
+  const symbols = new Map<string, string | null>();
+
+  const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+
+  const id = doc.createElement('span');
+  id.className = 'id';
+  const sym = doc.createElement('span');
   const label = doc.createElement('span');
   label.className = 'tok';
-  label.textContent = `${token.address.slice(0, 6)}…${token.address.slice(-4)}`;
-  label.title = token.address;
-  hd.append(grip, label);
+  const copy = doc.createElement('button');
+  copy.className = 'cp';
+  copy.textContent = '⧉';
+  copy.title = 'Copy the contract address';
+  copy.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!chosen) return;
+    // The full address, not the truncation on screen. Best-effort: a page can
+    // deny clipboard access and that is not worth an error state.
+    void doc.defaultView?.navigator?.clipboard?.writeText(chosen.address).then(
+      () => {
+        copy.textContent = '✓';
+        copy.classList.add('done');
+        doc.defaultView?.setTimeout(() => {
+          copy.textContent = '⧉';
+          copy.classList.remove('done');
+        }, 1200);
+      },
+      () => {},
+    );
+  });
+  id.append(sym, label, copy);
+  hd.append(grip, id);
+
+  /**
+   * Ask for a ticker once per address, and redraw when it lands.
+   *
+   * The `has` check is not an optimisation, it is the loop guard. `render`
+   * calls this for every coin it draws and the answer calls `render` again, so
+   * without a record that the question has already been asked the two call each
+   * other forever — a hung tab, not a slow one. Found by mutating the guard
+   * away and watching the suite stop responding rather than fail.
+   *
+   * The entry is written *before* the answer arrives, which is what makes it
+   * work: an in-flight lookup counts as asked.
+   */
+  function wantSymbol(t: TokenRef): void {
+    const key = t.address.toLowerCase();
+    if (!options.meta || symbols.has(key)) return;
+    symbols.set(key, null);
+    void options.meta(t).then(
+      (m) => {
+        symbols.set(key, m?.symbol ?? null);
+        render();
+      },
+      () => {},
+    );
+  }
 
   /**
    * Our own copy of the profiles.
@@ -384,13 +508,28 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   buySec.className = 'sec';
   const sellSec = doc.createElement('div');
   sellSec.className = 'sec sell';
+  /**
+   * The picker.
+   *
+   * Present only when the page is showing more than one coin. It is a list and
+   * it stays open: on a feed, seeing every address on screen at once is the
+   * useful thing, and switching between them is the normal action rather than a
+   * rare one. Collapsing it would hide the fact that the page is ambiguous,
+   * which is the fact worth showing.
+   */
+  const pick = doc.createElement('div');
+  pick.className = 'pick';
+  const candidates = options.candidates ?? [];
+  const hasPicker = candidates.length > 1;
+  pick.hidden = !hasPicker;
+
   const status = doc.createElement('div');
   status.className = 'status';
   status.hidden = true;
 
   const cfg = doc.createElement('div');
   cfg.className = 'cfg';
-  panel.append(buySec, sellSec, status, cfg);
+  panel.append(pick, buySec, sellSec, status, cfg);
 
   /**
    * The figures this side will actually submit with.
@@ -432,6 +571,56 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   function render(): void {
     const profile = profiles[active] ?? { buyPresets: [], slippageBps: 100 };
 
+    // ── who the panel is pointed at ──────────────────────────────────────
+    if (chosen) wantSymbol(chosen);
+    const ticker = chosen ? symbols.get(chosen.address.toLowerCase()) : null;
+    sym.className = ticker ? 'sym' : 'sym none';
+    sym.textContent = chosen ? (ticker ?? '—') : 'Select a coin';
+    label.textContent = chosen ? short(chosen.address) : '';
+    label.title = chosen?.address ?? '';
+    copy.hidden = !chosen;
+
+    // ── the picker ───────────────────────────────────────────────────────
+    if (hasPicker) {
+      pick.replaceChildren();
+      const pl = doc.createElement('span');
+      pl.className = 'lbl';
+      // Says what the page is, not what the panel failed to do. "Choose one" is
+      // an instruction the user can act on; an empty panel is not (D-069).
+      pl.textContent = chosen
+        ? `${candidates.length} coins on this page`
+        : `${candidates.length} coins on this page — choose one`;
+      const list = doc.createElement('div');
+      list.className = 'list';
+      for (const c of candidates) {
+        wantSymbol(c);
+        const t = symbols.get(c.address.toLowerCase());
+        const b = doc.createElement('button');
+        if (chosen && c.address.toLowerCase() === chosen.address.toLowerCase()) b.classList.add('on');
+        const cs = doc.createElement('span');
+        cs.className = t ? 's' : 's none';
+        cs.textContent = t ?? 'unnamed';
+        const ca = doc.createElement('span');
+        ca.className = 'a';
+        ca.textContent = short(c.address);
+        ca.title = c.address;
+        b.append(cs, ca);
+        b.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          chosen = c;
+          // Whatever the last coin's chain gate said does not apply to this
+          // one, and leaving it up would attach one coin's refusal to another.
+          status.textContent = '';
+          status.hidden = true;
+          render();
+          options.onSelect?.(c);
+        });
+        list.appendChild(b);
+      }
+      pick.append(pl, list);
+    }
+
     buySec.replaceChildren();
     const bl = doc.createElement('span');
     bl.className = 'lbl';
@@ -449,7 +638,8 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
       b.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        reflect(b, amount, options.onIntent({ side: 'buy', token, amount }));
+        if (!chosen) return;
+        reflect(b, amount, options.onIntent({ side: 'buy', token: chosen, amount }));
       });
       bg.appendChild(b);
     }
@@ -534,20 +724,24 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
         e.preventDefault();
         e.stopPropagation();
         if (b.disabled) return;
+        // Nothing is pointed at, so there is nothing to sell. `render` disables
+        // these buttons in that state; this is the belt to that brace.
+        const on = chosen;
+        if (!on) return;
         if (!options.probeSell) {
-          reflect(b, `${percent}%`, options.onIntent({ side: 'sell', token, percent }));
+          reflect(b, `${percent}%`, options.onIntent({ side: 'sell', token: on, percent }));
           return;
         }
         b.disabled = true;
         const was = b.textContent;
         b.textContent = '…';
         void options
-          .probeSell(token, percent)
+          .probeSell(on, percent)
           .then((no) => {
             if (!no) {
               b.disabled = false;
               b.textContent = was;
-              reflect(b, was, options.onIntent({ side: 'sell', token, percent }));
+              reflect(b, was, options.onIntent({ side: 'sell', token: on, percent }));
               return;
             }
             // Only this size is refused. Availability is size-dependent
@@ -597,6 +791,25 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
       cfg.append(gap, gasLabel, gasVal);
     }
     cfg.append(spacer, feeLabel, fee);
+
+    /**
+     * Nothing tradeable, nothing that looks tradeable.
+     *
+     * Re-applied on every render rather than only when a message arrives,
+     * because `render` rebuilds these buttons: switching profile while the
+     * panel said "no Robinhood Chain venue trades this token" used to hand back
+     * a live Buy button underneath that sentence. Found while adding the
+     * picker, and it predates it.
+     *
+     * Two independent reasons to be dead, kept as one expression so neither can
+     * quietly undo the other — clearing a chain gate must not enable buttons
+     * that still have no coin behind them.
+     */
+    panel.toggleAttribute('data-unchosen', chosen === null);
+    const blocked = chosen === null || !status.hidden;
+    for (const b of panel.querySelectorAll('.grid button')) {
+      (b as HTMLButtonElement).disabled = blocked;
+    }
   }
   render();
 
