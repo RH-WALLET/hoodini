@@ -316,7 +316,13 @@ The step D-026 deferred: a page proposes, extension UI approves, and
       `scripts/make-icons.mjs`. Not a branding decision: an action with no icon
       has nowhere to render a badge, so the pending-trade signal set
       successfully and showed nothing. **Rory replaces before submitting**
-- [ ] **Rory:** a 1280×800 screenshot, hosted privacy URL
+- [x] Hosted privacy policy at `docs/privacy.html`, linked from the footer and
+      pinned by test against the manifest's host list. Writing it found the
+      disclosure gap it exists to close: the policy named one host and promised
+      "that one RPC host" long after Blockscout was added, so the document whose
+      job is to say where data goes omitted the one request that carries the
+      user's address (D-078)
+- [ ] **Rory:** a 1280×800 screenshot
 - [ ] **Rory:** submit to the Chrome Web Store (publishing is his call)
 - [ ] **Rory:** token CA into `docs/index.html` once launched (the page moved to the docs root so GitHub Pages serves it)
 

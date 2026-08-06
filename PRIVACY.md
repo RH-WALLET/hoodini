@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Hoodini Finance** — last updated 2026-08-03.
+**Hoodini Finance** — last updated 2026-08-07.
 
 ## The short version
 
@@ -23,13 +23,31 @@ in plaintext.
 
 ## What is sent, and to whom
 
-Only blockchain reads and, if you trade, signed transactions — sent directly
-from your browser to the public Robinhood Chain RPC endpoint
-(`rpc.mainnet.chain.robinhood.com`). This is the same request any wallet makes.
-Hoodini operates no server and no proxy.
+Hoodini operates no server and no proxy, so nothing is ever sent to us. There is
+no "us" to send it to. Your browser talks to two public hosts directly, and to
+nothing else:
+
+**1. The Robinhood Chain RPC** (`rpc.mainnet.chain.robinhood.com`) — blockchain
+reads, and, if you trade, signed transactions. The same requests any wallet
+makes.
+
+**2. The chain's Blockscout explorer** (`robinhoodchain.blockscout.com`) — two
+requests, and they are not equally private, so they are not treated as such:
+
+| Request | Carries your address? | When |
+|---|---|---|
+| The ETH price, shown beside your balance | **No** — a global figure about the chain | Whenever the popup is open |
+| Your own transaction list | **Yes** — it cannot be fetched without naming the address | Only when you open Activity |
+
+The second one is a real disclosure and is named here rather than buried: it
+tells the explorer which wallet is being looked at. No key is involved and
+nothing of ours is sent, but a third party learns something, so the extension
+asks for it only when you go looking for it and says so on screen. If you never
+open Activity, your address is never sent anywhere but the RPC — which sees it
+anyway the moment you trade, as it would with any wallet.
 
 The extension's declared permissions are the enforceable version of this claim:
-it may reach that one RPC host, and read the pages you have granted it.
+those two hosts, and the pages you have granted it. There is no third.
 
 ## What is NOT collected
 

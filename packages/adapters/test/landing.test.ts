@@ -167,3 +167,75 @@ describe('link preview metadata', () => {
     expect(html).not.toMatch(/<(?:script|link)[^>]+(?:src|href)="https?:\/\/(?!rh-wallet\.github\.io)/);
   });
 });
+
+
+/**
+ * The privacy policy has to agree with the manifest.
+ *
+ * It did not. It named one host and promised "that one RPC host" long after
+ * Blockscout was added — so the document that exists to disclose where data goes
+ * omitted the one request that carries the user's address. The code was honest
+ * about it in a comment; the policy was not.
+ *
+ * Both the hosted page and PRIVACY.md are pinned here against the shipped
+ * manifest, so adding a host fails the build until the disclosure is updated.
+ */
+describe('privacy policy', () => {
+  const privacy = readFileSync(
+    resolve(fileURLToPath(import.meta.url), '../../../../docs/privacy.html'),
+    'utf8',
+  );
+  const md = readFileSync(resolve(fileURLToPath(import.meta.url), '../../../../PRIVACY.md'), 'utf8');
+  /**
+   * Read from the manifest *source*, not from `dist`. `dist` is gitignored, so
+   * a build-dependent assertion here would pass on this machine and fail on a
+   * clean checkout — and the point of this test is that it runs everywhere.
+   */
+  const manifestSrc = readFileSync(
+    resolve(fileURLToPath(import.meta.url), '../../../../apps/extension/src/manifest.ts'),
+    'utf8',
+  );
+  const hosts = [...manifestSrc.matchAll(/'(https:\/\/[a-z0-9.-]+)\/\*'/g)]
+    .map((m) => new URL(m[1]!).hostname)
+    .filter((h, i, all) => all.indexOf(h) === i);
+
+  it('names every host the extension is permitted to contact', () => {
+    expect(hosts.length).toBeGreaterThan(0);
+    for (const host of hosts) {
+      expect(privacy, `${host} is in host_permissions but not on the privacy page`).toContain(host);
+      expect(md, `${host} is in host_permissions but not in PRIVACY.md`).toContain(host);
+    }
+  });
+
+  it('states how many there are, so an unlisted one contradicts the page', () => {
+    const words = ['zero', 'one', 'two', 'three', 'four', 'five'];
+    const claim = `${words[hosts.length]} public hosts`;
+    expect(privacy.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')).toContain(claim);
+    expect(md.replace(/\s+/g, ' ')).toContain(claim);
+  });
+
+  it('discloses that the transaction list carries the address', () => {
+    // The single most important sentence in the document: it is the one request
+    // that tells a third party which wallet is being looked at.
+    for (const [name, doc] of [['page', privacy], ['PRIVACY.md', md]] as const) {
+      expect(doc, `${name} does not disclose the address disclosure`).toMatch(/carries your address/i);
+      expect(doc, `${name} does not name Activity as the trigger`).toMatch(/open Activity/i);
+    }
+  });
+
+  it('is reachable from the landing page, since an unfindable policy is none', () => {
+    expect(html).toContain('privacy.html');
+  });
+
+  it('makes no network requests of its own either', () => {
+    expect(privacy).not.toMatch(/<script/i);
+    for (const [tag, rel] of [...privacy.matchAll(/<link\s[^>]*rel="([a-z-]+)"[^>]*>/gi)].map((m) => [m[0], m[1]])) {
+      if (rel === 'canonical') continue;
+      expect(tag, `${rel} link would fetch from a third party`).not.toMatch(/href="https?:/i);
+    }
+  });
+
+  it('declares a canonical URL, which is what the store listing points at', () => {
+    expect(privacy).toMatch(/rel="canonical"\s+href="https:\/\/[^"]+privacy\.html"/);
+  });
+});

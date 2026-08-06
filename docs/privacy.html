@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy — Hoodini</title>
+    <meta
+      name="description"
+      content="Hoodini collects nothing. There is no server to collect it with. What is stored stays on your device; the only two hosts your browser contacts are public and named here."
+    />
+    <link rel="canonical" href="https://rh-wallet.github.io/hoodini/privacy.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Hoodini" />
+    <meta property="og:url" content="https://rh-wallet.github.io/hoodini/privacy.html" />
+    <meta property="og:title" content="Privacy — Hoodini" />
+    <meta
+      property="og:description"
+      content="Hoodini collects nothing. There is no server to collect it with."
+    />
+    <meta property="og:image" content="https://rh-wallet.github.io/hoodini/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#07080b" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307080b'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%234da3ff'/%3E%3C/svg%3E"
+    />
+    <style>
+      /* The landing page's tokens, verbatim. A privacy policy that looked like
+         a different product would undercut the thing it is trying to establish. */
+      :root {
+        --void: #05070d;
+        --surface: #0a0f18;
+        --raised: #0f1622;
+        --line: #1a2433;
+        --line-strong: #2a3648;
+        --text: #e9eef7;
+        --dim: #8493aa;
+        --faint: #5a6880;
+
+        --signal: #4da3ff;
+        --signal-hot: #8cc6ff;
+        --cost: #ffb454;
+        --zero: #3ad9a0;
+
+        --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+        --gutter: clamp(20px, 4vw, 56px);
+        color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--void);
+        color: var(--text);
+        font: 400 16px/1.62 var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+      /* Reading measure, not the landing page's full width. */
+      .wrap { max-width: 720px; margin: 0 auto; padding: 0 var(--gutter); }
+
+      .top { border-bottom: 1px solid var(--line); background: var(--surface); }
+      .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; flex-wrap: wrap; }
+      .logo { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+      .pip { width: 9px; height: 9px; border-radius: 50%; background: var(--signal); }
+      .back { font-family: var(--mono); font-size: 12px; color: var(--faint); text-decoration: none; }
+      .back:hover { color: var(--signal); }
+
+      header.head { padding: 64px 0 8px; }
+      h1 { font-size: clamp(34px, 5.4vw, 52px); line-height: 1.06; letter-spacing: -0.035em; font-weight: 660; margin: 0 0 14px; }
+      .updated { font-family: var(--mono); font-size: 12px; color: var(--faint); margin: 0; }
+
+      /* The one sentence that matters, given its own weight rather than being
+         the first line of a wall of text. */
+      .lede {
+        margin: 34px 0 8px;
+        padding: 22px 24px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--raised);
+        font-size: 19.5px;
+        line-height: 1.45;
+        letter-spacing: -0.012em;
+      }
+      .lede b { color: var(--zero); font-weight: 620; }
+
+      main { padding-bottom: 90px; }
+      h2 {
+        font-size: 21px; letter-spacing: -0.02em; font-weight: 620;
+        margin: 52px 0 14px; padding-top: 22px; border-top: 1px solid var(--line);
+      }
+      h2:first-of-type { border-top: 0; padding-top: 0; }
+      p { margin: 0 0 15px; color: var(--dim); }
+      p strong, li strong { color: var(--text); font-weight: 580; }
+      a { color: var(--signal); text-decoration-color: color-mix(in srgb, var(--signal) 40%, transparent); text-underline-offset: 2px; }
+      a:hover { color: var(--signal-hot); }
+      code { font-family: var(--mono); font-size: 0.875em; color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+      ul { margin: 0 0 15px; padding-left: 20px; color: var(--dim); }
+      li { margin-bottom: 7px; }
+      li::marker { color: var(--faint); }
+
+      .scroller { overflow-x: auto; margin: 0 0 18px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 460px; }
+      th, td { text-align: left; padding: 12px 16px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+      thead th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); font-weight: 400; }
+      tbody th { font-weight: 520; color: var(--text); }
+      td { color: var(--dim); }
+      .no { color: var(--zero); font-family: var(--mono); font-size: 13px; }
+      .yes { color: var(--cost); font-family: var(--mono); font-size: 13px; }
+
+      /* The disclosure this document exists to make plainly. Amber, because on
+         this project amber is what something costs you. */
+      .flag {
+        margin: 20px 0;
+        padding: 18px 20px;
+        border: 1px solid rgba(255, 180, 84, 0.32);
+        border-radius: 10px;
+        background: rgba(255, 180, 84, 0.05);
+      }
+      .flag p { color: var(--text); margin: 0; font-size: 15px; }
+      .flag p + p { margin-top: 10px; color: var(--dim); }
+
+      footer { border-top: 1px solid var(--line); background: var(--surface); padding: 26px 0 46px; }
+      footer p { font-size: 13px; color: var(--faint); margin: 0; }
+
+      @media (max-width: 620px) {
+        header.head { padding-top: 44px; }
+        .lede { font-size: 17.5px; padding: 18px 18px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <div class="wrap">
+        <div class="logo"><span class="pip"></span> Hoodini</div>
+        <a class="back" href="./">← back to the site</a>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <header class="head">
+        <h1>Privacy Policy</h1>
+        <p class="updated">HOODINI FINANCE · LAST UPDATED 2026-08-07</p>
+      </header>
+
+      <p class="lede">Hoodini collects <b>nothing</b>. There is no server to collect it with.</p>
+
+      <main>
+        <h2>What is stored, and where</h2>
+        <p>Everything stays in your browser's local extension storage, on your device:</p>
+        <div class="scroller">
+          <table>
+            <thead>
+              <tr><th scope="col">Data</th><th scope="col">Purpose</th><th scope="col">Leaves your device?</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Encrypted wallet vault</th><td>Holds your key, encrypted with your password</td><td class="no">No</td></tr>
+              <tr><th scope="row">Wallet address</th><td>Shown in the popup while locked</td><td class="no">No</td></tr>
+              <tr><th scope="row">Token watchlist</th><td>Builds the positions panel</td><td class="no">No</td></tr>
+              <tr><th scope="row">In-flight trade record</th><td>Prevents a double-send after a browser crash</td><td class="no">No</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Your private key is encrypted with a key derived from your password, and is decrypted only into the
+          extension's service-worker memory, and never written back in plaintext.
+        </p>
+
+        <h2>What is sent, and to whom</h2>
+        <p>
+          Hoodini operates no server and no proxy, so nothing is ever sent to us. There is no "us" to send it
+          to. Your browser talks to two public hosts directly, and to nothing else.
+        </p>
+        <p>
+          <strong>1. The Robinhood Chain RPC</strong>, at <code>rpc.mainnet.chain.robinhood.com</code>. Blockchain
+          reads, and, if you trade, signed transactions. The same requests any wallet makes.
+        </p>
+        <p>
+          <strong>2. The chain's Blockscout explorer</strong>, at <code>robinhoodchain.blockscout.com</code>. Two
+          requests, and they are not equally private, so they are not treated as such:
+        </p>
+        <div class="scroller">
+          <table>
+            <thead>
+              <tr><th scope="col">Request</th><th scope="col">Carries your address?</th><th scope="col">When</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">The ETH price, shown beside your balance</th>
+                <td class="no">No: a global figure about the chain</td>
+                <td>Whenever the popup is open</td>
+              </tr>
+              <tr>
+                <th scope="row">Your own transaction list</th>
+                <td class="yes">Yes: it cannot be fetched without naming the address</td>
+                <td>Only when you open Activity</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="flag">
+          <p>
+            The second one is a real disclosure, so it is named here rather than buried: it tells the explorer
+            which wallet is being looked at.
+          </p>
+          <p>
+            No key is involved and nothing of ours is sent, but a third party learns something — so the
+            extension asks for it only when you go looking for it, and says so on screen. If you never open
+            Activity, your address is never sent anywhere but the RPC, which sees it the moment you trade
+            anyway, as it would with any wallet.
+          </p>
+        </div>
+        <p>
+          The extension's declared permissions are the enforceable version of this claim: those two hosts, and
+          the pages you have granted it. There is no third.
+        </p>
+
+        <h2>What is not collected</h2>
+        <p>
+          No analytics. No telemetry. No crash reporting. No advertising identifiers. No cookies. No account,
+          email, or sign-up. No browsing history. No IP logging by us; we have nothing to log with.
+        </p>
+
+        <h2>Page access</h2>
+        <p>
+          Content scripts run only on the sites named in the extension's manifest, each listed explicitly, with
+          no wildcards across domains. They read the page to find token contract addresses and draw buttons.
+          Page content is never transmitted anywhere.
+        </p>
+
+        <h2>Your control</h2>
+        <ul>
+          <li>Export your key at any time from the popup.</li>
+          <li>Reset the wallet to erase the vault from storage.</li>
+          <li>Uninstalling removes all stored data.</li>
+        </ul>
+        <p>
+          Because Hoodini is non-custodial and has no server, there is no account to delete and no data of
+          yours for us to hold.
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          Open an issue on
+          <a href="https://github.com/RH-WALLET/hoodini">the project repository</a>. The source is public, so
+          every claim above can be checked rather than taken on trust.
+        </p>
+      </main>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          Open source under the MIT licence. Hoodini Finance is an independent project, not affiliated with,
+          endorsed by, or connected to Robinhood Markets, Inc.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

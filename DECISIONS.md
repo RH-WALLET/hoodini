@@ -2354,3 +2354,40 @@ by a different route. It now compares against what the panel is *showing*.
 away did not fail the suite, it hung it: `render` asks for every visible ticker
 and each answer calls `render`, so the two call each other forever. The comment
 now says so.
+
+---
+
+### D-078 — The privacy policy was describing a smaller extension than shipped
+
+Writing the hosted page found the gap the page exists to close. `PRIVACY.md`
+said the browser contacts the RPC and promised the permissions were "the
+enforceable version of this claim: it may reach **that one RPC host**" — written
+before Blockscout was added, and never revisited. So the one document whose
+entire job is to say where data goes had stopped naming a host, and it was the
+host that receives the user's address.
+
+The code was honest about it the whole time. `explorer.ts` says in its header
+that `/addresses/{a}/transactions` "necessarily names the address… it is still a
+third party learning something, so the popup asks for it only when told to."
+The policy simply never caught up.
+
+**Both requests are now named, and separated by whether they carry an address.**
+The price is a global figure and discloses nothing about who asked. The
+transaction list cannot be fetched without naming the wallet. Putting them in
+one sentence would have averaged a real disclosure into a reassuring one, so
+they are a table with a column for exactly that question, and the consequence
+gets an amber callout rather than a subordinate clause.
+
+**Pinned by test against the manifest source**, the same guard D-076's section
+got: every declared host must appear in both the page and `PRIVACY.md`, the
+stated count must match, the address disclosure must be present, and the page
+must be reachable from the landing footer. Three mutations, all caught —
+including adding an undisclosed fourth host, which is the shape of the failure
+that just happened.
+
+Read from `src/manifest.ts`, not `dist/manifest.json`: `dist` is gitignored, so
+a build-dependent assertion would pass here and fail on a clean checkout, and a
+guard that only runs on the machine that wrote it is not a guard.
+
+The page reuses the landing page's tokens verbatim. A privacy policy that looked
+like a different product would undercut the thing it is trying to establish.
