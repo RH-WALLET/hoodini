@@ -117,10 +117,12 @@ export interface OverlayOptions {
   /** Preset buy amounts in ETH, shown as quick buttons. */
   readonly amounts?: readonly string[];
   /**
-   * Sell fractions, shown as a second row. Defaults to 25/50/75/100.
+   * Sell fractions offered here. Defaults to a half and the lot.
    *
-   * Empty disables them and restores the single whole-balance Sell button, so
-   * an adapter with no room for two rows is not forced into one.
+   * Two, not four. This control sits on a card in a list you are scanning, and
+   * every element on it competes with the row it is decorating — the panel is
+   * where the graded sells live, because that is a surface you opened on
+   * purpose (D-068). An empty list removes the sell side entirely.
    */
   readonly sellPercents?: readonly number[];
   /**
@@ -287,7 +289,7 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
    * venue that pays out 25% may still revert on 100%, and one button standing
    * for all four would be a button that is sometimes lying.
    */
-  const percents = options.sellPercents ?? [25, 50, 75, 100];
+  const percents = options.sellPercents ?? [50, 100];
   percents.forEach((percent, index) => {
     const b = doc.createElement('button');
     b.className = index === 0 ? 'sell first' : 'sell';
@@ -341,11 +343,11 @@ export function mountOverlay(anchor: Element, token: TokenRef, options: OverlayO
   }
 
   if (options.config) {
-    const cfg = doc.createElement('span');
-    cfg.className = 'cfg';
-    cfg.textContent = `${(options.config.slippageBps / 100).toFixed(2).replace(/\.00$/, '')}%`;
-    cfg.title = 'Max slippage on this trade';
-    bar.appendChild(cfg);
+    // On the bar, not in it. Slippage still has to be knowable at the moment of
+    // the click — that was the whole point of showing it — but as a ninth
+    // element on a strip decorating somebody else's card it was noise. The
+    // panel prints it; here it is a hover away.
+    bar.title = `Max slippage ${(options.config.slippageBps / 100).toFixed(2).replace(/\.00$/, '')}% · Hoodini fee 0%`;
   }
 
   if (options.onWarm) {

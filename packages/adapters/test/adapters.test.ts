@@ -383,18 +383,18 @@ describe('sell gating', () => {
     // balance may pay out a quarter of it happily. Disabling every fraction
     // because one failed would hide a sell that works.
     const { host } = mount(async (_t, percent) => (percent === 100 ? { reason: 'too big' } : null));
-    const [quarter, , , whole] = sellButtons(host);
+    const [half, whole] = sellButtons(host);
     whole!.click();
     await vi.waitFor(() => expect(whole!.disabled).toBe(true));
-    expect(quarter!.disabled).toBe(false);
+    expect(half!.disabled).toBe(false);
   });
 
   it('probes the exact fraction the pressed button would sell', async () => {
     const asked: (number | undefined)[] = [];
     const { host } = mount(async (_t, percent) => { asked.push(percent); return null; });
     for (const b of sellButtons(host)) b.click();
-    await vi.waitFor(() => expect(asked).toHaveLength(4));
-    expect(asked).toEqual([25, 50, 75, 100]);
+    await vi.waitFor(() => expect(asked).toHaveLength(2));
+    expect(asked).toEqual([50, 100]);
   });
 
   it('stays disabled after refusing, so a second click cannot fire it', async () => {
@@ -416,7 +416,7 @@ describe('sell gating', () => {
     await vi.waitFor(() => expect(btn.disabled).toBe(false));
     expect(seen).toEqual([]);
     // Restored to its own label, not to a generic one.
-    expect(btn.textContent).toBe('25%');
+    expect(btn.textContent).toBe('50%');
   });
 
   it('ignores clicks while a probe is in flight', async () => {

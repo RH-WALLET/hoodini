@@ -260,6 +260,9 @@ function openPanel(token: TokenRef): void {
       activeProfile: settings.activeProfile,
       onIntent,
       probeSell,
+      // The panel is a surface you opened on purpose, so it can afford the
+      // graded sells the row strip cannot (D-068).
+      sellPercents: [25, 50, 75, 100],
       ...(position ? { position } : {}),
       onMove: (next) => {
         void chrome.storage.local.set({ [PANEL_POS_KEY]: next }).catch(() => {

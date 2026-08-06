@@ -370,9 +370,10 @@ describe('preset amounts', () => {
 
     const shadow = document.querySelector(`[${HOST_ATTR}]`)!.shadowRoot!;
     const sells = [...shadow.querySelectorAll('button.sell')];
-    expect(sells.map((b) => b.textContent)).toEqual(['25%', '50%', '75%', '100%']);
+    // Two on a row strip; the panel carries the graded set (D-068).
+    expect(sells.map((b) => b.textContent)).toEqual(['50%', '100%']);
 
-    sells[1]!.dispatchEvent(new Event('click', { bubbles: true }));
+    sells[0]!.dispatchEvent(new Event('click', { bubbles: true }));
     expect(seen).toEqual([{ side: 'sell', token: { address: RH, chainId: CHAIN }, percent: 50 }]);
     expect(seen[0]).not.toHaveProperty('amount');
   });
