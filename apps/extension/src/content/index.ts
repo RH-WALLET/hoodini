@@ -19,6 +19,7 @@ import {
   unmountPanel,
   pageToken,
   pageTokenAddress,
+  setPanelStatus,
   unmountAll,
   type IntentResult,
   type OverlayIntent,
@@ -33,7 +34,7 @@ const CHAIN_ID = 4663;
  * Bumped whenever the content script changes in a way a stale tab would hide.
  * Read from the page with `document.documentElement.dataset.hoodiniBuild`.
  */
-const BUILD_MARKER = 'panel-2';
+const BUILD_MARKER = 'panel-3';
 const DEFAULT_BUY_WEI = 10n ** 15n; // 0.001 ETH
 
 /**
@@ -278,69 +279,48 @@ function syncPanel(detected: readonly TokenRef[]): void {
   const key = address.toLowerCase();
   if (key === panelToken || key === dismissed || key === deciding) return;
 
-  // Fast path: the adapter already found this address on the page, so the chain
-  // gate has run and nothing more is needed.
+  // Open immediately. The panel's existence is not a question the chain gets to
+  // answer: a panel that waits for a round trip before deciding whether to
+  // appear is one that silently never appears when the answer is no, which
+  // looks exactly like a broken extension (D-069).
   const known = pageToken(location.href, detected);
-  if (known) {
-    console.warn('[hoodini] panel opening:', key, '(the adapter found it on the page)');
-    dismissed = null;
-    panelToken = key;
-    openPanel(known);
-    return;
-  }
-  console.warn(
-    `[hoodini] coin page for ${key}; the adapter did not find it among ${detected.length} detected token(s), ` +
-      'so asking the chain whether it is tradeable here…',
-  );
+  dismissed = null;
+  panelToken = key;
+  openPanel(known ?? { address, chainId: CHAIN_ID });
 
-  // Slow path, and the one that actually fires on a coin's page. The adapters
-  // detect the *related* cards in a sidebar, not the coin the page is about, so
-  // there is usually no local evidence for the route's own token — which is
-  // exactly what kept this shut (D-067).
-  //
-  // Asking the chain is the honest gate and a stronger one than reading the
-  // page's branding: if the worker can price this token, it trades on Robinhood
-  // Chain, and that is the only thing the panel needs to be true. One quote per
-  // coin page, and `deciding` stops a burst of scans asking repeatedly.
+  // The adapter already found it, so the chain gate has run and nothing is
+  // outstanding.
+  if (known) return;
+
+  // Otherwise ask whether this coin trades here, and say so in the panel. On a
+  // multi-chain terminal the honest answer is often no — an EVM address on a
+  // coin page can be a BNB or Ethereum token — and "no" belongs on screen
+  // rather than expressed as an absence.
   deciding = key;
   void chrome.runtime
     .sendMessage({
       type: 'trade.quote',
       side: 'buy',
       token: address,
-      // A nominal size. This asks whether a venue exists, not what a trade would
-      // cost, and the panel prices properly when a button is actually pressed.
       amount: PROBE_WEI.toString(),
       slippageBps: settings.slippageBps,
     })
     .then((res: { ok?: boolean; error?: { code?: string; message?: string } } | undefined) => {
-      // The route may have changed while this was in flight — terminals are
-      // single-page apps and a fast scroll through coins is normal.
       if (deciding !== key) return;
       deciding = null;
-      if (!res?.ok) {
-        // The commonest honest answer on a multi-chain terminal: this coin is
-        // not on Robinhood Chain, so there is nothing here to trade it with.
-        console.warn(
-          `[hoodini] NO PANEL for ${key} — the worker refused to price it:`,
-          res?.error?.code ?? 'no reply',
-          res?.error?.message ?? '',
-          '\n  If this coin really is on Robinhood Chain, that is a bug worth reporting.',
-        );
-        return;
-      }
-      if (pageTokenAddress(location.href)?.toLowerCase() !== key) {
-        console.warn('[hoodini] panel skipped: the page moved on while the check was in flight');
-        return;
-      }
-      console.warn('[hoodini] panel opening:', key, '(the chain can price it)');
-      dismissed = null;
-      panelToken = key;
-      openPanel({ address, chainId: CHAIN_ID });
+      // The route may have moved on; do not annotate a panel for another coin.
+      if (pageTokenAddress(location.href)?.toLowerCase() !== key) return;
+      if (res?.ok) return setPanelStatus(document, null);
+      setPanelStatus(
+        document,
+        res?.error?.code === 'UNSUPPORTED_VENUE'
+          ? 'No Robinhood Chain venue trades this token. It is probably on another chain.'
+          : `Cannot price this token right now${res?.error?.message ? `: ${res.error.message}` : ''}.`,
+      );
     })
-    .catch((e: unknown) => {
+    .catch(() => {
       if (deciding === key) deciding = null;
-      console.warn('[hoodini] NO PANEL: could not reach the extension worker', e);
+      setPanelStatus(document, 'Could not reach the extension. Try reloading the page.');
     });
 }
 

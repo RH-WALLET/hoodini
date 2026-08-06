@@ -23,6 +23,7 @@ export { pageToken, pageTokenAddress, addressesInUrl } from './pageToken.js';
 export {
   mountPanel,
   unmountPanel,
+  setPanelStatus,
   PANEL_ATTR,
   type PanelOptions,
   type PanelProfile,

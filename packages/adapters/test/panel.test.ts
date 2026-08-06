@@ -8,7 +8,7 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { mountPanel, unmountPanel, PANEL_ATTR } from '../src/panel.js';
+import { mountPanel, unmountPanel, setPanelStatus, PANEL_ATTR } from '../src/panel.js';
 import type { OverlayIntent } from '../src/overlay.js';
 
 const A = '0x1A463b7b289AD1C2Ad73Ff95Ea2C048D9BB8e051' as const;
@@ -185,6 +185,39 @@ describe('one at a time, and getting rid of it', () => {
     open();
     expect(unmountPanel(doc)).toBe(true);
     expect(doc.querySelector(`[${PANEL_ATTR}]`)).toBeNull();
+  });
+});
+
+describe('saying it cannot trade this one (D-069)', () => {
+  it('opens with no message, because nothing is known yet', () => {
+    const p = open();
+    const bar = p.shadow.querySelector('.status') as HTMLElement;
+    expect(bar.hidden).toBe(true);
+    expect(p.buys().every((b) => !b.disabled)).toBe(true);
+  });
+
+  it('shows the reason and stops every button when the token is not ours', () => {
+    const p = open();
+    setPanelStatus(doc, 'No Robinhood Chain venue trades this token.');
+    const bar = p.shadow.querySelector('.status') as HTMLElement;
+    expect(bar.hidden).toBe(false);
+    expect(bar.textContent).toContain('No Robinhood Chain venue');
+    // Nothing here can trade, so nothing here pretends it can.
+    expect(p.buys().every((b) => b.disabled)).toBe(true);
+    expect(p.sells().every((b) => b.disabled)).toBe(true);
+  });
+
+  it('clears again, so a good answer re-enables the panel', () => {
+    const p = open();
+    setPanelStatus(doc, 'nope');
+    setPanelStatus(doc, null);
+    expect((p.shadow.querySelector('.status') as HTMLElement).hidden).toBe(true);
+    expect(p.buys().every((b) => !b.disabled)).toBe(true);
+  });
+
+  it('does nothing at all when no panel is open', () => {
+    // Called from an async reply that may land after the panel closed.
+    expect(() => setPanelStatus(doc, 'anything')).not.toThrow();
   });
 });
 

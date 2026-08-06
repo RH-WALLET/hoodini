@@ -59,6 +59,30 @@ export interface PanelOptions {
   readonly gasGwei?: number | null;
 }
 
+/**
+ * Say the panel cannot trade this token, or clear the message.
+ *
+ * The panel opens as soon as a route names a coin, before anything is known
+ * about whether it can be traded here — because a panel that waits for a chain
+ * round trip to decide whether to exist is a panel that silently never appears
+ * when the answer is no, which is indistinguishable from a broken extension.
+ * That mistake cost three rounds (D-069).
+ */
+export function setPanelStatus(doc: Document, message: string | null): void {
+  const host = doc.querySelector(`[${PANEL_ATTR}]`) as HTMLElement | null;
+  const shadow = host?.shadowRoot;
+  if (!shadow) return;
+  const bar = shadow.querySelector('.status') as HTMLElement | null;
+  if (!bar) return;
+  bar.textContent = message ?? '';
+  bar.hidden = message === null;
+  // Nothing here can be traded while the message stands, so nothing here
+  // pretends it can.
+  for (const b of shadow.querySelectorAll('.grid button')) {
+    (b as HTMLButtonElement).disabled = message !== null;
+  }
+}
+
 const WIDTH = 300;
 
 const STYLE = `
@@ -127,6 +151,11 @@ const STYLE = `
   .cfg .sp { flex: 1; }
   .cfg b { color: #8e99ab; font-weight: 650; }
   .cfg .zero { color: #74e6a4; font-weight: 650; }
+
+  .status { padding: 9px 11px; font-size: 10.5px; line-height: 1.45;
+            background: rgba(255, 180, 84, .1); color: #ffc178;
+            border-top: 1px solid rgba(255, 180, 84, .22); }
+  .status[hidden] { display: none; }
 `;
 
 /** Keep the panel on screen whatever was stored or however the window changed. */
@@ -213,9 +242,13 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   buySec.className = 'sec';
   const sellSec = doc.createElement('div');
   sellSec.className = 'sec sell';
+  const status = doc.createElement('div');
+  status.className = 'status';
+  status.hidden = true;
+
   const cfg = doc.createElement('div');
   cfg.className = 'cfg';
-  panel.append(buySec, sellSec, cfg);
+  panel.append(buySec, sellSec, status, cfg);
 
   /**
    * The figures this side will actually submit with.
