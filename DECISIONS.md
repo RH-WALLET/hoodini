@@ -2120,3 +2120,70 @@ but the next trade then has to meet a human.
 The popup keeps `wallet.status`, `wallet.select`, `wallet.addAccount` and
 `wallet.rename`, all popup-only. Page capabilities went 6 → 8, and the pinned
 exact-list test carries the reasoning for both new entries.
+
+---
+
+### D-074 — X and Telegram detect, and decorate nothing
+
+A tweet is not a row. X lays an `article` out as a *row* — avatar beside a
+content column — so a control appended to it becomes a third flex item: it takes
+whatever width is left, crushes the tweet's text into a narrow column beside it,
+and `align-items: stretch` pulls every button to the full height of the post.
+Measured in a browser at **289×132 with 130px-tall buttons**, against a strip
+whose own size is 311×25 (D-067). No selector tuning reaches this, because the
+container is not ours to shape.
+
+**So the two social sites detect but never mount.** `panelOnly` on their configs,
+one guard at the top of `mount()`. Detection still runs, because detection is
+what tells the panel which token the page is about.
+
+**The panel is the right surface for a post anyway, for a reason that has
+nothing to do with layout.** Every terminal adapter refuses non-Robinhood rows
+(D-050), and a post gives nothing to refuse on: a tweet never says which chain
+it means, and an address is not chain-specific, so a post about a Base token
+names an address that may be a *different* token on Robinhood Chain. A strip
+there offers a buy for a coin the post was not about. The panel opens regardless
+and states the answer (D-069) — which is the same trade D-069 already made, now
+applied where the gate has no other input.
+
+**The panel's token comes from "the adapter found exactly one", and only on
+these sites.** A post has no URL to read — X and Telegram address a conversation,
+never a coin — so `pageTokenAddress` answers null on every social page and the
+panel would never open. Deliberately not general: D-067 rejected "the page
+mentions exactly one address" as the site-wide rule, and the reason still holds
+for terminals — a list with one row loaded, or a coin page with a holders table,
+both satisfy it and both open a trading panel on the wrong coin. The premise
+only holds where the page is a stream of posts rather than a table of coins,
+which is exactly the set that declines to decorate. Two tokens on screen answers
+null rather than picking one.
+
+**The anomaly this was blocked on did not exist.** Three tests failed, all three
+for the same ordinary reason: they assert a mounted host, and X no longer mounts.
+Two were retargeted and the third — `X > falls back to shape when the testid is
+gone` — was recorded as a third, unexplained failure whose detection returned
+zero from inside `sites.test.ts` but one from a fresh file. Instrumented from
+inside that file, filtered and unfiltered, it returns **1 token and 1 anchor
+resolving to `DIV.post`** either way. There was no file-dependent behaviour; the
+red line was the host assertion, same as the other two. It is now a stronger
+test than it was: it pins the exact block the shape heuristic returns, rather
+than merely that something was found.
+
+**Chasing it did turn up a real defect, though — the one it was suspected of
+being.** `mountOverlay` records its token in `data-hoodini-token`, and
+`detectTokensIn` sweeps every attribute on the page, so a scan read the address
+back out of the control the *previous* scan had injected. The result of a scan
+therefore did depend on what a previous scan mounted, in the code that decides
+where buy buttons appear. Two ways it bites: a row whose address the page has
+replaced keeps a control for the coin that has gone, and the "exactly one token"
+rule above counts a stale marker as a second token and shuts the panel. Both
+functions now skip anything this extension injected. Confirmed in a browser, not
+just jsdom — a shadow host's own attributes are in the light DOM in both.
+
+`OWN_MARKERS` names the attributes rather than importing them, so the lowest
+primitive in the package does not depend on its UI; a test pins it against
+`HOST_ATTR`, `TOKEN_ATTR` and `PANEL_ATTR` so a rename cannot quietly reopen it.
+
+`scripts/social-preview.mjs` renders both halves against tweet-shaped markup and
+measures them. jsdom has no layout engine and reports every element as 0×0, so
+it would have called the stretched version fine — this defect was only ever
+visible in a browser.

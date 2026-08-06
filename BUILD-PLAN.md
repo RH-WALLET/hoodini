@@ -361,58 +361,51 @@ canary paid **0.025 gwei**, and the whole buy-and-sell round trip cost about
 little; the honest version of this feature may be a fee *cap* for safety rather
 than a fee *bid* for speed.
 
-## [ ] P15 — X and Telegram: panel, not a strip
+## [x] P15 — X and Telegram: panel, not a strip
 
 Verified against real markup for the first time (Rory, on an X community post).
 **The selectors work** — `article[data-testid="tweet"]` matched, the address was
-found, and the control mounted with the right presets. What fails is placement:
-X's layout stretches the injected strip into a tall column of squeezed buttons.
-No selector tuning fixes that, because the container is not ours to shape.
+found, and the control mounted with the right presets. What failed was
+placement: X lays an `article` out as a row, so a strip appended to it took the
+leftover width and stretched to the post's full height. No selector tuning
+reaches that, because the container is not ours to shape.
 
-Two things point the same way, so they should be fixed together:
+- [x] `panelOnly` on `SiteAdapterConfig`; one guard at the top of `mount()`; set
+      on the x and telegram-web configs. Detection still runs — it is what tells
+      the panel which token the page is about.
+- [x] `syncPanel` falls back to "the adapter found exactly one" when the route
+      names no token, **scoped to panel-only sites**. Unscoped it would
+      reintroduce exactly what D-067 rejected: a terminal list with one row
+      loaded opens a panel on the wrong coin. Two tokens answers null.
+- [x] Three tests retargeted. All three were red for the same ordinary reason —
+      they assert a mounted host, and X no longer mounts.
+- [x] `BUILD_MARKER` → `panel-6`
+- [x] **The anomaly did not exist.** Instrumented from inside `sites.test.ts`,
+      filtered and unfiltered, that markup returns 1 token and 1 anchor
+      resolving to `DIV.post` — the same as the fresh-file probe. The red line
+      was the host assertion. The test is now stronger than before: it pins the
+      block the shape heuristic returns rather than merely that one was found.
+- [x] **A real defect turned up while chasing it**, and it is the one the
+      anomaly was suspected of being: `detectTokensIn` swept every attribute on
+      the page including `data-hoodini-token` on our own mounted control, so a
+      scan read its token back out of what the previous scan injected. A row
+      whose address the page replaced kept a control for the coin that had gone,
+      and a stale marker counted as a second token and shut the panel. Both
+      `detectTokensIn` and `elementsFor` now skip anything this extension
+      injected; `OWN_MARKERS` is pinned by test against the three attributes
+      (D-074).
+- [x] **Verified in a browser 2026-08-06.** The strip in a tweet measures
+      289×132 with 130px-tall buttons against its own 311×25; with the change
+      the tweet carries no strip, one anchor still resolves, and the panel
+      floats at 302×380 with the chain-gate line. jsdom has no layout engine and
+      reports every element as 0×0, so it would have passed the broken version.
 
-- **A post gives nothing to chain-gate on.** Every terminal adapter refuses
-  non-Robinhood rows (D-050); a tweet never says which chain it means, and an
-  address is not chain-specific, so a post about a Base token names an address
-  that may be a *different* token on Robinhood Chain. Decorating it offers a buy
-  for something the post was not about.
-- **The panel solves both.** It floats, so no layout can distort it, and its
-  gate asks the chain before offering anything (D-069).
-
-**The change:** a `panelOnly` flag on the X and Telegram site configs so they
-detect but never `mount`, plus a fallback in `syncPanel` — the route names no
-token on a social page, so use "the adapter found exactly one", which is what a
-single post is.
-
-**Attempted twice and reverted twice. Here is exactly how far it got**, so the
-next attempt starts from evidence rather than from scratch:
-
-- The source change is safe. Probed directly with the change applied and the
-  same markup, `detectTokens` returns 1 and `findAnchors` returns 1 — so
-  `panelOnly` does *not* break anchor resolution, which was the first theory.
-- Retargeting the three mounting assertions fixes two of them. `X > anchors on
-  the tweet article` and `never nests a control inside another control` pass
-  once the first asserts resolution rather than a mounted host, and the second
-  moves to DexScreener, which still decorates.
-- **One test remains red:** `X > falls back to shape when the testid is gone`.
-  Everything below was checked, so do not re-check it:
-  - It fails with the change and passes without it, **both with `-t` filtering
-    to that single test**, so it is not test *ordering* in the obvious sense.
-  - The `mount` guard is one line at the top of `mount` and was read back; it
-    cannot reach `detectTokens` or `findAnchors`.
-  - `nearestRow` was traced by hand against that exact markup: the `.post` div
-    has three same-tag siblings under `#feed` and >40 characters of text, so it
-    should be returned.
-  - **The anomaly worth chasing:** the identical markup, probed from a
-    *separate* test file with the change applied, returns 1 token and 1 anchor.
-    Same code, same DOM, different file, different result. So something in
-    `sites.test.ts` itself is participating — module-level setup in that file
-    still executes under `-t`, so a filtered run does not isolate as much as it
-    appears to. Instrument `findAnchors` from *inside* that file rather than
-    from a fresh one, and compare.
-
-  This matters beyond P15: if a scan's result depends on what a previous scan
-  mounted, detection is load-bearing on side effects, and that would be a real
-  defect in the thing that decides where buy buttons appear.
-
+`scripts/social-preview.mjs` renders both halves and measures them.
 `scripts/diagnose-social.js` checks the selectors on a live page.
+
+- [ ] **Not yet run inside Chrome on live x.com.** The preview drives the real
+      modules but is served from localhost, so the content script's own
+      `matchesSite(a, location.href)` choice is covered by test rather than by
+      running. Load the unpacked build, hard-reload the tab, and check
+      `document.documentElement.dataset.hoodiniBuild === 'panel-6'` first —
+      content scripts inject on page load only.

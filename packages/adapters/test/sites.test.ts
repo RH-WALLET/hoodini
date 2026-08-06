@@ -44,23 +44,23 @@ describe('URL matching', () => {
 });
 
 describe('X', () => {
-  it('anchors on the tweet article, not the span holding the address', () => {
+  it('resolves the tweet article, not the span holding the address', () => {
     document.body.innerHTML = `
       <div id="feed">
         <article data-testid="tweet"><div class="body">gm buy ${A} now</div></article>
         <article data-testid="tweet"><div class="body">unrelated post</div></article>
       </div>`;
     const anchors = run(createXAdapter(common), document);
+    // Only the tweet mentioning it resolves.
     expect(anchors).toHaveLength(1);
     expect(anchors[0]!.tagName).toBe('ARTICLE');
     expect(anchors[0]!.getAttribute('data-testid')).toBe('tweet');
-    // Only the tweet mentioning it gets a control.
-    expect(document.querySelectorAll(`[${HOST_ATTR}]`)).toHaveLength(1);
   });
 
   it('falls back to shape when the testid is gone', () => {
     // X changes markup without notice; losing the hook must cost precision,
-    // not the whole overlay.
+    // not detection. The anchor is what the panel's token fallback is built on,
+    // so it still has to resolve to the post rather than to the whole feed.
     document.body.innerHTML = `
       <div id="feed">
         ${[1, 2, 3]
@@ -68,8 +68,8 @@ describe('X', () => {
           .join('')}
       </div>`;
     const anchors = run(createXAdapter(common), document);
-    expect(anchors.length).toBeGreaterThan(0);
-    expect(document.querySelectorAll(`[${HOST_ATTR}]`).length).toBeGreaterThan(0);
+    expect(anchors).toHaveLength(1);
+    expect(anchors[0]!.classList.contains('post')).toBe(true);
   });
 });
 
@@ -112,6 +112,27 @@ describe('DexScreener', () => {
   });
 });
 
+describe('panel-only sites (D-074)', () => {
+  it.each([
+    ['x', createXAdapter, `<article data-testid="tweet">gm buy ${A} now</article>`],
+    ['telegram-web', createTelegramAdapter, `<div class="message">check ${A}</div>`],
+  ])('%s detects and resolves an anchor, but decorates nothing', (_n, make, markup) => {
+    document.body.innerHTML = markup;
+    const anchors = run(make(common), document);
+    // Detection still runs: it is what tells the panel which token the post is
+    // about. Only the strip is withheld.
+    expect(anchors).toHaveLength(1);
+    expect(document.querySelectorAll(`[${HOST_ATTR}]`)).toHaveLength(0);
+  });
+
+  it('dexscreener is unaffected and still decorates', () => {
+    document.body.innerHTML = `<a class="ds-dex-table-row" href="/robinhood/${A}"><span>TOK</span></a>`;
+    const anchors = run(createDexScreenerAdapter(common), document);
+    expect(anchors).toHaveLength(1);
+    expect(document.querySelectorAll(`[${HOST_ATTR}]`)).toHaveLength(1);
+  });
+});
+
 describe('shared behaviour', () => {
   it('a malformed selector does not take the adapter down', () => {
     const adapter = new ConfigurableSiteAdapter({
@@ -126,10 +147,12 @@ describe('shared behaviour', () => {
     expect(anchors[0]!.tagName).toBe('ARTICLE');
   });
 
+  // On DexScreener, which still decorates — X and Telegram no longer mount at
+  // all, so they cannot demonstrate anything about repeated mounting.
   it('never nests a control inside another control', () => {
-    document.body.innerHTML = `<article data-testid="tweet">buy ${A}</article>`;
-    const x = createXAdapter(common);
-    for (let i = 0; i < 3; i++) run(x, document);
+    document.body.innerHTML = `<a class="ds-dex-table-row" href="/robinhood/${A}">buy</a>`;
+    const ds = createDexScreenerAdapter(common);
+    for (let i = 0; i < 3; i++) run(ds, document);
     expect(document.querySelectorAll(`[${HOST_ATTR}]`)).toHaveLength(1);
     for (const host of document.querySelectorAll(`[${HOST_ATTR}]`)) {
       expect(host.querySelector(`[${HOST_ATTR}]`)).toBeNull();

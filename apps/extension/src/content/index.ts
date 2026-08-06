@@ -10,6 +10,7 @@
 import {
   AdapterRuntime,
   AxiomAdapter,
+  ConfigurableSiteAdapter,
   GenericAddressAdapter,
   createGmgnAdapter,
   createSiteAdapters,
@@ -25,7 +26,7 @@ import {
   type OverlayIntent,
   type PanelPosition,
 } from '@hoodini/adapters';
-import { parseEther } from 'viem';
+import { parseEther, type Address } from 'viem';
 import { DEFAULT_SETTINGS, normaliseSettings, type Settings, type TokenRef } from '@hoodini/core';
 
 const CHAIN_ID = 4663;
@@ -34,7 +35,7 @@ const CHAIN_ID = 4663;
  * Bumped whenever the content script changes in a way a stale tab would hide.
  * Read from the page with `document.documentElement.dataset.hoodiniBuild`.
  */
-const BUILD_MARKER = 'panel-5';
+const BUILD_MARKER = 'panel-6';
 const DEFAULT_BUY_WEI = 10n ** 15n; // 0.001 ETH
 
 /**
@@ -261,13 +262,38 @@ const PROBE_WEI = 1_000_000_000_000_000n;
 /** The address currently being asked about, so a scan burst asks once. */
 let deciding: string | null = null;
 
+/**
+ * The token a *panel-only* page is about, when the route will not say.
+ *
+ * A post has no URL to read: X and Telegram address a conversation, never a
+ * coin, so `pageTokenAddress` answers null on every social page and the panel
+ * would never open. What a post does have is a subject — one address in one
+ * message is the token being talked about.
+ *
+ * Deliberately **not** general. D-067 rejected "the page mentions exactly one
+ * address" as the site-wide rule and the reason still stands: a terminal list
+ * with one row loaded, or a coin page with a holders table, both satisfy it and
+ * both open a trading panel on the wrong coin. The premise only holds where the
+ * page is a stream of posts rather than a table of coins, which is exactly the
+ * set of sites that decline to decorate.
+ *
+ * The chain gate is untouched by this. `ConfigurableSiteAdapter` reads addresses
+ * out of text and has no chain concept, so the token arrives ungated — and
+ * `pageToken` still answers null here, which is what sends the caller down the
+ * probe path where the panel states the chain before it offers anything (D-069).
+ */
+function panelOnlyToken(detected: readonly TokenRef[]): Address | null {
+  if (!(adapter instanceof ConfigurableSiteAdapter && adapter.panelOnly)) return null;
+  return detected.length === 1 ? detected[0]!.address : null;
+}
+
 function syncPanel(detected: readonly TokenRef[]): void {
-  const address = pageTokenAddress(location.href);
+  const address = pageTokenAddress(location.href) ?? panelOnlyToken(detected);
   // Every branch below says what it decided. A panel that silently does not
   // appear is indistinguishable from one that is broken, and this project has
   // now spent three rounds on exactly that confusion (D-052).
   if (!address) {
-    if (panelToken !== null) console.warn('[hoodini] panel closed: this route names no single token');
+    if (panelToken !== null) console.warn('[hoodini] panel closed: this page names no single token');
     // Not a coin's page at all. Close anything left over from one.
     if (panelToken !== null) {
       unmountPanel(document);

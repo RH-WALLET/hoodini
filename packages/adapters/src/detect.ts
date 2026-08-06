@@ -30,6 +30,30 @@ const NEVER_TOKENS = new Set<string>([
   '0x000000000000000000000000000000000000dead',
 ]);
 
+/**
+ * Everything this extension injects into a page.
+ *
+ * Detection must skip it. A mounted control records the token it is bound to in
+ * `data-hoodini-token`, so a scan that read attributes indiscriminately would
+ * find the address in its *own* marker and report the token as present on the
+ * page — even after the page stopped showing it. That makes the result of a
+ * scan depend on what a previous scan mounted, in the code that decides where
+ * buy buttons appear, and it is load-bearing twice over: a stale marker keeps a
+ * control alive for a coin the page has moved on from, and it inflates the
+ * "exactly one token" count the panel falls back to on a social page.
+ *
+ * Named here rather than imported from `overlay.js` and `panel.js` so the
+ * lowest-level primitive in this package does not depend on its UI. A test pins
+ * these against `HOST_ATTR` and `PANEL_ATTR`, so a renamed attribute fails
+ * loudly instead of quietly reopening the hole.
+ */
+export const OWN_MARKERS = '[data-hoodini], [data-hoodini-token], [data-hoodini-panel]';
+
+/** Did this extension put this element on the page? */
+function isOurs(el: Element): boolean {
+  return el.closest(OWN_MARKERS) !== null;
+}
+
 export interface DetectOptions {
   readonly chainId: number;
   /** Cap on returned tokens, so a page listing thousands cannot stall a scan. */
@@ -84,6 +108,7 @@ export function detectTokensIn(root: ParentNode, options: DetectOptions): TokenR
 
   for (const el of root.querySelectorAll('*')) {
     if (found.size >= limit) break;
+    if (isOurs(el)) continue;
     for (const attr of el.attributes) consider(attr.value);
     // Only this element's own text, so an address is attributed to the node
     // that actually contains it rather than to every ancestor.
@@ -95,11 +120,18 @@ export function detectTokensIn(root: ParentNode, options: DetectOptions): TokenR
   return [...found.values()];
 }
 
-/** Elements whose own text or attributes carry this token's address. */
+/**
+ * Elements whose own text or attributes carry this token's address.
+ *
+ * Skips our own markers for the same reason `detectTokensIn` does: a mounted
+ * control names its token, and resolving an anchor from that marker would keep
+ * a buy button attached to a row whose address the page has already replaced.
+ */
 export function elementsFor(root: ParentNode, address: Address): Element[] {
   const target = address.toLowerCase();
   const hits: Element[] = [];
   for (const el of root.querySelectorAll('*')) {
+    if (isOurs(el)) continue;
     const inAttrs = [...el.attributes].some((a) => a.value.toLowerCase().includes(target));
     const inText = [...el.childNodes].some(
       (n) => n.nodeType === 3 && (n.textContent ?? '').toLowerCase().includes(target),

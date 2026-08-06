@@ -40,11 +40,31 @@ export interface SiteAdapterConfig {
   readonly onWarm?: (token: TokenRef) => void;
   /** Shown under the buttons: what a click will submit with (D-065). */
   readonly config?: { readonly slippageBps: number };
+  /**
+   * Detect, but never decorate. See D-074.
+   *
+   * A social post is not a row in a list: X lays a tweet out as a column and
+   * stretches anything injected into it into a tall stack of squeezed buttons.
+   * And a post never says which chain it means, so an address in it may be a
+   * different token on Robinhood Chain than the one being discussed — a strip
+   * offering a buy there is offering the wrong coin (D-050, D-069).
+   *
+   * The panel answers both: it floats, so no layout can distort it, and its
+   * gate states the chain before offering anything. Detection still runs, which
+   * is what tells the panel which token the page is about.
+   */
+  readonly panelOnly?: boolean;
 }
 
 export class ConfigurableSiteAdapter implements SiteAdapter {
   readonly id: string;
   readonly siteMatch: URLPattern;
+  /**
+   * Public, because the content script has to know. A panel-only site is also
+   * the only place where "the page detected exactly one token" is a safe way to
+   * decide what the panel is about — see the fallback in `syncPanel`.
+   */
+  readonly panelOnly: boolean;
 
   readonly #c: SiteAdapterConfig;
   #doc: Document | null = null;
@@ -53,6 +73,7 @@ export class ConfigurableSiteAdapter implements SiteAdapter {
     this.#c = config;
     this.id = config.id;
     this.siteMatch = config.siteMatch;
+    this.panelOnly = config.panelOnly ?? false;
   }
 
   detectTokens(document: Document): TokenRef[] {
@@ -88,6 +109,7 @@ export class ConfigurableSiteAdapter implements SiteAdapter {
   }
 
   mount(anchor: Element, tokenRef: TokenRef): void {
+    if (this.#c.panelOnly) return;
     mountOverlay(anchor, tokenRef, {
       onIntent: this.#c.onIntent,
       ...(this.#c.amounts ? { amounts: this.#c.amounts } : {}),
@@ -116,6 +138,7 @@ export function createXAdapter(o: Common): ConfigurableSiteAdapter {
     id: 'x',
     siteMatch: new URLPattern({ hostname: '{www.}?x.com' }),
     anchorSelectors: ['article[data-testid="tweet"]', 'article[role="article"]', 'article'],
+    panelOnly: true,
     ...o,
   });
 }
@@ -130,6 +153,7 @@ export function createTelegramAdapter(o: Common): ConfigurableSiteAdapter {
     id: 'telegram-web',
     siteMatch: new URLPattern({ hostname: 'web.telegram.org' }),
     anchorSelectors: ['.message', '.Message', '[data-mid]', '[data-message-id]', '.bubble'],
+    panelOnly: true,
     ...o,
   });
 }

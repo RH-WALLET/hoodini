@@ -9,8 +9,9 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { getAddress } from 'viem';
-import { addressesInText, detectTokensIn, nearestRow, elementsFor } from '../src/detect.js';
+import { addressesInText, detectTokensIn, nearestRow, elementsFor, OWN_MARKERS } from '../src/detect.js';
 import { mountOverlay, unmountAll, HOST_ATTR, TOKEN_ATTR } from '../src/overlay.js';
+import { PANEL_ATTR } from '../src/panel.js';
 import { AdapterRuntime, matchesSite } from '../src/runtime.js';
 import { GenericAddressAdapter } from '../src/adapters/generic.js';
 import type { OverlayIntent } from '../src/overlay.js';
@@ -94,6 +95,40 @@ describe('detectTokensIn', () => {
     const many = Array.from({ length: 40 }, (_, i) => getAddress('0x' + (i + 1).toString(16).padStart(40, '0')));
     document.body.innerHTML = many.map((a) => `<div>${a}</div>`).join('');
     expect(detectTokensIn(document, { chainId: CHAIN, limit: 10 })).toHaveLength(10);
+  });
+
+  /**
+   * A scan must not read back what a previous scan mounted.
+   *
+   * `mountOverlay` records its token in `data-hoodini-token`, so an attribute
+   * sweep that did not skip our own markers found the address in the control it
+   * had just injected. The page then said "A and B" when it showed only B — and
+   * that answer feeds both the anchor search and the panel's "exactly one
+   * token" fallback.
+   */
+  it('ignores the extension\'s own markers, so a scan does not read back its own work', () => {
+    document.body.innerHTML = `<div class="row"><span>${A}</span></div>`;
+    const row = document.querySelector('.row')!;
+    mountOverlay(row, { address: A, chainId: CHAIN }, { onIntent: () => {} });
+    expect(detectTokensIn(document, { chainId: CHAIN }).map((t) => t.address)).toEqual([A]);
+
+    // The page moves on to a different token; our control has not been swept yet.
+    document.querySelector('span')!.textContent = B;
+    expect(detectTokensIn(document, { chainId: CHAIN }).map((t) => t.address)).toEqual([B]);
+    expect(elementsFor(document, A)).toEqual([]);
+  });
+
+  /**
+   * `OWN_MARKERS` names the attributes rather than importing them, to keep the
+   * lowest-level primitive free of a dependency on the UI. That trade is only
+   * safe if a rename cannot silently reopen the hole above.
+   */
+  it('OWN_MARKERS covers every attribute this extension actually injects', () => {
+    for (const attr of [HOST_ATTR, TOKEN_ATTR, PANEL_ATTR]) {
+      const el = document.createElement('div');
+      el.setAttribute(attr, '');
+      expect(el.matches(OWN_MARKERS), `${attr} is not covered by OWN_MARKERS`).toBe(true);
+    }
   });
 });
 
