@@ -37,6 +37,8 @@ export const PANEL_ATTR = 'data-hoodini-panel';
 export interface PanelProfile {
   readonly buyPresets: readonly string[];
   readonly slippageBps: number;
+  /** Gas price ceiling in gwei, or absent for whatever the node suggests (P14). */
+  readonly maxFeeGwei?: string;
 }
 
 export interface PanelPosition {
@@ -575,7 +577,26 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
     const fee = doc.createElement('span');
     fee.className = 'zero';
     fee.textContent = '0%';
-    cfg.append(slip, val, spacer, feeLabel, fee);
+    cfg.append(slip, val);
+
+    // The gas ceiling this profile will sign with, sitting between the two
+    // numbers it sits between in meaning: what a trade may cost in slippage,
+    // what it may cost in gas, and what Hoodini takes.
+    //
+    // Appended only when set, nodes and all. An absent cap means the node
+    // decides, and an empty label would still occupy the strip — and the
+    // spacer is what pushes `Fee 0%` to the right, so a second one left in
+    // place would move it whenever no cap was configured.
+    if (profile.maxFeeGwei) {
+      const gasLabel = doc.createElement('span');
+      gasLabel.textContent = 'Max gas';
+      const gasVal = doc.createElement('b');
+      gasVal.textContent = `${profile.maxFeeGwei} gwei`;
+      const gap = doc.createElement('span');
+      gap.className = 'sp';
+      cfg.append(gap, gasLabel, gasVal);
+    }
+    cfg.append(spacer, feeLabel, fee);
   }
   render();
 

@@ -30,6 +30,7 @@ import {
   type PositionsResult,
 } from './client.js';
 import { DEFAULT_SETTINGS, MAX_PRESETS, MIN_PRESETS, type Settings } from '@hoodini/core';
+import { withEdits } from './edits.js';
 import { TopHat, Icon } from './icons.js';
 import { SUPPORTED_HOSTS } from '../hosts.js';
 import { LIVE_TRADING } from '../background/config.js';
@@ -717,6 +718,16 @@ function ConfirmSheet({ unlocked }: { unlocked: boolean }): React.JSX.Element | 
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /**
+   * The fee cap this approval will sign with.
+   *
+   * Read here rather than carried on the request, because the request is what a
+   * *page* proposed and the gas price is not a page's to choose (D-053). It is
+   * the same store `trade.execute` reads a moment later, and this sheet covers
+   * the whole window while it is up, so there is nowhere to change it in
+   * between — what is shown is what gets signed.
+   */
+  const [feeCap, setFeeCap] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -725,6 +736,9 @@ function ConfirmSheet({ unlocked }: { unlocked: boolean }): React.JSX.Element | 
       setQuote(null);
       setQuoteError(null);
       if (!request) return;
+      // A settings read that fails leaves the row saying "node's suggestion",
+      // which is what the engine will then actually do.
+      setFeeCap(await settingsApi.get().then((s) => s.maxFeeGwei ?? null).catch(() => null));
       try {
         const q = await trades.quote(request.side, request.token, request.amount, request.slippageBps);
         setQuote(q.out ? `${formatEth(q.out)} ${q.quoteAsset ?? ''}`.trim() : null);
@@ -784,6 +798,10 @@ function ConfirmSheet({ unlocked }: { unlocked: boolean }): React.JSX.Element | 
             <dd className="mono">{quote ?? (quoteError ? '—' : '…')}</dd>
           </div>
           <div className="kv"><dt>Max slippage</dt><dd className="mono">{(req.slippageBps / 100).toFixed(2)}%</dd></div>
+          <div className="kv">
+            <dt>Max fee</dt>
+            <dd className="mono">{feeCap ? `${feeCap} gwei` : "node's suggestion"}</dd>
+          </div>
           <div className="kv"><dt>Hoodini's cut</dt><dd style={{ color: 'var(--zero)' }}>0.00%</dd></div>
         </dl>
 
@@ -1048,30 +1066,12 @@ function AutoApprove(): React.JSX.Element {
   );
 }
 
-/**
- * Fold the fields currently on screen back into a full settings record.
- *
- * The edited tab wins; the other two are carried through untouched. Slippage
- * becomes NaN rather than 0 on a non-numeric input — 0 is a number the
- * validator would have to special-case, NaN is plainly not a value.
- */
-function withEdits(base: Settings, index: number, presets: string[], bps: string): Settings {
-  const profiles = base.profiles.map((p, i) =>
-    i === index
-      ? {
-          buyPresets: presets.map((v) => v.trim()).filter((v) => v !== ''),
-          slippageBps: /^\d+$/.test(bps.trim()) ? Number(bps.trim()) : Number.NaN,
-        }
-      : p,
-  );
-  return { ...base, profiles, activeProfile: index };
-}
-
 function TradeSettings(): React.JSX.Element {
   const [all, setAll] = useState<Settings | null>(null);
   const [tab, setTab] = useState(0);
   const [presets, setPresets] = useState<string[]>([...DEFAULT_SETTINGS.buyPresets]);
   const [slippage, setSlippage] = useState(String(DEFAULT_SETTINGS.slippageBps));
+  const [feeCap, setFeeCap] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1084,6 +1084,7 @@ function TradeSettings(): React.JSX.Element {
         setTab(s.activeProfile);
         setPresets([...(s.profiles[s.activeProfile]?.buyPresets ?? s.buyPresets)]);
         setSlippage(String(s.profiles[s.activeProfile]?.slippageBps ?? s.slippageBps));
+        setFeeCap(s.profiles[s.activeProfile]?.maxFeeGwei ?? '');
       } catch {
         // Defaults are already on screen; a failed read should not blank them.
       }
@@ -1093,15 +1094,16 @@ function TradeSettings(): React.JSX.Element {
   /** Move to another tab, keeping unsaved edits on the one being left. */
   const pick = (i: number) => {
     if (!all) return;
-    const next = withEdits(all, tab, presets, slippage);
+    const next = withEdits(all, tab, { buyPresets: presets, slippageBps: slippage, maxFeeGwei: feeCap });
     setAll(next);
     setTab(i);
     setPresets([...(next.profiles[i]?.buyPresets ?? [])]);
     setSlippage(String(next.profiles[i]?.slippageBps ?? 100));
+    setFeeCap(next.profiles[i]?.maxFeeGwei ?? '');
     setSaved(false);
   };
 
-  const save = async (next: string[], bps: string) => {
+  const save = async (next: string[], bps: string, cap: string) => {
     setError(null);
     setSaved(false);
     setBusy(true);
@@ -1109,10 +1111,16 @@ function TradeSettings(): React.JSX.Element {
       // The whole record goes back, not just the edited tab. Sending one
       // profile would read as a settings object with the other two missing,
       // and they would be replaced by defaults.
-      const applied = await settingsApi.set(withEdits(all ?? DEFAULT_SETTINGS, tab, next, bps));
+      const applied = await settingsApi.set(
+        withEdits(all ?? DEFAULT_SETTINGS, tab, { buyPresets: next, slippageBps: bps, maxFeeGwei: cap }),
+      );
       setAll(applied);
       setPresets([...(applied.profiles[tab]?.buyPresets ?? applied.buyPresets)]);
       setSlippage(String(applied.profiles[tab]?.slippageBps ?? applied.slippageBps));
+      // Redrawn from what was stored, not from what was typed (D-071): the
+      // validator trims, and a cap it dropped must not linger in the field
+      // looking as though it took.
+      setFeeCap(applied.profiles[tab]?.maxFeeGwei ?? '');
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not save');
@@ -1183,10 +1191,30 @@ function TradeSettings(): React.JSX.Element {
         />
       </div>
 
+      <div>
+        <label htmlFor="feecap">Max fee (gwei — blank for whatever the node suggests)</label>
+        <input
+          id="feecap"
+          className="mono"
+          inputMode="decimal"
+          placeholder="none"
+          value={feeCap}
+          onChange={(e) => {
+            setSaved(false);
+            setFeeCap(e.target.value);
+          }}
+        />
+        <p className="note">
+          A ceiling, not a bid. This chain has no priority auction — the first live trade paid
+          0.025 gwei — so this bounds what a transaction can cost rather than buying speed. A cap
+          below the base fee is refused when you trade, not silently left pending.
+        </p>
+      </div>
+
       {error && <div className="error">{error}</div>}
       {saved && <p className="note">Saved. Open terminals update without a reload.</p>}
 
-      <button disabled={busy} onClick={() => void save(presets, slippage)}>
+      <button disabled={busy} onClick={() => void save(presets, slippage, feeCap)}>
         {busy ? '…' : 'Save'}
       </button>
       <p className="note">

@@ -293,3 +293,59 @@ describe('where it sits', () => {
     expect(panel.style.top).toBe('200px');
   });
 });
+
+/**
+ * The fee cap on the config strip (P14).
+ *
+ * The strip is the panel's statement of what a click will actually submit with,
+ * so a cap that changes what gets signed belongs on it. It is shown only when
+ * set: an absent cap means the node decides, and a row reading "Max gas —"
+ * would invite the reader to wonder what it was hiding.
+ */
+describe('the fee cap on the config strip', () => {
+  const cfg = (shadow: ShadowRoot) => shadow.querySelector('.cfg')!.textContent ?? '';
+
+  it('shows the cap when the profile sets one', () => {
+    const p = open({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '0.5' }] });
+    expect(cfg(p.shadow)).toContain('Max gas');
+    expect(cfg(p.shadow)).toContain('0.5 gwei');
+  });
+
+  it('says nothing at all when it does not', () => {
+    const p = open({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100 }] });
+    expect(cfg(p.shadow)).not.toContain('Max gas');
+    expect(cfg(p.shadow)).not.toContain('gwei');
+  });
+
+  it('keeps slippage and the 0% fee either way', () => {
+    for (const profile of [
+      { buyPresets: ['0.001'], slippageBps: 250 },
+      { buyPresets: ['0.001'], slippageBps: 250, maxFeeGwei: '2' },
+    ]) {
+      const p = open({ profiles: [profile] });
+      expect(cfg(p.shadow)).toContain('2.50%');
+      expect(cfg(p.shadow)).toContain('0%');
+    }
+  });
+
+  it('leaves exactly one spacer when no cap is set, so the 0% does not move', () => {
+    // The spacer is what pushes `Fee 0%` to the right. A second one left in
+    // place would shift it whenever a profile happened not to set a cap.
+    const without = open({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100 }] });
+    expect(without.shadow.querySelectorAll('.cfg .sp')).toHaveLength(1);
+    const with_ = open({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '1' }] });
+    expect(with_.shadow.querySelectorAll('.cfg .sp')).toHaveLength(2);
+  });
+
+  it('follows the profile tab, since each carries its own cap', () => {
+    const p = open({
+      profiles: [
+        { buyPresets: ['0.001'], slippageBps: 100 },
+        { buyPresets: ['0.01'], slippageBps: 300, maxFeeGwei: '3' },
+      ],
+    });
+    expect(cfg(p.shadow)).not.toContain('gwei');
+    p.tabs()[1]!.click();
+    expect(cfg(p.shadow)).toContain('3 gwei');
+  });
+});

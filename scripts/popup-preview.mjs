@@ -68,7 +68,19 @@ const REPLIES = {
     ],
     totalWei: '3305007240128386', valued: 2, unvalued: 1,
   },
-  'settings.get': { buyPresets: ['0.001', '0.01', '0.1'], slippageBps: 100 },
+  'settings.get': {
+    profiles: [
+      { buyPresets: ['0.001', '0.01', '0.1'], slippageBps: 100, maxFeeGwei: '0.5' },
+      { buyPresets: ['0.05'], slippageBps: 300 },
+      { buyPresets: ['1'], slippageBps: 900, maxFeeGwei: '3' },
+    ],
+    activeProfile: 0,
+    buyPresets: ['0.001', '0.01', '0.1'],
+    slippageBps: 100,
+    // Set on P1, so the settings field and the confirm sheet both have
+    // something to render. P2 leaves it off, which is the other state.
+    maxFeeGwei: '0.5',
+  },
   'consent.status': { armed: q.get('armed') === '1', armedAt: null, liveUnlocked: true },
   'trade.pending': q.get('pending') === '1'
     ? { request: { id: 'r1', side: 'buy', token: '0x3CfDc3924d405c98230099e1826fF846BDBbb804', amount: '1000000000000000', slippageBps: 100, origin: 'https://axiom.trade', createdAt: Date.now() } }

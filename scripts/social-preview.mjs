@@ -165,7 +165,7 @@ const panelToken = x.panelOnly && inScope.length === 1 ? inScope[0] : null;
 
 if (panelToken) {
   mountPanel(document, panelToken, {
-    profiles: [{ name: 'Main', buyPresets: PRESETS, slippageBps: 100 }],
+    profiles: [{ name: 'Main', buyPresets: PRESETS, slippageBps: 100, maxFeeGwei: '0.5' }],
     sellPercents: [10, 25, 50, 75, 90, 100],
     onIntent: () => {},
     position: { x: 980, y: 300 },

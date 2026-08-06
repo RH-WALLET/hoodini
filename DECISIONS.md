@@ -2187,3 +2187,71 @@ primitive in the package does not depend on its UI; a test pins it against
 measures them. jsdom has no layout engine and reports every element as 0×0, so
 it would have called the stretched version fine — this defect was only ever
 visible in a browser.
+
+---
+
+### D-075 — A fee cap, not a fee bid
+
+P14 asked for "gas and priority" per profile. Only half of it is real here, and
+shipping the other half would have been shipping a control that cannot move
+anything.
+
+This is an Arbitrum Orbit L2. There is no priority auction of the kind Solana
+traders are used to: the first canary paid **0.025 gwei**, and a whole
+buy-and-sell round trip cost about 1/84th of a cent (D-060, D-062). A "pay more
+to go faster" knob would render, save, and change nothing measurable — which is
+this project's recurring bug, not a feature (D-052, D-069). Bounding the worst
+case is the part that is real, so `Profile` gains `maxFeeGwei` and nothing else.
+
+**Absent means "whatever the node suggests"**, which is what every trade already
+did via `estimateFeesPerGas`. A profile that sets none is unchanged **at the
+wire, not just in effect** — the base-fee block read is skipped entirely, so it
+still makes exactly the three concurrent calls it always made (D-057).
+
+**A string, like `buyPresets`, and for the same reason.** It becomes wei in a
+transaction, and 0.025 through a float is not the number anyone typed.
+
+**Where it is read decides who can set it.** Slippage rides on the message
+because the caller is the one accepting the price. A gas price is not that kind
+of thing: a page that could set it could make every trade overpay, or set it low
+enough to strand one. So the worker reads it from storage and puts it on the
+plan, and a message naming a cap is ignored. A settings read that *fails* means
+"no cap" — reading a preference must never be what refuses a send.
+
+**On the plan, never read by the thing that signs.** Core exports no broadcast
+path and the engine holds no storage, so a fee arriving from settings at signing
+time would put storage inside the signer. And it is D-061 again: a value decided
+in one place and re-derived in another can differ between what was shown and
+what was signed, which has already changed a trade silently once.
+
+**Two things happen to a cap, and neither is optional.** The priority is clamped
+down to it, because EIP-1559 requires `maxPriorityFeePerGas <= maxFeePerGas` and
+a cap under the node's suggested tip would otherwise produce a transaction the
+network rejects as malformed — a cap that broke trading rather than bounding it.
+And a cap under the base fee is **refused at signing time, with both numbers**.
+That transaction is not slow, it is unmineable: it would sign, broadcast, and
+then sit pending *in the journal*, refusing the next trade with `IN_FLIGHT`
+until somebody worked out why. Rory chose refusal over silence here, and it is
+the same choice D-069 made.
+
+**The withdrawer takes the same cap, and reserve and signature now read one
+variable.** That is the whole of D-056: a cap that reached the signature but not
+`planWithdrawal` would make Max sweep too much and strand the wallet at exactly
+the moment somebody was emptying it. Written down as tests in wei rather than as
+a comment, because core cannot enforce it — only the caller passing one number
+to both can.
+
+**A latent bug found on the way.** The popup's `withEdits` *rebuilds* the edited
+profile rather than spreading over it — deliberate, since a spread would carry
+through values the validator would now reject — but that means every field must
+be named in it, and a field left out is dropped by any save that did not touch
+it. The fee cap would have vanished whenever somebody edited an amount. It is
+now its own module with its own tests, the same treatment `notice.ts` got and
+for the same reason: a small pure function whose consequence is out of all
+proportion to its size.
+
+Ten mutations across the three layers, all caught.
+
+`scripts/social-preview.mjs` and `scripts/popup-preview.mjs` render the three
+surfaces that show the cap — the settings field, the confirm sheet row, and the
+panel's config strip — against the real built modules.

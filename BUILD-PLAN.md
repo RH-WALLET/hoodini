@@ -320,7 +320,7 @@ The step D-026 deferred: a page proposes, extension UI approves, and
 - [ ] **Rory:** submit to the Chrome Web Store (publishing is his call)
 - [ ] **Rory:** token CA into `docs/index.html` once launched (the page moved to the docs root so GitHub Pages serves it)
 
-## [ ] P14 — Fees in a profile
+## [x] P14 — Fees in a profile
 
 Rory asked for gas and priority in P1/P2/P3, so a profile becomes a full trading
 configuration rather than amounts plus slippage. Deliberately not started at the
@@ -332,34 +332,62 @@ half-finished send path.
 three pre-sign reads that were made concurrent in D-057), `packages/core/src/settings.ts`
 (`Profile`, added in D-066), `packages/core/src/keystore/session.ts`.
 
-- [ ] `Profile` gains `maxFeeGwei` and `priorityGwei`, both optional. Absent
-      means "whatever the node suggests", which is what happens today via
-      `estimateFeesPerGas` — so an existing profile keeps behaving identically
-      and the feature is opt-in per profile.
-- [ ] `normaliseSettings` bounds them the way it bounds slippage: a ceiling that
-      stops a typo becoming a transaction, not a safety mechanism. The engine's
-      canary limit and `LIVE_TRADING` remain the things that actually gate a
-      send, and they sit at the boundary where they cannot be bypassed.
-- [ ] The engine reads the fee from the plan rather than the settings store.
-      Passing it down keeps the engine free of storage and keeps the value that
-      was *shown on the confirm sheet* the value that gets signed — the same
-      reasoning as D-061, where a field dropped between propose and execute
-      silently changed the trade.
-- [ ] The withdrawer's sweep already reserves fee at `maxFeePerGas` (D-056). A
-      profile that raises that cap changes what a sweep leaves behind, so the
-      two have to be read together or Max will start failing.
-- [ ] The confirm sheet shows the fee cap it will sign with, beside the
-      slippage. The panel's config strip already has the room.
-- [ ] Tests: an over-cap fee is refused, an absent fee still estimates, the
-      sheet's number is the number signed, and a sweep still succeeds under a
-      raised cap.
+Split by integration layer, since it changes the code path that signs.
 
-**Worth knowing before spending much on it.** This is an Arbitrum Orbit L2, so
-there is no priority-fee auction of the kind Solana traders are used to. The
-canary paid **0.025 gwei**, and the whole buy-and-sell round trip cost about
-1/84th of a cent (D-060, D-062). A priority control here is real but buys very
-little; the honest version of this feature may be a fee *cap* for safety rather
-than a fee *bid* for speed.
+**`priorityGwei` was not shipped, on the evidence.** This is an Arbitrum Orbit
+L2 with no priority auction: the canary paid 0.025 gwei and a whole round trip
+cost about 1/84th of a cent (D-060, D-062). A "pay more to go faster" knob would
+render, save, and change nothing measurable — a control that cannot move
+anything, which is this project's recurring bug rather than a feature. Rory's
+call in session; the cap is the half that is real (D-075).
+
+### [x] P14a — core
+- [x] `Profile.maxFeeGwei`, optional, absent meaning "whatever the node
+      suggests" — so a profile that sets none behaves identically and the
+      feature is opt-in. A **string**, like `buyPresets` and for the same
+      reason: it becomes wei, and 0.025 through a float is not what was typed.
+- [x] Bounded 0.001–500 gwei. A typo stop, not a safety mechanism — the canary
+      ceiling and `LIVE_TRADING` still sit at the send boundary.
+- [x] Reading forgives an unreadable cap by dropping to "no cap" rather than
+      inventing a different number; saving refuses it with the field named.
+- [x] The D-056 sweep invariant written down as tests in wei: a raised cap
+      sweeps less by exactly the difference, and reserving at the node's
+      estimate while signing at a higher cap strands the sweep.
+
+### [x] P14b — the send path
+- [x] `TradePlan.maxFeePerGas`, set by `planBuy`/`planSell` and read by the
+      engine. Core keeps exporting no broadcast path; the engine keeps holding
+      no storage. D-061 again: a value re-derived where it is used can differ
+      from the value that was shown.
+- [x] The priority is clamped down to the cap — EIP-1559 requires
+      `maxPriorityFeePerGas <= maxFeePerGas`, so a cap under the node's tip
+      would otherwise be a transaction the network rejects outright.
+- [x] A cap under the base fee is **refused, with both numbers**. Unmineable,
+      not slow: it would sign, broadcast, and sit pending in the journal,
+      blocking the next trade with `IN_FLIGHT`.
+- [x] With no cap the block read is skipped, so the path is unchanged at the
+      wire and not merely in effect.
+- [x] The cap is read from **storage**, never from the message. A page does not
+      choose the gas price a wallet signs. A failed settings read means "no cap".
+- [x] The withdrawer takes the same cap; reserve and signature read one variable.
+
+### [x] P14c — the surfaces
+- [x] Popup: a Max fee field per profile, blank to switch it off.
+- [x] Confirm sheet: the cap it will sign with, beside the slippage.
+- [x] Panel config strip: `Max gas` between the slippage and the 0% fee, drawn
+      only when set — including its spacer, or the `Fee 0%` moves.
+- [x] `withEdits` extracted to `popup/edits.ts` with its own tests. It rebuilds
+      the edited profile rather than spreading over it, so a field not named in
+      it is dropped by any save that did not touch it — the fee cap would have
+      vanished whenever somebody edited an amount.
+- [x] Ten mutations across the three layers, all caught.
+- [x] **Verified in a browser 2026-08-06** — the settings field loads and saves,
+      the sheet reads `Max fee 0.5 gwei` between slippage and Hoodini's cut, and
+      the panel strip reads `Slippage 1% · Max gas 0.5 gwei · Fee 0%`.
+
+- [ ] **Not yet exercised against a live send.** Nothing here has signed a real
+      transaction with a cap set; the dry-run path and the decoded signed bytes
+      are what has been checked.
 
 ## [x] P15 — X and Telegram: panel, not a strip
 
