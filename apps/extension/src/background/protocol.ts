@@ -129,6 +129,20 @@ export type Request =
   | { readonly type: 'settings.get' }
   | { readonly type: 'settings.set'; readonly settings: unknown }
   /**
+   * Edit the buy amounts of the active profile, and nothing else.
+   *
+   * Page-allowed, unlike `settings.set`, and the asymmetry is the point. A buy
+   * preset is *drawn on the button it sets*: a page that changed one to 5 ETH
+   * would produce a button reading `5`, so it cannot cause a spend the user did
+   * not see. Slippage has no such property — it is a number nobody would notice
+   * changing, and a page that could raise it could have every later trade
+   * sandwiched — so slippage stays popup-only and this message cannot touch it
+   * (D-071).
+   *
+   * Validated exactly as a popup edit is, so the same ceiling applies.
+   */
+  | { readonly type: 'settings.setPresets'; readonly buyPresets: readonly string[] }
+  /**
    * A page *proposing* a trade. Moves nothing: it records a request that only
    * extension UI can approve. This is the capability D-026 said had to exist
    * before a site could start a trade at all.
@@ -235,6 +249,9 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   // how much of a trade the user is willing to lose; a page that could set
   // either could quietly widen both and wait to be clicked.
   'settings.set': ['popup'],
+  // Amounts only, and only the active profile's. See the type for why this is
+  // safe to hand a page while `settings.set` is not.
+  'settings.setPresets': ['popup', 'page'],
   // A page may propose. Proposing moves nothing and cannot be made to move
   // anything: the worst it achieves is a prompt nobody asked for, and only one
   // at a time. This is deliberately *not* `trade.execute` under another name —

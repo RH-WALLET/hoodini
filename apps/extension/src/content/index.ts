@@ -34,7 +34,7 @@ const CHAIN_ID = 4663;
  * Bumped whenever the content script changes in a way a stale tab would hide.
  * Read from the page with `document.documentElement.dataset.hoodiniBuild`.
  */
-const BUILD_MARKER = 'panel-3';
+const BUILD_MARKER = 'panel-4';
 const DEFAULT_BUY_WEI = 10n ** 15n; // 0.001 ETH
 
 /**
@@ -344,6 +344,22 @@ function openPanel(token: TokenRef): void {
       sellPercents: [25, 50, 75, 100],
       ...(gasGwei != null ? { gasGwei } : {}),
       ...(position ? { position } : {}),
+      /**
+       * Save edited amounts. Reaches only the active profile's buy presets —
+       * slippage is not editable from a page, because it is the one setting a
+       * site could widen without anyone seeing it change (D-071).
+       */
+      onEditPresets: async (_profileIndex, buyPresets) => {
+        const res = (await chrome.runtime.sendMessage({ type: 'settings.setPresets', buyPresets })) as
+          | { ok: boolean; data?: Settings; error?: { message?: string } }
+          | undefined;
+        if (!res?.ok || !res.data) throw new Error(res?.error?.message ?? 'could not save');
+        // Adopted locally too, so the row strips on this page redraw with the
+        // same amounts the panel now shows.
+        settings = res.data;
+        runtime.scan();
+        return res.data.buyPresets;
+      },
       onMove: (next) => {
         void chrome.storage.local.set({ [PANEL_POS_KEY]: next }).catch(() => {
           // A position that fails to save costs a drag next time, nothing more.

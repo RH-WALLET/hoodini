@@ -2042,3 +2042,38 @@ leave somebody unable to open a wallet that still exists.
 **All three messages are popup-only and on the never-page-accessible list.**
 Choosing which wallet signs is a spending decision; a page that could make it
 could move funds from an account the user was not even looking at.
+
+---
+
+### D-071 — Editing the amounts where you use them
+
+The reference terminal edits its presets in place: a pencil in the header, a
+field under each button. That is right — you are looking at the buttons when you
+decide they are wrong — and the panel now does the same.
+
+**It needed a page capability, and the reasoning is not symmetric.**
+`settings.set` is popup-only because a page that could change what a button
+spends could widen it and wait to be clicked (D-053). But that argument does not
+apply equally to everything it covers:
+
+- A **buy preset is drawn on the button it sets.** A page that changed one to 5
+  ETH would produce a button reading `5`. It cannot cause a spend nobody saw.
+- **Slippage is not visible in the same way.** It is a number nobody would
+  notice changing, and a page that could raise it could have every later trade
+  sandwiched.
+
+So `settings.setPresets` is page-allowed and reaches only the active profile's
+amounts; slippage is carried through untouched from storage and stays
+popup-only. The edit runs through exactly the validator a popup edit does, so a
+page cannot store a value the user could not have typed.
+
+**The panel redraws from what was stored, not from what was typed.** The
+validator trims and can refuse, and the buttons have to show what a click will
+actually spend.
+
+**A real bug caught by a leaking test.** Saving wrote straight into
+`options.profiles` — the caller's array — so an edit silently changed what every
+later panel built from that object would draw. It was found because one test's
+save appeared in the next test's assertions, which is precisely the shape the
+production failure would have taken. The panel now copies the profiles it is
+given.

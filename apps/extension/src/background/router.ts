@@ -461,6 +461,22 @@ export function createRouter(deps: RouterDeps) {
           }
         }
 
+        case 'settings.setPresets': {
+          if (!settings) return fail('UNAVAILABLE', 'settings are not wired up in this build');
+          const current = await settings.read();
+          const profiles = current.profiles.map((p, i) =>
+            i === current.activeProfile ? { ...p, buyPresets: request.buyPresets } : p,
+          );
+          // The whole record goes through the same validator a popup edit does,
+          // so a page cannot reach a value the user could not have typed. Note
+          // what is *not* here: slippage is carried through untouched from the
+          // stored profile, so this message cannot widen it.
+          const next = { ...current, profiles };
+          const error = validateSettings(next);
+          if (error) return fail('BAD_REQUEST', error.message);
+          return { ok: true, data: await settings.write(next) };
+        }
+
         case 'wallet.select': {
           const set = await store.readSet();
           if (!set) return fail('NO_VAULT', 'no wallet has been created yet');

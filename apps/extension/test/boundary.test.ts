@@ -189,7 +189,7 @@ describe('classifySender', () => {
 });
 
 describe('surface policy', () => {
-  it('grants a page exactly five capabilities, none of which move money', () => {
+  it('grants a page exactly six capabilities, none of which move money', () => {
     // Pinned as an exact list rather than a count, so widening it is always a
     // deliberate edit here with reasoning attached. Each entry earns its place
     // by being unable to spend:
@@ -211,10 +211,16 @@ describe('surface policy', () => {
     //                  trade.quote: no side, no amount, no price back, and the
     //                  same reply whatever happens — so it answers nothing a
     //                  page could not already ask outright (D-058).
+    //   settings.setPresets  edits the buy amounts of the active profile, and
+    //                  only those. A preset is drawn on the button it sets, so
+    //                  a page changing one cannot cause a spend nobody saw —
+    //                  the button would read the new number. Slippage has no
+    //                  such property and stays popup-only (D-071).
     const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
     expect(pageAllowed).toEqual([
       'chain.stats',
       'settings.get',
+      'settings.setPresets',
       'trade.quote',
       'trade.request',
       'trade.warm',

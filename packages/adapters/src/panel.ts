@@ -55,6 +55,15 @@ export interface PanelOptions {
   /** Where it opened last. Clamped into view, so a stale value cannot strand it. */
   readonly position?: PanelPosition;
   readonly onMove?: (position: PanelPosition) => void;
+  /**
+   * Save edited buy amounts for the profile on screen.
+   *
+   * Absent hides the edit control entirely, which is how a surface that cannot
+   * persist opts out rather than offering an edit that quietly does nothing.
+   * Resolves with what was actually stored, so the panel redraws from the saved
+   * values rather than from what was typed (D-071).
+   */
+  readonly onEditPresets?: (profileIndex: number, buyPresets: string[]) => Promise<readonly string[]>;
   /** Current network gas in gwei, shown under each side. Omit for an em dash. */
   readonly gasGwei?: number | null;
 }
@@ -152,6 +161,25 @@ const STYLE = `
   .cfg b { color: #8e99ab; font-weight: 650; }
   .cfg .zero { color: #74e6a4; font-weight: 650; }
 
+  .edit { all: unset; cursor: pointer; color: #4a5364; padding: 1px 3px; font-size: 11px; line-height: 1; }
+  .edit:hover, .edit.on { color: #7fb4f5; }
+  .fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; }
+  .fields input {
+    all: unset; box-sizing: border-box; text-align: center; width: 100%;
+    padding: 6px 2px; border-radius: 7px; font-size: 11.5px; font-weight: 600;
+    background: rgba(255,255,255,.05); color: #e9eef7;
+    border: 1px solid rgba(255,255,255,.08);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .fields input:focus { border-color: #7fb4f5; background: rgba(127,180,245,.1); }
+  .save { display: flex; gap: 5px; margin-top: 6px; }
+  .save button { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 6px 0;
+                 border-radius: 7px; font-size: 11px; font-weight: 650; }
+  .save .ok { background: rgba(127,180,245,.18); color: #9ec9fb; }
+  .save .ok:hover { background: rgba(127,180,245,.3); }
+  .save .no { background: rgba(255,255,255,.05); color: #6d7789; }
+  .err { color: #ffc178; font-size: 10px; margin-top: 5px; }
+
   .status { padding: 9px 11px; font-size: 10.5px; line-height: 1.45;
             background: rgba(255, 180, 84, .1); color: #ffc178;
             border-top: 1px solid rgba(255, 180, 84, .22); }
@@ -204,11 +232,20 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   label.title = token.address;
   hd.append(grip, label);
 
-  let active = Math.min(Math.max(0, options.activeProfile ?? 0), options.profiles.length - 1);
+  /**
+   * Our own copy of the profiles.
+   *
+   * Saving used to write straight into `options.profiles`, which is the
+   * caller's array — so an edit here silently changed what every later panel
+   * built from the same object would draw. Caught by one test leaking into the
+   * next, which is exactly the shape that bug would have taken in production.
+   */
+  const profiles: PanelProfile[] = options.profiles.map((p) => ({ ...p }));
+  let active = Math.min(Math.max(0, options.activeProfile ?? 0), profiles.length - 1);
   const tabs = doc.createElement('span');
   tabs.className = 'tabs';
   const tabButtons: HTMLButtonElement[] = [];
-  options.profiles.forEach((_, i) => {
+  profiles.forEach((_, i) => {
     const t = doc.createElement('button');
     t.textContent = `P${i + 1}`;
     t.addEventListener('click', (e) => {
@@ -223,6 +260,22 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   });
   tabButtons.forEach((b, j) => b.classList.toggle('on', j === active));
   hd.appendChild(tabs);
+
+  let editing = false;
+  const pencil = doc.createElement('button');
+  pencil.className = 'edit';
+  pencil.textContent = '✎';
+  pencil.title = 'Edit the buy amounts';
+  if (options.onEditPresets) {
+    pencil.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      editing = !editing;
+      pencil.classList.toggle('on', editing);
+      render();
+    });
+    hd.appendChild(pencil);
+  }
 
   const close = doc.createElement('button');
   close.className = 'x';
@@ -286,7 +339,7 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
   }
 
   function render(): void {
-    const profile = options.profiles[active] ?? { buyPresets: [], slippageBps: 100 };
+    const profile = profiles[active] ?? { buyPresets: [], slippageBps: 100 };
 
     buySec.replaceChildren();
     const bl = doc.createElement('span');
@@ -309,7 +362,70 @@ export function mountPanel(doc: Document, token: TokenRef, options: PanelOptions
       });
       bg.appendChild(b);
     }
-    buySec.append(bl, bg, statRow(profile));
+    buySec.append(bl, bg);
+
+    // The reference puts its editor under the row it edits, which is right: you
+    // are looking at the buttons when you decide they are wrong.
+    if (editing && options.onEditPresets) {
+      const fields = doc.createElement('div');
+      fields.className = 'fields';
+      fields.style.gridTemplateColumns = bg.style.gridTemplateColumns;
+      const inputs: HTMLInputElement[] = [];
+      for (const amount of profile.buyPresets) {
+        const input = doc.createElement('input');
+        input.value = amount;
+        input.inputMode = 'decimal';
+        input.setAttribute('aria-label', 'Buy amount in ETH');
+        inputs.push(input);
+        fields.appendChild(input);
+      }
+
+      const err = doc.createElement('div');
+      err.className = 'err';
+      err.hidden = true;
+
+      const row = doc.createElement('div');
+      row.className = 'save';
+      const ok = doc.createElement('button');
+      ok.className = 'ok';
+      ok.textContent = 'Save';
+      const cancel = doc.createElement('button');
+      cancel.className = 'no';
+      cancel.textContent = 'Cancel';
+
+      ok.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        ok.textContent = '…';
+        void options
+          .onEditPresets!(active, inputs.map((i) => i.value.trim()).filter((v) => v !== ''))
+          .then((saved) => {
+            // Redrawn from what was stored, not from what was typed: the
+            // validator may trim or refuse, and the buttons must show what a
+            // click will actually spend.
+            profiles[active] = { ...profile, buyPresets: saved };
+            editing = false;
+            pencil.classList.remove('on');
+            render();
+          })
+          .catch((e2: unknown) => {
+            ok.textContent = 'Save';
+            err.hidden = false;
+            err.textContent = e2 instanceof Error ? e2.message : 'could not save';
+          });
+      });
+      cancel.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        editing = false;
+        pencil.classList.remove('on');
+        render();
+      });
+      row.append(ok, cancel);
+      buySec.append(fields, err, row);
+    }
+
+    buySec.append(statRow(profile));
 
     sellSec.replaceChildren();
     const sl = doc.createElement('span');

@@ -221,6 +221,58 @@ describe('saying it cannot trade this one (D-069)', () => {
   });
 });
 
+describe('editing the amounts in place (D-071)', () => {
+  const editable = (save: (i: number, p: string[]) => Promise<readonly string[]>) =>
+    open({ onEditPresets: save });
+
+  it('shows no pencil when there is nowhere to save', () => {
+    // An edit control that quietly does nothing is worse than none.
+    expect(open().shadow.querySelector('.edit')).toBeNull();
+  });
+
+  it('reveals a field per preset, under the buttons they edit', () => {
+    const p = editable(async () => ['0.001', '0.01']);
+    (p.shadow.querySelector('.edit') as HTMLButtonElement).dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    const fields = [...p.shadow.querySelectorAll('.fields input')] as HTMLInputElement[];
+    expect(fields.map((f) => f.value)).toEqual(['0.001', '0.01']);
+  });
+
+  it('saves what was typed and redraws from what was stored', async () => {
+    // Not from what was typed: the validator may trim or refuse, and the
+    // buttons must show what a click will actually spend.
+    const asked: string[][] = [];
+    const p = editable(async (_i, presets) => { asked.push(presets); return ['0.05', '0.5']; });
+    (p.shadow.querySelector('.edit') as HTMLButtonElement).dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    const fields = [...p.shadow.querySelectorAll('.fields input')] as HTMLInputElement[];
+    fields[0]!.value = ' 0.05 ';
+    fields[1]!.value = '';
+    (p.shadow.querySelector('.save .ok') as HTMLButtonElement).dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    await vi.waitFor(() => expect(p.buys().map((b) => b.textContent)).toEqual(['0.05', '0.5']));
+    // Blank fields are dropped rather than saved as empty buttons.
+    expect(asked).toEqual([['0.05']]);
+  });
+
+  it('keeps the editor open and says why when saving is refused', async () => {
+    const p = editable(async () => { throw new Error('0,5 is not an amount'); });
+    (p.shadow.querySelector('.edit') as HTMLButtonElement).dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    (p.shadow.querySelector('.save .ok') as HTMLButtonElement).dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    await vi.waitFor(() => {
+      const err = p.shadow.querySelector('.err') as HTMLElement;
+      expect(err.hidden).toBe(false);
+      expect(err.textContent).toContain('0,5');
+    });
+    expect(p.shadow.querySelector('.fields')).not.toBeNull();
+  });
+
+  it('cancel restores the buttons untouched', () => {
+    const p = editable(async () => ['9']);
+    (p.shadow.querySelector('.edit') as HTMLButtonElement).dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    (p.shadow.querySelector('.save .no') as HTMLButtonElement).dispatchEvent(new doc.defaultView!.Event('click', { bubbles: true }));
+    expect(p.shadow.querySelector('.fields')).toBeNull();
+    expect(p.buys().map((b) => b.textContent)).toEqual(['0.001', '0.01']);
+  });
+});
+
 describe('where it sits', () => {
   it('clamps a stored position that would strand it off screen', () => {
     const p = open({ position: { x: 99_999, y: -400 } });
