@@ -34,6 +34,25 @@ export interface Profile {
   readonly buyPresets: readonly string[];
   /** Slippage tolerance in basis points. 100 = 1%. */
   readonly slippageBps: number;
+  /**
+   * Ceiling on the gas price this profile will sign, in gwei. Optional.
+   *
+   * **Absent means "whatever the node suggests"**, which is what every trade
+   * does today via `estimateFeesPerGas` — so a profile that never sets it keeps
+   * behaving identically and the feature is opt-in per profile.
+   *
+   * A cap, deliberately not a bid. This is an Arbitrum Orbit L2 with no priority
+   * auction of the kind Solana traders are used to: the first canary paid 0.025
+   * gwei and a whole buy-and-sell round trip cost about 1/84th of a cent (D-060,
+   * D-062). A "pay more to go faster" control here would be a knob that cannot
+   * move anything, which is the shape of silent failure this project keeps
+   * finding (D-052, D-069). Bounding the worst case is the part that is real.
+   *
+   * A **string**, for the same reason `buyPresets` are strings: it becomes wei
+   * in a transaction, and 0.025 through a float is not the number anyone typed.
+   * `parseGwei` reads it exactly.
+   */
+  readonly maxFeeGwei?: string;
 }
 
 export interface Settings {
@@ -52,6 +71,8 @@ export interface Settings {
   readonly buyPresets: readonly string[];
   /** The active profile's slippage, flattened. See `buyPresets`. */
   readonly slippageBps: number;
+  /** The active profile's fee cap, flattened. Absent when it sets none. */
+  readonly maxFeeGwei?: string;
 }
 
 /** P1, P2, P3. Three is what the reference uses and what fits a row of tabs. */
@@ -105,6 +126,23 @@ export const MIN_SLIPPAGE_BPS = 1;
 export const MAX_SLIPPAGE_BPS = 5000;
 
 /**
+ * Bounds on a fee cap, in gwei.
+ *
+ * The same kind of bound as `MAX_PRESET_ETH`, and the same disclaimer: this
+ * stops a typo, it does not make anything safe. What actually gates a send is
+ * the canary ceiling and the `LIVE_TRADING` build flag, both at the send
+ * boundary where they cannot be bypassed.
+ *
+ * The floor is what makes the *cap* meaningful rather than a foot-gun. This
+ * chain has charged 0.025 gwei, so 0.001 is comfortably below anything observed
+ * while still being a number rather than zero — a cap of zero is a transaction
+ * that can never be mined. The engine refuses a cap under the base fee at
+ * signing time anyway, which is where the live answer is.
+ */
+export const MIN_MAX_FEE_GWEI = 0.001;
+export const MAX_MAX_FEE_GWEI = 500;
+
+/**
  * Is this a preset a user could have meant?
  *
  * Rejects anything `parseEther` would mangle or reject later: exponent
@@ -119,6 +157,23 @@ export function isValidPreset(value: unknown): value is string {
   if (decimals > 18) return false;
   const n = Number(s);
   return Number.isFinite(n) && n >= MIN_PRESET_ETH && n <= MAX_PRESET_ETH;
+}
+
+/**
+ * Is this a fee cap a user could have meant?
+ *
+ * Same shape as `isValidPreset` and for the same reason — this string becomes
+ * wei via `parseGwei`, so anything that function would mangle or reject is
+ * refused here rather than at the moment of signing. Nine decimals, because a
+ * gwei is 10^9 wei and a tenth place would be a fraction of a wei.
+ */
+export function isValidMaxFeeGwei(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const s = value.trim();
+  if (!/^\d*\.?\d+$/.test(s)) return false;
+  if ((s.split('.')[1]?.length ?? 0) > 9) return false;
+  const n = Number(s);
+  return Number.isFinite(n) && n >= MIN_MAX_FEE_GWEI && n <= MAX_MAX_FEE_GWEI;
 }
 
 export function isValidSlippageBps(value: unknown): value is number {
@@ -155,9 +210,19 @@ function normaliseProfile(input: unknown, fallback: Profile): Profile {
     if (unique.length >= MAX_PRESETS) break;
   }
 
+  // A cap that does not validate falls back to the profile's own, and the
+  // defaults set none — so corrupt storage degrades to "whatever the node
+  // suggests", which is the behaviour that predates this field. Degrading to
+  // some *other* cap would be this code choosing a gas price on its own.
+  const cap = isValidMaxFeeGwei(raw.maxFeeGwei) ? raw.maxFeeGwei.trim() : fallback.maxFeeGwei;
+
   return {
     buyPresets: unique.length >= MIN_PRESETS ? unique : fallback.buyPresets,
     slippageBps: isValidSlippageBps(raw.slippageBps) ? raw.slippageBps : fallback.slippageBps,
+    // Conditional, not `maxFeeGwei: cap` — `exactOptionalPropertyTypes` is on,
+    // and an explicit `undefined` is a different thing from an absent field
+    // once this is round-tripped through storage.
+    ...(cap !== undefined ? { maxFeeGwei: cap } : {}),
   };
 }
 
@@ -184,7 +249,13 @@ export function normaliseSettings(input: unknown): Settings {
   // The flattened fields are derived here and nowhere else, so they cannot
   // drift from the profile they are supposed to mirror.
   const chosen = profiles[active]!;
-  return { profiles, activeProfile: active, buyPresets: chosen.buyPresets, slippageBps: chosen.slippageBps };
+  return {
+    profiles,
+    activeProfile: active,
+    buyPresets: chosen.buyPresets,
+    slippageBps: chosen.slippageBps,
+    ...(chosen.maxFeeGwei !== undefined ? { maxFeeGwei: chosen.maxFeeGwei } : {}),
+  };
 }
 
 /**
@@ -195,7 +266,10 @@ export function normaliseSettings(input: unknown): Settings {
  * quietly replacing with a default. Normalisation is for reading, this is for
  * writing.
  */
-export type SettingsError = { readonly field: 'buyPresets' | 'slippageBps'; readonly message: string };
+export type SettingsError = {
+  readonly field: 'buyPresets' | 'slippageBps' | 'maxFeeGwei';
+  readonly message: string;
+};
 
 export function validateSettings(input: unknown): SettingsError | null {
   const outer = (input ?? {}) as Record<string, unknown>;
@@ -254,6 +328,15 @@ function validateProfile(input: unknown): SettingsError | null {
     return {
       field: 'slippageBps',
       message: `slippage must be a whole number of basis points between ${MIN_SLIPPAGE_BPS} and ${MAX_SLIPPAGE_BPS}`,
+    };
+  }
+  // Absent and empty both mean "no cap". A field somebody cleared has to be a
+  // way to switch the cap off, or the only way back to the node's suggestion
+  // would be to know what to type instead of it.
+  if (raw.maxFeeGwei !== undefined && raw.maxFeeGwei !== '' && !isValidMaxFeeGwei(raw.maxFeeGwei)) {
+    return {
+      field: 'maxFeeGwei',
+      message: `fee cap must be between ${MIN_MAX_FEE_GWEI} and ${MAX_MAX_FEE_GWEI} gwei, or blank for none`,
     };
   }
   return null;

@@ -127,3 +127,61 @@ describe('fee data', () => {
     expect(e.code).toBe('NO_FEE_DATA');
   });
 });
+
+/**
+ * A profile's fee cap and the sweep reserve (P14, against D-056).
+ *
+ * `planWithdrawal` already takes the fee as a parameter, so this needs no
+ * source change — which is exactly why it needs a test. The invariant is a
+ * property of the *caller*: the number reserved here and the number signed must
+ * be the same number. A profile that raises the cap changes what a sweep leaves
+ * behind, and reserving at less than is signed is how Max starts failing.
+ */
+describe('sweeping under a profile fee cap', () => {
+  /** 0.5 gwei — an ordinary cap, twenty-odd times the chain's observed price. */
+  const RAISED = 500_000_000n;
+
+  it('still succeeds, and still leaves exactly the fee behind', () => {
+    const plan = planWithdrawal(
+      { to: TO, amount: 'max' },
+      { ...ctx('0.01'), maxFeePerGas: RAISED },
+    );
+    expect(plan.isSweep).toBe(true);
+    expect(plan.valueWei + plan.maxFeeWei).toBe(parseEther('0.01'));
+    expect(plan.maxFeeWei).toBe(GAS * RAISED);
+  });
+
+  it('a raised cap sweeps less, by exactly the difference', () => {
+    const at = (fee: bigint) =>
+      planWithdrawal({ to: TO, amount: 'max' }, { ...ctx('0.01'), maxFeePerGas: fee }).valueWei;
+    expect(at(FEE) - at(RAISED)).toBe(GAS * (RAISED - FEE));
+  });
+
+  it('reserving at less than will be signed is what strands a sweep', () => {
+    // The D-056 failure, written down: plan at the node's estimate, sign at the
+    // profile's higher cap, and the transaction cannot pay for itself. Nothing
+    // in core can prevent this — only passing one number to both can — so this
+    // states the size of the hole the caller has to not open.
+    const planned = planWithdrawal({ to: TO, amount: 'max' }, ctx('0.01'));
+    const signedCost = GAS * RAISED;
+    expect(planned.valueWei + signedCost).toBeGreaterThan(parseEther('0.01'));
+  });
+
+  it('refuses when the cap alone exceeds the balance, rather than sending dust', () => {
+    const e = refusal(() =>
+      planWithdrawal({ to: TO, amount: 'max' }, { ...ctx('0'), balanceWei: 1n, maxFeePerGas: RAISED }),
+    );
+    expect(e.code).toBe('DUST');
+  });
+
+  it('a plain amount is checked against the raised cap too', () => {
+    // 0.01 minus a hair: fine at the chain's price, refused once the cap is the
+    // one that will be signed.
+    const amount = (parseEther('0.01') - GAS * FEE).toString();
+    expect(planWithdrawal({ to: TO, amount }, ctx('0.01')).valueWei).toBe(BigInt(amount));
+    const e = refusal(() =>
+      planWithdrawal({ to: TO, amount }, { ...ctx('0.01'), maxFeePerGas: RAISED }),
+    );
+    expect(e.code).toBe('INSUFFICIENT');
+  });
+});

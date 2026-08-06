@@ -12,8 +12,11 @@ import { describe, expect, it } from 'vitest';
 import { parseEther } from 'viem';
 import {
   DEFAULT_SETTINGS,
+  MAX_MAX_FEE_GWEI,
   MAX_PRESETS,
+  MIN_MAX_FEE_GWEI,
   PROFILE_COUNT,
+  isValidMaxFeeGwei,
   isValidPreset,
   isValidSlippageBps,
   normaliseSettings,
@@ -170,5 +173,112 @@ describe('validateSettings', () => {
     const bad = { buyPresets: ['0.01', 'nope'], slippageBps: 100 };
     expect(validateSettings(bad)).not.toBeNull();
     expect(normaliseSettings(bad).buyPresets).toEqual(['0.01']);
+  });
+});
+
+/**
+ * The fee cap (P14).
+ *
+ * A cap is opt-in per profile and absent means "whatever the node suggests" —
+ * so the property that matters most is that a profile which never sets one is
+ * byte-for-byte what it was before this field existed. Everything else here is
+ * ordinary bounds work.
+ */
+describe('isValidMaxFeeGwei', () => {
+  it.each(['0.001', '0.025', '1', '0.5', '500', '2.5'])('accepts %s', (v) => {
+    expect(isValidMaxFeeGwei(v)).toBe(true);
+  });
+
+  it.each([
+    ['zero — a cap of nothing can never be mined', '0'],
+    ['below the floor', '0.0009'],
+    ['above the ceiling', '501'],
+    ['negative', '-1'],
+    ['exponent notation parseGwei would reject', '1e9'],
+    ['hex', '0x1'],
+    ['blank', ''],
+    ['whitespace only', '   '],
+    ['more decimals than a gwei has wei', '0.0000000001'],
+    ['a number, not a string — floats are why this is a string at all', 0.025],
+    ['null', null],
+  ])('rejects %s', (_why, v) => {
+    expect(isValidMaxFeeGwei(v)).toBe(false);
+  });
+
+  it('accepts exactly the bounds', () => {
+    expect(isValidMaxFeeGwei(String(MIN_MAX_FEE_GWEI))).toBe(true);
+    expect(isValidMaxFeeGwei(String(MAX_MAX_FEE_GWEI))).toBe(true);
+  });
+});
+
+describe('fee cap through normaliseSettings', () => {
+  it('is absent by default, so nothing that existed before it behaves differently', () => {
+    expect(DEFAULT_SETTINGS.maxFeeGwei).toBeUndefined();
+    for (const p of DEFAULT_SETTINGS.profiles) expect(p.maxFeeGwei).toBeUndefined();
+    // Not merely undefined — the key must not be there at all, or a round trip
+    // through storage stores an explicit null and reads back as a set cap.
+    for (const p of DEFAULT_SETTINGS.profiles) expect('maxFeeGwei' in p).toBe(false);
+  });
+
+  it('keeps a valid cap, trimmed, and flattens the active profile’s', () => {
+    const s = normaliseSettings({
+      profiles: [
+        { buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: ' 0.05 ' },
+        { buyPresets: ['0.01'], slippageBps: 300, maxFeeGwei: '2' },
+        { buyPresets: ['0.1'], slippageBps: 500 },
+      ],
+      activeProfile: 1,
+    });
+    expect(s.profiles[0]!.maxFeeGwei).toBe('0.05');
+    expect(s.profiles[2]!.maxFeeGwei).toBeUndefined();
+    // Flattened from the active profile, like buyPresets and slippageBps.
+    expect(s.maxFeeGwei).toBe('2');
+  });
+
+  it('drops a cap it cannot read rather than inventing a different one', () => {
+    // Degrading to some other number would be this code choosing a gas price.
+    // Degrading to "no cap" is the behaviour that predates the field.
+    for (const bad of ['nonsense', '0', '9999', 0.05, null]) {
+      const s = normaliseSettings({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: bad }] });
+      expect(s.profiles[0]!.maxFeeGwei).toBeUndefined();
+      expect('maxFeeGwei' in s).toBe(false);
+    }
+  });
+
+  it('a cleared cap means no cap, not the previous one', () => {
+    const s = normaliseSettings({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '' }] });
+    expect(s.profiles[0]!.maxFeeGwei).toBeUndefined();
+  });
+
+  it('reads a pre-profiles record that carries a cap', () => {
+    // Storage written flat, before D-066. Still read as P1.
+    const s = normaliseSettings({ buyPresets: ['0.02'], slippageBps: 250, maxFeeGwei: '0.4' });
+    expect(s.profiles[0]!.maxFeeGwei).toBe('0.4');
+    expect(s.maxFeeGwei).toBe('0.4');
+  });
+});
+
+describe('fee cap through validateSettings', () => {
+  const profile = (extra: Record<string, unknown>) => ({ buyPresets: ['0.001'], slippageBps: 100, ...extra });
+
+  it('accepts a cap in range, and blank or absent as "no cap"', () => {
+    expect(validateSettings(profile({ maxFeeGwei: '0.05' }))).toBeNull();
+    expect(validateSettings(profile({ maxFeeGwei: '' }))).toBeNull();
+    expect(validateSettings(profile({}))).toBeNull();
+  });
+
+  it.each(['0', '0.0009', '501', 'abc', '1e9', 5])('refuses %s, naming the field', (bad) => {
+    const err = validateSettings(profile({ maxFeeGwei: bad }));
+    expect(err?.field).toBe('maxFeeGwei');
+    expect(err?.message).toContain('gwei');
+  });
+
+  it('names the profile that is wrong in a full record', () => {
+    const err = validateSettings({
+      profiles: [profile({}), profile({ maxFeeGwei: '999' }), profile({})],
+      activeProfile: 0,
+    });
+    expect(err?.field).toBe('maxFeeGwei');
+    expect(err?.message.startsWith('P2:')).toBe(true);
   });
 });
