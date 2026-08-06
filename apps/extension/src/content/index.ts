@@ -262,7 +262,11 @@ let deciding: string | null = null;
 
 function syncPanel(detected: readonly TokenRef[]): void {
   const address = pageTokenAddress(location.href);
+  // Every branch below says what it decided. A panel that silently does not
+  // appear is indistinguishable from one that is broken, and this project has
+  // now spent three rounds on exactly that confusion (D-052).
   if (!address) {
+    if (panelToken !== null) console.warn('[hoodini] panel closed: this route names no single token');
     // Not a coin's page at all. Close anything left over from one.
     if (panelToken !== null) {
       unmountPanel(document);
@@ -278,11 +282,16 @@ function syncPanel(detected: readonly TokenRef[]): void {
   // gate has run and nothing more is needed.
   const known = pageToken(location.href, detected);
   if (known) {
+    console.warn('[hoodini] panel opening:', key, '(the adapter found it on the page)');
     dismissed = null;
     panelToken = key;
     openPanel(known);
     return;
   }
+  console.warn(
+    `[hoodini] coin page for ${key}; the adapter did not find it among ${detected.length} detected token(s), ` +
+      'so asking the chain whether it is tradeable here…',
+  );
 
   // Slow path, and the one that actually fires on a coin's page. The adapters
   // detect the *related* cards in a sidebar, not the coin the page is about, so
@@ -304,19 +313,34 @@ function syncPanel(detected: readonly TokenRef[]): void {
       amount: PROBE_WEI.toString(),
       slippageBps: settings.slippageBps,
     })
-    .then((res: { ok?: boolean } | undefined) => {
+    .then((res: { ok?: boolean; error?: { code?: string; message?: string } } | undefined) => {
       // The route may have changed while this was in flight — terminals are
       // single-page apps and a fast scroll through coins is normal.
       if (deciding !== key) return;
       deciding = null;
-      if (!res?.ok) return;
-      if (pageTokenAddress(location.href)?.toLowerCase() !== key) return;
+      if (!res?.ok) {
+        // The commonest honest answer on a multi-chain terminal: this coin is
+        // not on Robinhood Chain, so there is nothing here to trade it with.
+        console.warn(
+          `[hoodini] NO PANEL for ${key} — the worker refused to price it:`,
+          res?.error?.code ?? 'no reply',
+          res?.error?.message ?? '',
+          '\n  If this coin really is on Robinhood Chain, that is a bug worth reporting.',
+        );
+        return;
+      }
+      if (pageTokenAddress(location.href)?.toLowerCase() !== key) {
+        console.warn('[hoodini] panel skipped: the page moved on while the check was in flight');
+        return;
+      }
+      console.warn('[hoodini] panel opening:', key, '(the chain can price it)');
       dismissed = null;
       panelToken = key;
       openPanel({ address, chainId: CHAIN_ID });
     })
-    .catch(() => {
+    .catch((e: unknown) => {
       if (deciding === key) deciding = null;
+      console.warn('[hoodini] NO PANEL: could not reach the extension worker', e);
     });
 }
 
@@ -330,7 +354,7 @@ function syncPanel(detected: readonly TokenRef[]): void {
  */
 function openPanel(token: TokenRef): void {
   void Promise.all([readPanelPosition(), readGas()]).then(([position, gasGwei]) => {
-    mountPanel(document, token, {
+    const host = mountPanel(document, token, {
       profiles: settings.profiles,
       activeProfile: settings.activeProfile,
       onIntent,
@@ -351,6 +375,10 @@ function openPanel(token: TokenRef): void {
         dismissed = token.address.toLowerCase();
       },
     });
+    // Reported so "it never opened" and "it opened somewhere I cannot see" are
+    // different sentences in the log rather than the same silence.
+    const box = host.shadowRoot?.querySelector('.panel')?.getBoundingClientRect();
+    console.warn('[hoodini] panel mounted at', box ? `${Math.round(box.x)},${Math.round(box.y)}` : 'unknown', box);
   });
 }
 
