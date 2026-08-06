@@ -57,22 +57,34 @@ export function addressesInUrl(url: string): Address[] {
 }
 
 /**
- * The token this page is about, or null.
+ * The one address this route is about, or null.
  *
- * `detected` is what the site adapter found, already chain-gated. Passing it in
- * rather than re-scanning keeps the chain check in one place: this function
- * cannot accidentally approve a token from another chain, because it can only
- * return one that the adapter already accepted.
+ * Exactly one, or nothing. Two addresses in a path is a route this code does
+ * not understand, and picking whichever came first would be a guess about
+ * someone's money.
+ */
+export function pageTokenAddress(url: string): Address | null {
+  const found = addressesInUrl(url);
+  const unique = [...new Set(found.map((a) => a.toLowerCase()))];
+  return unique.length === 1 ? getAddress(unique[0]!) : null;
+}
+
+/**
+ * The token this page is about, when the adapter already found it.
+ *
+ * The fast path, and it costs nothing: if the site adapter detected the route's
+ * address, the chain gate has already run on it (D-050) and the panel can open
+ * immediately.
+ *
+ * It answers null far more often than it looks like it should. On a coin's own
+ * page the adapters detect the *related* cards in the sidebar — those are the
+ * rows they were written to find — while the coin the page is actually about
+ * has no such row. So the caller must have a second gate for that case, and
+ * requiring this one alone is what kept the panel shut (D-067).
  */
 export function pageToken(url: string, detected: readonly TokenRef[]): TokenRef | null {
-  const inUrl = addressesInUrl(url);
-  if (inUrl.length === 0) return null;
-
-  const wanted = new Set(inUrl.map((a) => a.toLowerCase()));
-  const matches = detected.filter((t) => wanted.has(t.address.toLowerCase()));
-
-  // Exactly one, or nothing. Two addresses from the path both present on the
-  // page is a route this code does not understand, and opening a panel on
-  // whichever came first would be a guess about someone's money.
-  return matches.length === 1 ? matches[0]! : null;
+  const address = pageTokenAddress(url);
+  if (!address) return null;
+  const hit = detected.find((t) => t.address.toLowerCase() === address.toLowerCase());
+  return hit ?? null;
 }

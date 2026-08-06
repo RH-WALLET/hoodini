@@ -18,6 +18,7 @@ import {
   mountPanel,
   unmountPanel,
   pageToken,
+  pageTokenAddress,
   unmountAll,
   type IntentResult,
   type OverlayIntent,
@@ -229,20 +230,70 @@ let dismissed: string | null = null;
  * scan rather than once at load: navigating from Pulse into a coin never
  * reloads the document.
  */
+/** Nominal probe size: this asks whether a venue exists, not what a trade costs. */
+const PROBE_WEI = 1_000_000_000_000_000n;
+
+/** The address currently being asked about, so a scan burst asks once. */
+let deciding: string | null = null;
+
 function syncPanel(detected: readonly TokenRef[]): void {
-  const token = pageToken(location.href, detected);
-  if (!token) {
+  const address = pageTokenAddress(location.href);
+  if (!address) {
+    // Not a coin's page at all. Close anything left over from one.
     if (panelToken !== null) {
       unmountPanel(document);
       panelToken = null;
     }
     return;
   }
-  const key = token.address.toLowerCase();
-  if (key === panelToken || key === dismissed) return;
-  dismissed = null;
-  panelToken = key;
-  openPanel(token);
+
+  const key = address.toLowerCase();
+  if (key === panelToken || key === dismissed || key === deciding) return;
+
+  // Fast path: the adapter already found this address on the page, so the chain
+  // gate has run and nothing more is needed.
+  const known = pageToken(location.href, detected);
+  if (known) {
+    dismissed = null;
+    panelToken = key;
+    openPanel(known);
+    return;
+  }
+
+  // Slow path, and the one that actually fires on a coin's page. The adapters
+  // detect the *related* cards in a sidebar, not the coin the page is about, so
+  // there is usually no local evidence for the route's own token — which is
+  // exactly what kept this shut (D-067).
+  //
+  // Asking the chain is the honest gate and a stronger one than reading the
+  // page's branding: if the worker can price this token, it trades on Robinhood
+  // Chain, and that is the only thing the panel needs to be true. One quote per
+  // coin page, and `deciding` stops a burst of scans asking repeatedly.
+  deciding = key;
+  void chrome.runtime
+    .sendMessage({
+      type: 'trade.quote',
+      side: 'buy',
+      token: address,
+      // A nominal size. This asks whether a venue exists, not what a trade would
+      // cost, and the panel prices properly when a button is actually pressed.
+      amount: PROBE_WEI.toString(),
+      slippageBps: settings.slippageBps,
+    })
+    .then((res: { ok?: boolean } | undefined) => {
+      // The route may have changed while this was in flight — terminals are
+      // single-page apps and a fast scroll through coins is normal.
+      if (deciding !== key) return;
+      deciding = null;
+      if (!res?.ok) return;
+      if (pageTokenAddress(location.href)?.toLowerCase() !== key) return;
+      dismissed = null;
+      panelToken = key;
+      openPanel({ address, chainId: CHAIN_ID });
+    })
+    .catch(() => {
+      if (deciding === key) deciding = null;
+    });
 }
 
 /**
