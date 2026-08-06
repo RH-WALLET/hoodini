@@ -136,6 +136,70 @@ async function feeCapWei(
   }
 }
 
+/**
+ * What a token calls itself, read from the contract.
+ *
+ * Never from the page. A ticker scraped from a post is attacker-controlled
+ * text, and the panel prints it beside a buy button — so a scraped one would
+ * help the exact substitution the per-row chain gates exist to stop (D-050,
+ * D-074). Read from the chain it either agrees with the post or contradicts it,
+ * and the contradiction is the more useful of the two.
+ *
+ * A contract that is not an ERC-20, or does not exist, answers `null` rather
+ * than failing. The panel then shows the address alone, which is honest: the
+ * address is the thing that was actually on the page.
+ *
+ * Cached for the life of the router. A symbol cannot change, an alpha channel
+ * asks for the same twenty addresses on every scan, and MV3 tears the worker
+ * down often enough that an unbounded map is not a leak worth engineering
+ * around — but it is capped anyway, because a page controls how many distinct
+ * addresses it shows.
+ *
+ * The cache lives in `createRouter`'s closure rather than at module scope. One
+ * worker builds one router, so it is the same lifetime either way — but a
+ * module-level map would make one router's answers depend on what a *different*
+ * router had already been asked. That is a read whose result depends on an
+ * earlier read's side effects, and this project has just spent a session
+ * finding one of those (D-074).
+ */
+type TokenMeta = { symbol: string | null; decimals: number | null };
+const META_CACHE_MAX = 500;
+
+async function tokenMeta(
+  cache: Map<string, TokenMeta>,
+  client: import('viem').PublicClient,
+  token: Address,
+): Promise<TokenMeta> {
+  const key = token.toLowerCase();
+  const hit = cache.get(key);
+  if (hit) return hit;
+
+  const read = async <T>(functionName: 'symbol' | 'decimals'): Promise<T | null> =>
+    client
+      .readContract({ address: token, abi: ERC20_ALLOWANCE_ABI, functionName })
+      .then((v) => v as T)
+      .catch(() => null);
+
+  const [symbol, decimals] = await Promise.all([read<string>('symbol'), read<number>('decimals')]);
+  // Truncated, and control characters stripped. This string is drawn into the
+  // panel's header, and the panel lives in a page's DOM: a "symbol" that is
+  // four hundred characters of right-to-left overrides is a thing a token
+  // contract can absolutely return.
+  const clean =
+    typeof symbol === 'string' && symbol.trim() !== ''
+      ? // eslint-disable-next-line no-control-regex
+        symbol.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e]/g, '').trim().slice(0, 24)
+      : null;
+
+  const meta = {
+    symbol: clean === '' ? null : clean,
+    decimals: typeof decimals === 'number' && Number.isInteger(decimals) ? decimals : null,
+  };
+  if (cache.size >= META_CACHE_MAX) cache.clear();
+  cache.set(key, meta);
+  return meta;
+}
+
 /** Never let an internal message reach the UI verbatim — it may quote inputs. */
 function toError(e: unknown): Response<never> {
   if (e instanceof KeystoreError) return fail(e.code, e.message);
@@ -146,6 +210,7 @@ export function createRouter(deps: RouterDeps) {
   const { store, session, kdf, trade, settings, pending, withdrawer, consent, onPendingChange, onConsentChange } =
     deps;
   const autoLockMs = deps.autoLockMs ?? DEFAULT_AUTO_LOCK_MS;
+  const metaCache = new Map<string, TokenMeta>();
 
   async function status(): Promise<WalletStatus> {
     const set = await store.readSet();
@@ -399,6 +464,17 @@ export function createRouter(deps: RouterDeps) {
 
         case 'chain.stats':
           return { ok: true, data: await fetchStats() };
+
+        case 'token.meta': {
+          if (!trade) return fail('UNAVAILABLE', 'chain access is not wired up in this build');
+          let token: Address;
+          try {
+            token = getAddress(request.token);
+          } catch {
+            return fail('BAD_REQUEST', 'that is not an address');
+          }
+          return { ok: true, data: await tokenMeta(metaCache, trade.client, token) };
+        }
 
         case 'history.list': {
           const owner = session.address;

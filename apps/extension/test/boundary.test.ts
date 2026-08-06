@@ -225,11 +225,19 @@ describe('surface policy', () => {
     //                  so. A page that could silently point someone at their
     //                  largest wallet and then propose a buy would be a real
     //                  escalation; making the switch cost the arming removes it.
+    //   token.meta     a token's own ERC-20 symbol and decimals. Public chain
+    //                  data about an address the page is already showing, so it
+    //                  names no wallet and says nothing about who asked. It is
+    //                  here because the panel must never take a ticker from the
+    //                  page: a post is attacker-controlled text, and "$USDC"
+    //                  typed beside an address that is something else is the
+    //                  substitution the chain gates exist to stop (D-076).
     const pageAllowed = (Object.keys(ALLOWED_SURFACES) as RequestType[]).filter((t) => isAllowed(t, 'page')).sort();
     expect(pageAllowed).toEqual([
       'chain.stats',
       'settings.get',
       'settings.setPresets',
+      'token.meta',
       'trade.quote',
       'trade.request',
       'trade.warm',
@@ -901,5 +909,102 @@ describe('the fee cap is read from settings, never from the message', () => {
     const { handle, plans } = withPlanSpy({ profiles: [{ buyPresets: ['0.001'], slippageBps: 100, maxFeeGwei: '99999' }] });
     await handle(execute(), 'popup');
     expect(plans[0]!.maxFeePerGas).toBeUndefined();
+  });
+});
+
+
+/**
+ * `token.meta` — what a coin calls itself, read from the contract (P16, D-076).
+ *
+ * The panel prints this beside a buy button, so where it comes from is the
+ * whole point: a post is attacker-controlled text, and a ticker taken from one
+ * would help exactly the substitution the per-row chain gates exist to stop.
+ * These pin that it comes from the chain, that a hostile contract cannot use it
+ * to inject anything, and that an address which is not a token says so.
+ */
+describe('token.meta', () => {
+  const TOKEN = '0xB84e494158976B4e14da155d1cdaE16EB6D1C477';
+
+  function withToken(reads: Record<string, unknown> | ((fn: string) => unknown)) {
+    const calls: string[] = [];
+    const handle = createRouter({
+      store: new VaultStore(memoryArea()),
+      session: new KeystoreSession(),
+      kdf: TEST_KDF,
+      trade: {
+        venues: { resolve: async () => null } as never,
+        engine: {} as never,
+        chainId: 4663,
+        client: {
+          async readContract({ functionName }: { functionName: string }) {
+            calls.push(functionName);
+            const v = typeof reads === 'function' ? reads(functionName) : reads[functionName];
+            if (v instanceof Error) throw v;
+            return v;
+          },
+        } as never,
+        watchlist: { async list() { return []; }, async add() {} },
+      },
+    });
+    return { handle, calls };
+  }
+
+  it('is readable by a page — it names no wallet', () => {
+    expect(isAllowed('token.meta', 'page')).toBe(true);
+    expect(NEVER_PAGE_ACCESSIBLE).not.toContain('token.meta');
+  });
+
+  it('returns the symbol and decimals off the contract', async () => {
+    const { handle } = withToken({ symbol: 'YEW', decimals: 18 });
+    const res = await handle({ type: 'token.meta', token: TOKEN }, 'page');
+    expect(res).toMatchObject({ ok: true, data: { symbol: 'YEW', decimals: 18 } });
+  });
+
+  it('answers null rather than failing when the address is not a token', async () => {
+    // The panel then shows the address alone, which is honest — the address is
+    // what was actually on the page.
+    const { handle } = withToken(() => new Error('execution reverted'));
+    const res = await handle({ type: 'token.meta', token: TOKEN }, 'page');
+    expect(res).toMatchObject({ ok: true, data: { symbol: null, decimals: null } });
+  });
+
+  it('strips control characters a contract can put in its own symbol', async () => {
+    // A "symbol" is whatever the contract returns, and this string is drawn
+    // into a panel living in a page's DOM. A right-to-left override and a
+    // zero-width space are how a ticker is made to read as another one.
+    const { handle } = withToken({ symbol: 'YE‮W​ ', decimals: 18 });
+    const res = (await handle({ type: 'token.meta', token: TOKEN }, 'page')) as { data: { symbol: string } };
+    expect(res.data.symbol).toBe('YEW');
+  });
+
+  it('truncates a symbol long enough to be a layout attack', async () => {
+    const { handle } = withToken({ symbol: 'A'.repeat(400), decimals: 18 });
+    const res = (await handle({ type: 'token.meta', token: TOKEN }, 'page')) as { data: { symbol: string } };
+    expect(res.data.symbol.length).toBeLessThanOrEqual(24);
+  });
+
+  it('treats a blank symbol as none, not as an empty label', async () => {
+    const { handle } = withToken({ symbol: '   ', decimals: 18 });
+    const res = (await handle({ type: 'token.meta', token: TOKEN }, 'page')) as { data: { symbol: null } };
+    expect(res.data.symbol).toBeNull();
+  });
+
+  it('refuses something that is not an address', async () => {
+    const { handle } = withToken({ symbol: 'X', decimals: 18 });
+    const res = await handle({ type: 'token.meta', token: 'not-an-address' as never }, 'page');
+    expect(res).toMatchObject({ ok: false, error: { code: 'BAD_REQUEST' } });
+  });
+
+  it('reads each address once — a feed rescans constantly', async () => {
+    const { handle, calls } = withToken({ symbol: 'YEW', decimals: 18 });
+    for (let i = 0; i < 5; i++) await handle({ type: 'token.meta', token: TOKEN }, 'page');
+    // Two reads for the first ask, nothing after it.
+    expect(calls).toEqual(['symbol', 'decimals']);
+  });
+
+  it('is unavailable rather than throwing when chain access is not wired up', async () => {
+    const handle = createRouter({ store: new VaultStore(memoryArea()), session: new KeystoreSession(), kdf: TEST_KDF });
+    const res = await handle({ type: 'token.meta', token: TOKEN }, 'page');
+    expect(res).toMatchObject({ ok: false, error: { code: 'UNAVAILABLE' } });
   });
 });

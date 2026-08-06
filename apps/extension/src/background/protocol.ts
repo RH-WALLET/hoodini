@@ -135,6 +135,21 @@ export type Request =
    */
   | { readonly type: 'chain.stats' }
   /**
+   * A token's name on chain: its ERC-20 `symbol`, and its decimals.
+   *
+   * Exists because the panel must never take a ticker from the page. A post is
+   * attacker-controlled text, and "$USDC" typed beside an address that is
+   * something else entirely is exactly the confusion the per-row chain gates
+   * exist to prevent (D-050, D-074). A ticker read from the page and printed on
+   * a buy button would make this extension complicit in it; a ticker read from
+   * the contract contradicts it, which is worth more than showing nothing.
+   *
+   * Page-allowed. The reply is public chain data about an address the page
+   * already displayed, so it discloses nothing about who asked — the same
+   * reasoning as `trade.quote` and `chain.stats`.
+   */
+  | { readonly type: 'token.meta'; readonly token: Address }
+  /**
    * This wallet's sent transactions.
    *
    * Popup-only, and it names the address to a third party by construction —
@@ -260,6 +275,11 @@ export const ALLOWED_SURFACES: Readonly<Record<RequestType, readonly Surface[]>>
   // the same numbers are on every block explorer. The panel prints gas beside
   // the buttons, which is the point of showing it at all (D-069).
   'chain.stats': ['popup', 'page'],
+  // Public chain data about an address the page is already showing. It names
+  // no wallet and reveals nothing about who is asking, and the panel cannot
+  // honestly print a ticker without it — the alternative is scraping one from
+  // the page, which is the thing this message exists to avoid (D-076).
+  'token.meta': ['popup', 'page'],
   'history.list': ['popup'],
   'approvals.list': ['popup'],
   'approvals.revoke': ['popup'],
