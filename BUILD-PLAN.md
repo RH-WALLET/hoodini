@@ -319,3 +319,44 @@ The step D-026 deferred: a page proposes, extension UI approves, and
 - [ ] **Rory:** a 1280×800 screenshot, hosted privacy URL
 - [ ] **Rory:** submit to the Chrome Web Store (publishing is his call)
 - [ ] **Rory:** token CA into `docs/index.html` once launched (the page moved to the docs root so GitHub Pages serves it)
+
+## [ ] P14 — Fees in a profile
+
+Rory asked for gas and priority in P1/P2/P3, so a profile becomes a full trading
+configuration rather than amounts plus slippage. Deliberately not started at the
+end of the session it was asked in: this is the only item on the list that
+changes the code path which signs, and a half-finished fee change is a
+half-finished send path.
+
+**Read first:** `apps/extension/src/background/engine.ts` (`#send`, and the
+three pre-sign reads that were made concurrent in D-057), `packages/core/src/settings.ts`
+(`Profile`, added in D-066), `packages/core/src/keystore/session.ts`.
+
+- [ ] `Profile` gains `maxFeeGwei` and `priorityGwei`, both optional. Absent
+      means "whatever the node suggests", which is what happens today via
+      `estimateFeesPerGas` — so an existing profile keeps behaving identically
+      and the feature is opt-in per profile.
+- [ ] `normaliseSettings` bounds them the way it bounds slippage: a ceiling that
+      stops a typo becoming a transaction, not a safety mechanism. The engine's
+      canary limit and `LIVE_TRADING` remain the things that actually gate a
+      send, and they sit at the boundary where they cannot be bypassed.
+- [ ] The engine reads the fee from the plan rather than the settings store.
+      Passing it down keeps the engine free of storage and keeps the value that
+      was *shown on the confirm sheet* the value that gets signed — the same
+      reasoning as D-061, where a field dropped between propose and execute
+      silently changed the trade.
+- [ ] The withdrawer's sweep already reserves fee at `maxFeePerGas` (D-056). A
+      profile that raises that cap changes what a sweep leaves behind, so the
+      two have to be read together or Max will start failing.
+- [ ] The confirm sheet shows the fee cap it will sign with, beside the
+      slippage. The panel's config strip already has the room.
+- [ ] Tests: an over-cap fee is refused, an absent fee still estimates, the
+      sheet's number is the number signed, and a sweep still succeeds under a
+      raised cap.
+
+**Worth knowing before spending much on it.** This is an Arbitrum Orbit L2, so
+there is no priority-fee auction of the kind Solana traders are used to. The
+canary paid **0.025 gwei**, and the whole buy-and-sell round trip cost about
+1/84th of a cent (D-060, D-062). A priority control here is real but buys very
+little; the honest version of this feature may be a fee *cap* for safety rather
+than a fee *bid* for speed.
